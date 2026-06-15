@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/packr-core",
+    "crates/packr-cli",
+    "crates/packr-mcp",
+    "src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+authors = ["Packr contributors"]
+repository = "https://github.com/packr/packr"
+rust-version = "1.80"
+
+[workspace.dependencies]
+packr-core = { path = "crates/packr-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "2"
+
+# Size-optimized release profile (applies to all workspace members)
+[profile.release]
+opt-level = "z"     # optimize for size
+lto = true          # link-time optimization
+codegen-units = 1   # better optimization, smaller binary
+panic = "abort"     # no unwinding tables
+strip = true        # strip symbols

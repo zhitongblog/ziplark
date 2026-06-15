@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Packr</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">P</div>
+        <div>
+          <h1>Packr</h1>
+          <p class="tagline">Free · fast · every archive</p>
+        </div>
+      </div>
+      <nav class="tabs">
+        <button class="tab active" data-view="open">Open</button>
+        <button class="tab" data-view="create">Create</button>
+      </nav>
+    </header>
+
+    <main>
+      <!-- OPEN / EXTRACT VIEW -->
+      <section id="view-open" class="view active">
+        <div id="open-drop" class="dropzone">
+          <div class="drop-inner">
+            <div class="drop-icon">📦</div>
+            <p><strong>Drop an archive here</strong></p>
+            <p class="muted">or</p>
+            <button id="btn-open" class="primary">Choose archive…</button>
+            <p class="muted small">ZIP · RAR · 7z · tar · gz · bz2 · xz · zst</p>
+          </div>
+        </div>
+
+        <div id="archive-panel" class="panel hidden">
+          <div class="panel-head">
+            <div>
+              <h2 id="arc-name">archive</h2>
+              <p id="arc-meta" class="muted small"></p>
+            </div>
+            <div class="panel-actions">
+              <button id="btn-test" class="ghost">Verify</button>
+              <button id="btn-extract" class="primary">Extract all…</button>
+              <button id="btn-close" class="ghost">Close</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="entries">
+              <thead>
+                <tr><th>Name</th><th class="num">Size</th><th>Type</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- CREATE VIEW -->
+      <section id="view-create" class="view">
+        <div id="create-drop" class="dropzone small">
+          <div class="drop-inner">
+            <p><strong>Drop files &amp; folders here</strong> or
+              <button id="btn-add" class="link">add…</button>
+            </p>
+          </div>
+        </div>
+
+        <ul id="input-list" class="input-list"></ul>
+
+        <div class="create-options">
+          <label>Format
+            <select id="fmt">
+              <option value="zip">ZIP (.zip)</option>
+              <option value="7z">7-Zip (.7z)</option>
+              <option value="tar.gz">Tar + gzip (.tar.gz)</option>
+              <option value="tar.zst">Tar + zstd (.tar.zst)</option>
+              <option value="tar.xz">Tar + xz (.tar.xz)</option>
+              <option value="tar.bz2">Tar + bzip2 (.tar.bz2)</option>
+              <option value="tar">Tar (.tar)</option>
+            </select>
+          </label>
+          <label>Compression
+            <select id="level">
+              <option value="default">Default</option>
+              <option value="best">Best (smallest)</option>
+              <option value="fast">Fast</option>
+              <option value="store">Store (none)</option>
+            </select>
+          </label>
+          <label>Password <span class="muted small">(ZIP / 7z · optional)</span>
+            <input id="pw-create" type="password" placeholder="leave empty for none" autocomplete="off" />
+          </label>
+        </div>
+
+        <div class="create-foot">
+          <button id="btn-clear" class="ghost">Clear</button>
+          <button id="btn-create" class="primary" disabled>Create archive…</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- password modal -->
+    <div id="pw-modal" class="modal hidden">
+      <div class="modal-card">
+        <h3>Password required</h3>
+        <p class="muted small" id="pw-modal-msg">This archive is encrypted.</p>
+        <input id="pw-input" type="password" placeholder="Password" autocomplete="off" />
+        <div class="modal-actions">
+          <button id="pw-cancel" class="ghost">Cancel</button>
+          <button id="pw-ok" class="primary">Unlock</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="busy" class="busy hidden"><div class="spinner"></div><span id="busy-msg">Working…</span></div>
+
+    <script src="main.js"></script>
+  </body>
+</html>

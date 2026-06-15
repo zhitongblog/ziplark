@@ -1,0 +1,35 @@
+[package]
+name = "packr-core"
+description = "Free, fast, cross-platform archive engine (extract & create). Shared core for the Packr GUI, CLI and MCP server."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+# ZIP: read + write, AES-256, deflate, bzip2, zstd, lzma
+zip = { version = "2.2", default-features = false, features = ["aes-crypto", "deflate", "bzip2", "zstd", "lzma", "time"] }
+# tar (uncompressed container)
+tar = "0.4"
+# gzip / deflate streams
+flate2 = "1"
+# bzip2 streams
+bzip2 = "0.4"
+# xz / lzma streams
+xz2 = "0.1"
+# zstd standalone streams (.zst)
+zstd = "0.13"
+# timestamp conversion (re-uses the copy already pulled in by zip's `time` feature)
+time = { version = "0.3", default-features = false }
+# 7z: pure-Rust read + write (aes256 = encrypted .7z support)
+sevenz-rust2 = { version = "0.13", features = ["aes256"] }
+# RAR (incl. RAR5) extraction via bundled libunrar (extract-only; creating RAR is proprietary)
+unrar = "0.5"
+
+[features]
+default = []
