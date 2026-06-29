@@ -37,7 +37,7 @@ export APPLE_SIGNING_IDENTITY="$SIGNING_IDENTITY"
 echo "▶ Building + signing universal .dmg…"
 "$TAURI" build --target universal-apple-darwin --bundles app,dmg
 
-DMG="$(ls -t target/universal-apple-darwin/release/bundle/dmg/*.dmg src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg 2>/dev/null | head -1)"
+DMG="$(ls -t target/universal-apple-darwin/release/bundle/dmg/*.dmg 2>/dev/null | head -1 || true)"
 [[ -f "$DMG" ]] || { echo "✗ no .dmg produced" >&2; exit 1; }
 echo "▶ Built: $DMG"
 
