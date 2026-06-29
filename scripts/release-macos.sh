@@ -50,7 +50,7 @@ spctl --assess --type install --verbose "$DMG" || true
 
 OUT="/tmp/Ziplark-${TAG}-macos-universal.dmg"
 cp "$DMG" "$OUT"
-echo "▶ Uploading $OUT to release $TAG…"
+echo "▶ Uploading $OUT to release ${TAG} ..."
 gh release upload "$TAG" "$OUT" --clobber
 
 echo "✓ Done — notarized $(basename "$OUT") attached to release $TAG"
