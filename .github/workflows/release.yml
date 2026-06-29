@@ -1,0 +1,123 @@
+name: Release
+# Builds and attaches downloadable artifacts to a GitHub release:
+#   • CLI + MCP binaries for Linux, Windows, Intel-Mac and Apple-Silicon
+#   • Desktop installers for Linux (.deb/.AppImage) and Windows (.msi/.exe)
+# The macOS desktop app (.dmg) is built, signed and *notarized* on the
+# maintainer's Mac (see scripts/release-macos.sh) and uploaded separately.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and attach artifacts to (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Ensure release exists
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Packr ${{ steps.tag.outputs.tag }}
+          draft: false
+          fail_on_unmatched_files: false
+
+  cli:
+    needs: create-release
+    name: cli ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build CLI + MCP (release)
+        run: cargo build --release --target ${{ matrix.target }} -p packr-cli -p packr-mcp
+      - name: Package (unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          tag="${{ needs.create-release.outputs.tag }}"
+          dir="packr-${tag}-${{ matrix.target }}"
+          mkdir "$dir"
+          cp "target/${{ matrix.target }}/release/packr" \
+             "target/${{ matrix.target }}/release/packr-mcp" \
+             README.md LICENSE "$dir/"
+          tar czf "$dir.tar.gz" "$dir"
+          shasum -a 256 "$dir.tar.gz" > "$dir.tar.gz.sha256"
+          echo "ASSETS=$dir.tar.gz"$'\n'"$dir.tar.gz.sha256" >> "$GITHUB_ENV"
+      - name: Package (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $tag = "${{ needs.create-release.outputs.tag }}"
+          $dir = "packr-$tag-${{ matrix.target }}"
+          New-Item -ItemType Directory -Path $dir | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/packr.exe",
+                    "target/${{ matrix.target }}/release/packr-mcp.exe",
+                    README.md, LICENSE $dir
+          Compress-Archive -Path $dir -DestinationPath "$dir.zip"
+          (Get-FileHash "$dir.zip" -Algorithm SHA256).Hash.ToLower() + "  $dir.zip" |
+            Out-File -Encoding ascii "$dir.zip.sha256"
+          "ASSETS=$dir.zip`n$dir.zip.sha256" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag }}
+          files: ${{ env.ASSETS }}
+
+  desktop:
+    needs: create-release
+    name: desktop ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, bundles: "deb,appimage" }
+          - { os: windows-latest, bundles: "msi,nsis" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux webkit deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Build & upload desktop installers
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ needs.create-release.outputs.tag }}
+          releaseName: Packr ${{ needs.create-release.outputs.tag }}
+          args: --bundles ${{ matrix.bundles }}
