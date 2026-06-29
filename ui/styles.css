@@ -46,12 +46,7 @@ body {
   background: var(--surface);
 }
 .brand { display: flex; align-items: center; gap: 12px; }
-.logo {
-  width: 40px; height: 40px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-press));
-  color: #fff; font-weight: 800; font-size: 22px;
-  display: grid; place-items: center;
-}
+.logo { width: 40px; height: 40px; border-radius: 10px; display: block; }
 .brand h1 { font-size: 17px; margin: 0; }
 .tagline { margin: 0; color: var(--muted); font-size: 12px; }
 

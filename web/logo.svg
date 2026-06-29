@@ -1,0 +1,32 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <!-- crested lark in flight, ascending to upper-right -->
+  <g fill="#fff">
+    <!-- body + head + crest + beak as one flowing silhouette -->
+    <path d="M250 300
+             C 250 250, 268 214, 300 196
+             C 296 178, 300 158, 318 150
+             C 314 168, 322 180, 334 186
+             C 352 184, 366 196, 366 214
+             L 388 206 L 372 226
+             C 372 250, 356 270, 330 280
+             C 312 332, 286 360, 250 372
+             C 256 344, 252 320, 250 300 Z"/>
+    <!-- upper wing, swept up and back -->
+    <path d="M286 232
+             C 232 196, 170 188, 120 206
+             C 168 214, 210 236, 248 268
+             C 262 258, 274 246, 286 232 Z"/>
+    <!-- lower wing, swept down -->
+    <path d="M268 296
+             C 220 312, 176 344, 150 388
+             C 196 360, 240 344, 286 340
+             C 280 326, 274 310, 268 296 Z"/>
+  </g>
+</svg>
