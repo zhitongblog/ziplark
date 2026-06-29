@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ziplark — Every archive. One small app.</title>
+  <meta name="description" content="Ziplark is a free, fast, cross-platform archiver. Extract ZIP, RAR, 7z and tar; create ZIP (AES-256), 7z and tar. Desktop app, CLI, and MCP server — one small Rust engine." />
+  <meta name="theme-color" content="#0e0f17" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <meta property="og:title" content="Ziplark — Every archive. One small app." />
+  <meta property="og:description" content="Free, fast, cross-platform archiver. ZIP · RAR · 7z · tar. Desktop + CLI + MCP." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ziplark.com" />
+  <meta property="og:image" content="https://ziplark.com/icon.png" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="/">
+      <img src="/icon.png" alt="" width="30" height="30" />
+      <span>Ziplark</span>
+    </a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#formats">Formats</a>
+      <a href="#tools">CLI &amp; MCP</a>
+      <a href="#download">Download</a>
+      <a href="https://github.com/zhitongblog/ziplark" rel="noopener">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <p class="eyebrow">Free &amp; open source · GPL-3.0</p>
+      <h1>Every archive.<br /><span class="grad">One small app.</span></h1>
+      <p class="lede">
+        Ziplark extracts <strong>ZIP, RAR, 7z and tar</strong>, and creates
+        <strong>ZIP (AES-256), 7z and tar</strong> — from a 1.4&nbsp;MB binary.
+        One Rust engine, three ways to drive it: a desktop app, a command-line
+        tool, and an MCP server.
+      </p>
+      <div class="cta">
+        <a id="primary-dl" class="btn primary" href="#download">Download for your OS</a>
+        <a class="btn ghost" href="https://github.com/zhitongblog/ziplark" rel="noopener">Star on GitHub</a>
+      </div>
+      <p class="hero-note" id="os-note">Universal macOS build is notarized · Windows &amp; Linux installers included</p>
+    </section>
+
+    <section class="badges">
+      <div><b>~1.4 MB</b><span>engine + CLI</span></div>
+      <div><b>3 OSes</b><span>macOS · Windows · Linux</span></div>
+      <div><b>0 trackers</b><span>no telemetry, ever</span></div>
+      <div><b>Notarized</b><span>signed macOS app</span></div>
+    </section>
+
+    <section id="features" class="section">
+      <h2>Why Ziplark</h2>
+      <div class="grid">
+        <article class="card">
+          <div class="ic">🪶</div>
+          <h3>Small &amp; fast</h3>
+          <p>Size-optimized release build — LTO, stripped, <code>panic=abort</code>.
+             The desktop app uses the OS webview, so there's no bundled Chromium.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🛡️</div>
+          <h3>Safe by design</h3>
+          <p>Every extraction path funnels through a single zip-slip guard. No entry
+             can ever escape the destination folder — not from a crafted ZIP, RAR or tar.</p>
+        </article>
+        <article class="card">
+          <div class="ic">⚙️</div>
+          <h3>One engine, three ways</h3>
+          <p>The GUI, CLI and MCP server are thin shells over one Rust core.
+             Whatever the app does, the CLI does identically — and scripts can too.</p>
+        </article>
+        <article class="card">
+          <div class="ic">📦</div>
+          <h3>Every common format</h3>
+          <p>ZIP, RAR (incl. RAR5 &amp; encrypted), 7z, tar and the compressed-tar
+             variants — plus single-stream gz/bz2/xz/zst.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="formats" class="section">
+      <h2>Format support</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Format</th><th>Extract</th><th>Create</th><th>Encryption</th></tr></thead>
+          <tbody>
+            <tr><td>ZIP</td><td class="y">✓</td><td class="y">✓</td><td>AES-256 (reads ZipCrypto)</td></tr>
+            <tr><td>7z</td><td class="y">✓</td><td class="y">✓</td><td>AES-256</td></tr>
+            <tr><td>RAR / RAR5</td><td class="y">✓</td><td class="n">—</td><td>reads encrypted</td></tr>
+            <tr><td>tar</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>tar.gz / .bz2 / .xz / .zst</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>gz / bz2 / xz / zst (single stream)</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint">RAR creation is intentionally unsupported — the RAR compression format is
+        proprietary. Extraction (including RAR5 and encrypted archives) works fully.</p>
+    </section>
+
+    <section id="tools" class="section">
+      <h2>Built for terminals and agents too</h2>
+      <div class="grid two">
+        <article class="card">
+          <h3>CLI — <code>ziplark</code></h3>
+          <p>List, extract, create and verify any archive. <code>--json</code> on every
+             command for scripting.</p>
+          <pre><code>ziplark list  movie.rar
+ziplark extract photos.zip -o ./out
+ziplark create backup.tar.zst ./src --level best
+ziplark create secret.zip ./private --password hunter2
+ziplark test  download.7z</code></pre>
+        </article>
+        <article class="card">
+          <h3>MCP server — <code>ziplark-mcp</code></h3>
+          <p>Drive Ziplark from any LLM over the Model Context Protocol. Read tools are
+             always on; writes are gated behind <code>--allow-write</code>.</p>
+          <pre><code>{
+  "mcpServers": {
+    "ziplark": {
+      "command": "ziplark-mcp",
+      "args": ["--allow-write"]
+    }
+  }
+}</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section id="download" class="section">
+      <h2>Download</h2>
+      <p class="dl-sub">Version <span id="ver">0.1.0</span> · free forever · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">all releases &amp; checksums</a></p>
+      <div class="dl-grid">
+        <div class="dl-card" data-os="mac">
+          <h3>macOS</h3>
+          <p class="muted">Universal · Apple Silicon &amp; Intel · notarized</p>
+          <a class="btn primary dl" data-asset="Ziplark-v{V}-macos-universal.dmg">Download .dmg</a>
+          <p class="alt">CLI only:
+            <a class="lnk" data-asset="ziplark-v{V}-aarch64-apple-darwin.tar.gz">arm64</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-apple-darwin.tar.gz">x64</a>
+          </p>
+        </div>
+        <div class="dl-card" data-os="win">
+          <h3>Windows</h3>
+          <p class="muted">x64 · installer</p>
+          <a class="btn primary dl" data-asset="Ziplark_{V}_x64_en-US.msi">Download .msi</a>
+          <p class="alt">
+            <a class="lnk" data-asset="Ziplark_{V}_x64-setup.exe">.exe setup</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-pc-windows-msvc.zip">CLI .zip</a>
+          </p>
+        </div>
+        <div class="dl-card" data-os="linux">
+          <h3>Linux</h3>
+          <p class="muted">x64 · Debian/Ubuntu &amp; AppImage</p>
+          <a class="btn primary dl" data-asset="Ziplark_{V}_amd64.AppImage">Download AppImage</a>
+          <p class="alt">
+            <a class="lnk" data-asset="Ziplark_{V}_amd64.deb">.deb</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-unknown-linux-gnu.tar.gz">CLI .tar.gz</a>
+          </p>
+        </div>
+      </div>
+      <p class="fineprint">Or build from source: <code>cargo build --release</code>. The desktop app
+        builds with <code>cargo tauri build</code>.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand">
+      <img src="/icon.png" alt="" width="22" height="22" />
+      <span>Ziplark</span>
+    </div>
+    <p>Free, fast, cross-platform archiver. Licensed <a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">GPL-3.0</a>.</p>
+    <p class="muted">© 2026 Ziplark · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+  </footer>
+
+  <script>
+    const VERSION = "0.1.0";
+    const BASE = "https://github.com/zhitongblog/ziplark/releases/download/v" + VERSION + "/";
+    document.getElementById("ver").textContent = VERSION;
+    // Wire every data-asset link to its release URL ({V} -> version).
+    for (const a of document.querySelectorAll("[data-asset]")) {
+      a.href = BASE + a.dataset.asset.replaceAll("{V}", VERSION);
+    }
+    // OS detection: point the hero button at the right installer + highlight card.
+    const ua = navigator.userAgent;
+    let os = "mac", label = "Download for macOS", asset = "Ziplark-v{V}-macos-universal.dmg";
+    if (/Windows/i.test(ua)) { os = "win"; label = "Download for Windows"; asset = "Ziplark_{V}_x64_en-US.msi"; }
+    else if (/Linux/i.test(ua) && !/Android/i.test(ua)) { os = "linux"; label = "Download for Linux"; asset = "Ziplark_{V}_amd64.AppImage"; }
+    const primary = document.getElementById("primary-dl");
+    primary.textContent = label;
+    primary.href = BASE + asset.replaceAll("{V}", VERSION);
+    const card = document.querySelector('.dl-card[data-os="' + os + '"]');
+    if (card) card.classList.add("recommended");
+  </script>
+</body>
+</html>
