@@ -1,9 +1,9 @@
-//! `packr` — the Packr command-line archiver.
+//! `ziplark` — the Ziplark command-line archiver.
 //!
-//! A thin shell over `packr-core`: list / extract / create / test / info.
+//! A thin shell over `ziplark-core`: list / extract / create / test / info.
 //! Designed to be the self-test driver and a scriptable tool (`--json`).
 
-use packr_core::{
+use ziplark_core::{
     create, detect, extract, list, test, CreateOptions, ExtractOptions, Format, Level, ListOptions,
     Progress,
 };
@@ -11,10 +11,10 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 const HELP: &str = "\
-packr — free, fast, cross-platform archiver
+ziplark — free, fast, cross-platform archiver
 
 USAGE:
-    packr <COMMAND> [ARGS]
+    ziplark <COMMAND> [ARGS]
 
 COMMANDS:
     list|l <archive>                 List archive contents
@@ -34,10 +34,10 @@ COMMON OPTIONS:
     -V, --version         Show version
 
 EXAMPLES:
-    packr x photos.zip -o ./out
-    packr c backup.tar.zst ./src ./README.md --level best
-    packr c secret.zip ./private --password hunter2
-    packr l movie.rar --json
+    ziplark x photos.zip -o ./out
+    ziplark c backup.tar.zst ./src ./README.md --level best
+    ziplark c secret.zip ./private --password hunter2
+    ziplark l movie.rar --json
 ";
 
 fn main() -> ExitCode {
@@ -45,7 +45,7 @@ fn main() -> ExitCode {
     match run(&args) {
         Ok(code) => code,
         Err(e) => {
-            eprintln!("packr: error: {e}");
+            eprintln!("ziplark: error: {e}");
             ExitCode::FAILURE
         }
     }
@@ -63,7 +63,7 @@ fn run(args: &[String]) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         "-V" | "--version" => {
-            println!("packr {}", env!("CARGO_PKG_VERSION"));
+            println!("ziplark {}", env!("CARGO_PKG_VERSION"));
             Ok(ExitCode::SUCCESS)
         }
         "list" | "l" | "ls" => cmd_list(&args[1..]),
@@ -72,7 +72,7 @@ fn run(args: &[String]) -> anyhow::Result<ExitCode> {
         "test" | "t" => cmd_test(&args[1..]),
         "info" | "i" => cmd_info(&args[1..]),
         other => {
-            eprintln!("packr: unknown command '{other}'\n");
+            eprintln!("ziplark: unknown command '{other}'\n");
             print!("{HELP}");
             Ok(ExitCode::FAILURE)
         }

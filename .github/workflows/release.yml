@@ -35,7 +35,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: Packr ${{ steps.tag.outputs.tag }}
+          name: Ziplark ${{ steps.tag.outputs.tag }}
           draft: false
           fail_on_unmatched_files: false
 
@@ -60,39 +60,41 @@ jobs:
         with:
           key: ${{ matrix.target }}
       - name: Build CLI + MCP (release)
-        run: cargo build --release --target ${{ matrix.target }} -p packr-cli -p packr-mcp
+        run: cargo build --release --target ${{ matrix.target }} -p ziplark-cli -p ziplark-mcp
       - name: Package (unix)
         if: matrix.os != 'windows-latest'
         shell: bash
         run: |
           tag="${{ needs.create-release.outputs.tag }}"
-          dir="packr-${tag}-${{ matrix.target }}"
+          dir="ziplark-${tag}-${{ matrix.target }}"
           mkdir "$dir"
-          cp "target/${{ matrix.target }}/release/packr" \
-             "target/${{ matrix.target }}/release/packr-mcp" \
+          cp "target/${{ matrix.target }}/release/ziplark" \
+             "target/${{ matrix.target }}/release/ziplark-mcp" \
              README.md LICENSE "$dir/"
           tar czf "$dir.tar.gz" "$dir"
           shasum -a 256 "$dir.tar.gz" > "$dir.tar.gz.sha256"
-          echo "ASSETS=$dir.tar.gz"$'\n'"$dir.tar.gz.sha256" >> "$GITHUB_ENV"
       - name: Package (windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           $tag = "${{ needs.create-release.outputs.tag }}"
-          $dir = "packr-$tag-${{ matrix.target }}"
+          $dir = "ziplark-$tag-${{ matrix.target }}"
           New-Item -ItemType Directory -Path $dir | Out-Null
-          Copy-Item "target/${{ matrix.target }}/release/packr.exe",
-                    "target/${{ matrix.target }}/release/packr-mcp.exe",
+          Copy-Item "target/${{ matrix.target }}/release/ziplark.exe",
+                    "target/${{ matrix.target }}/release/ziplark-mcp.exe",
                     README.md, LICENSE $dir
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
           (Get-FileHash "$dir.zip" -Algorithm SHA256).Hash.ToLower() + "  $dir.zip" |
             Out-File -Encoding ascii "$dir.zip.sha256"
-          "ASSETS=$dir.zip`n$dir.zip.sha256" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.create-release.outputs.tag }}
-          files: ${{ env.ASSETS }}
+          files: |
+            ziplark-*.tar.gz
+            ziplark-*.tar.gz.sha256
+            ziplark-*.zip
+            ziplark-*.zip.sha256
 
   desktop:
     needs: create-release
@@ -119,5 +121,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ needs.create-release.outputs.tag }}
-          releaseName: Packr ${{ needs.create-release.outputs.tag }}
+          releaseName: Ziplark ${{ needs.create-release.outputs.tag }}
           args: --bundles ${{ matrix.bundles }}

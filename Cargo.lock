@@ -2293,55 +2293,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
-name = "packr-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "packr-core",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "packr-core"
-version = "0.1.0"
-dependencies = [
- "bzip2 0.4.4",
- "flate2",
- "serde",
- "sevenz-rust2",
- "tar",
- "thiserror 2.0.18",
- "time",
- "unrar",
- "xz2",
- "zip",
- "zstd",
-]
-
-[[package]]
-name = "packr-gui"
-version = "0.1.0"
-dependencies = [
- "packr-core",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
-]
-
-[[package]]
-name = "packr-mcp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "packr-core",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "pango"
 version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5248,6 +5199,55 @@ dependencies = [
  "zeroize",
  "zopfli",
  "zstd",
+]
+
+[[package]]
+name = "ziplark-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "ziplark-core",
+]
+
+[[package]]
+name = "ziplark-core"
+version = "0.1.0"
+dependencies = [
+ "bzip2 0.4.4",
+ "flate2",
+ "serde",
+ "sevenz-rust2",
+ "tar",
+ "thiserror 2.0.18",
+ "time",
+ "unrar",
+ "xz2",
+ "zip",
+ "zstd",
+]
+
+[[package]]
+name = "ziplark-gui"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "ziplark-core",
+]
+
+[[package]]
+name = "ziplark-mcp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "ziplark-core",
 ]
 
 [[package]]

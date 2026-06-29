@@ -127,7 +127,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
 pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<TestReport> {
     // libunrar verifies each file's CRC on extraction, so we extract to a
     // throwaway directory and report any entry that fails.
-    let tmp = std::env::temp_dir().join(format!("packr-rartest-{}", std::process::id()));
+    let tmp = std::env::temp_dir().join(format!("ziplark-rartest-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
     let xopts = ExtractOptions {
         password: opts.password.clone(),

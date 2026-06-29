@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Packr",
+  "productName": "Ziplark",
   "version": "0.1.0",
-  "identifier": "app.packr.desktop",
+  "identifier": "app.ziplark.desktop",
   "build": {
     "frontendDist": "../ui"
   },
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Packr",
+        "title": "Ziplark",
         "width": 920,
         "height": 680,
         "minWidth": 640,
@@ -34,7 +34,7 @@
     ],
     "category": "Utility",
     "shortDescription": "Free, fast, cross-platform archiver",
-    "longDescription": "Packr extracts ZIP, RAR, 7z, tar.* and creates ZIP (AES-256), 7z, and tar archives — small, fast, and free."
+    "longDescription": "Ziplark extracts ZIP, RAR, 7z, tar.* and creates ZIP (AES-256), 7z, and tar archives — small, fast, and free."
   },
   "plugins": {}
 }

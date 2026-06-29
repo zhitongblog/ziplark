@@ -1,4 +1,4 @@
-# Packr
+# Ziplark
 
 **Free, fast, cross-platform archiver.** Extracts ZIP, RAR (incl. RAR5), 7z,
 tar and the common compressed-tar variants; creates ZIP (with AES-256), 7z and
@@ -17,20 +17,20 @@ CLI, and an MCP server.
 > RAR creation is intentionally unsupported — the RAR compression format is
 > proprietary. Extraction (including RAR5 and encrypted archives) is supported.
 
-## Why Packr
+## Why Ziplark
 - **Small.** Size-optimized release profile (`opt-level=z`, LTO, stripped,
   `panic=abort`). The desktop app uses the OS webview (no bundled Chromium).
 - **Safe.** Every extraction path is funneled through a single zip-slip guard —
   no entry can ever escape the destination directory.
 - **One engine.** The GUI, CLI and MCP server are thin shells over
-  [`packr-core`](crates/packr-core); whatever the CLI does, the app does
+  [`ziplark-core`](crates/ziplark-core); whatever the CLI does, the app does
   identically.
 
 ## Repository layout
 ```
-crates/packr-core   the archive engine (all formats, the security guard)
-crates/packr-cli    the `packr` command-line tool
-crates/packr-mcp    the MCP server (drive Packr from any LLM)
+crates/ziplark-core   the archive engine (all formats, the security guard)
+crates/ziplark-cli    the `ziplark` command-line tool
+crates/ziplark-mcp    the MCP server (drive Ziplark from any LLM)
 src-tauri           the Tauri 2 desktop app (Rust commands)
 ui                  the desktop frontend (vanilla HTML/CSS/JS)
 ```
@@ -39,7 +39,7 @@ ui                  the desktop frontend (vanilla HTML/CSS/JS)
 
 ```bash
 # dev run (opens the window)
-cargo tauri dev            # or: cargo run -p packr-gui
+cargo tauri dev            # or: cargo run -p ziplark-gui
 
 # build a release .app + .dmg (macOS), .exe/.msi (Windows), AppImage/deb (Linux)
 cargo tauri build
@@ -48,36 +48,36 @@ Drag an archive onto the window to inspect & extract it, or switch to **Create**
 to drag in files/folders, pick a format + compression level (and optional
 password), and save.
 
-## 2. CLI — `packr`
+## 2. CLI — `ziplark`
 
 ```bash
-cargo build --release -p packr-cli      # binary at target/release/packr
+cargo build --release -p ziplark-cli      # binary at target/release/ziplark
 
-packr list  movie.rar
-packr extract photos.zip -o ./out
-packr create backup.tar.zst ./src ./README.md --level best
-packr create secret.zip ./private --password hunter2
-packr test  download.7z
-packr info  mystery.bin
+ziplark list  movie.rar
+ziplark extract photos.zip -o ./out
+ziplark create backup.tar.zst ./src ./README.md --level best
+ziplark create secret.zip ./private --password hunter2
+ziplark test  download.7z
+ziplark info  mystery.bin
 ```
 Every command takes `--json` for scripting. `--include <PAT>` filters entries on
 extract; `--level store|fast|default|best` and `--password` apply to create.
 
-## 3. MCP server — `packr-mcp`
+## 3. MCP server — `ziplark-mcp`
 
 A Model Context Protocol server (JSON-RPC over stdio). Read tools
-(`packr_info`, `packr_list`, `packr_test`) are always available; the write tools
-(`packr_extract`, `packr_create`) require `--allow-write`.
+(`ziplark_info`, `ziplark_list`, `ziplark_test`) are always available; the write tools
+(`ziplark_extract`, `ziplark_create`) require `--allow-write`.
 
 ```bash
-cargo build --release -p packr-mcp
+cargo build --release -p ziplark-mcp
 ```
 Register it with an MCP client:
 ```json
 {
   "mcpServers": {
-    "packr": {
-      "command": "/path/to/target/release/packr-mcp",
+    "ziplark": {
+      "command": "/path/to/target/release/ziplark-mcp",
       "args": ["--allow-write"]
     }
   }

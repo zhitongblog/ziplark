@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Core window + dialog permissions for Packr.",
+  "description": "Core window + dialog permissions for Ziplark.",
   "windows": ["main"],
   "permissions": [
     "core:default",

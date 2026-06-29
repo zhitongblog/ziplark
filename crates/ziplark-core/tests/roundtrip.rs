@@ -1,7 +1,7 @@
-//! End-to-end tests for the Packr engine: every create format round-trips,
+//! End-to-end tests for the Ziplark engine: every create format round-trips,
 //! encryption works, the zip-slip guard holds, and RAR extraction works.
 
-use packr_core::*;
+use ziplark_core::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -9,14 +9,14 @@ use std::path::{Path, PathBuf};
 fn make_src(root: &Path) -> PathBuf {
     let src = root.join("src");
     fs::create_dir_all(src.join("sub")).unwrap();
-    fs::write(src.join("a.txt"), b"hello packr").unwrap();
+    fs::write(src.join("a.txt"), b"hello ziplark").unwrap();
     fs::write(src.join("sub/b.txt"), b"second file, somewhat compressible content ".repeat(20))
         .unwrap();
     src
 }
 
 fn tmp(name: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("packr-it-{}-{name}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("ziplark-it-{}-{name}", std::process::id()));
     let _ = fs::remove_dir_all(&d);
     fs::create_dir_all(&d).unwrap();
     d

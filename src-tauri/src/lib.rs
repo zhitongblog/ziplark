@@ -1,7 +1,7 @@
-//! Packr desktop backend. Thin Tauri commands over `packr-core` — all the real
+//! Ziplark desktop backend. Thin Tauri commands over `ziplark-core` — all the real
 //! work lives in the shared engine, so the GUI behaves identically to the CLI.
 
-use packr_core::{
+use ziplark_core::{
     create as core_create, detect, extract as core_extract, list as core_list, test as core_test,
     ArchiveInfo, CreateOptions, CreateReport, ExtractOptions, ExtractReport, Format, Level,
     ListOptions, TestReport,
@@ -97,5 +97,5 @@ pub fn run() {
             create_archive
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Packr");
+        .expect("error while running Ziplark");
 }

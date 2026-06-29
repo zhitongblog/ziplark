@@ -1,16 +1,16 @@
 [package]
-name = "packr-cli"
-description = "Packr command-line archiver — list/extract/create/test any archive."
+name = "ziplark-mcp"
+description = "Ziplark MCP server — drive the archive engine from any LLM (read-only by default; --allow-write to mutate)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "packr"
+name = "ziplark-mcp"
 path = "src/main.rs"
 
 [dependencies]
-packr-core = { workspace = true }
+ziplark-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

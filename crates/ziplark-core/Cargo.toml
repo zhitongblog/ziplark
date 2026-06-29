@@ -1,6 +1,6 @@
 [package]
-name = "packr-core"
-description = "Free, fast, cross-platform archive engine (extract & create). Shared core for the Packr GUI, CLI and MCP server."
+name = "ziplark-core"
+description = "Free, fast, cross-platform archive engine (extract & create). Shared core for the Ziplark GUI, CLI and MCP server."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

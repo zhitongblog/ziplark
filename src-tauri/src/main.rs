@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    packr_gui_lib::run()
+    ziplark_gui_lib::run()
 }

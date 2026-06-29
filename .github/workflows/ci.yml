@@ -17,9 +17,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Test engine + CLI + MCP
-        run: cargo test -p packr-core -p packr-cli -p packr-mcp
+        run: cargo test -p ziplark-core -p ziplark-cli -p ziplark-mcp
       - name: Build CLI + MCP (release)
-        run: cargo build --release -p packr-cli -p packr-mcp
+        run: cargo build --release -p ziplark-cli -p ziplark-mcp
 
   desktop:
     name: desktop build (${{ matrix.os }})
@@ -38,4 +38,4 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Build desktop app
-        run: cargo build -p packr-gui
+        run: cargo build -p ziplark-gui

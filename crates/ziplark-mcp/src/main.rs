@@ -1,11 +1,11 @@
-//! `packr-mcp` — a Model Context Protocol server exposing the Packr engine to
+//! `ziplark-mcp` — a Model Context Protocol server exposing the Ziplark engine to
 //! any LLM. Read operations (list / info / test) are always available; the
 //! mutating tools (extract / create) require the `--allow-write` flag.
 //!
 //! Transport: newline-delimited JSON-RPC 2.0 over stdin/stdout (the MCP stdio
 //! transport). Logs go to stderr so they never corrupt the protocol stream.
 
-use packr_core::{
+use ziplark_core::{
     create, detect, extract, list, test, CreateOptions, ExtractOptions, Format, Level, ListOptions,
 };
 use serde_json::{json, Value};
@@ -17,7 +17,7 @@ const PROTOCOL_VERSION: &str = "2024-11-05";
 fn main() {
     let allow_write = std::env::args().any(|a| a == "--allow-write");
     eprintln!(
-        "packr-mcp {} started (write tools: {})",
+        "ziplark-mcp {} started (write tools: {})",
         env!("CARGO_PKG_VERSION"),
         if allow_write { "enabled" } else { "disabled (read-only)" }
     );
@@ -35,7 +35,7 @@ fn main() {
         let req: Value = match serde_json::from_str(&line) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("packr-mcp: bad JSON: {e}");
+                eprintln!("ziplark-mcp: bad JSON: {e}");
                 continue;
             }
         };
@@ -57,7 +57,7 @@ fn handle(req: &Value, allow_write: bool) -> Option<Value> {
             json!({
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": { "tools": {} },
-                "serverInfo": { "name": "packr", "version": env!("CARGO_PKG_VERSION") }
+                "serverInfo": { "name": "ziplark", "version": env!("CARGO_PKG_VERSION") }
             }),
         )),
         // Notifications carry no id and expect no response.
@@ -89,19 +89,19 @@ fn tool_defs(allow_write: bool) -> Vec<Value> {
     let pw = json!({ "type": "string", "description": "Password for encrypted archives" });
     let mut tools = vec![
         json!({
-            "name": "packr_info",
+            "name": "ziplark_info",
             "description": "Detect an archive's format from its contents.",
             "inputSchema": { "type": "object", "required": ["path"],
                 "properties": { "path": { "type": "string" } } }
         }),
         json!({
-            "name": "packr_list",
+            "name": "ziplark_list",
             "description": "List the entries inside an archive (zip, 7z, rar, tar.*, gz/bz2/xz/zst).",
             "inputSchema": { "type": "object", "required": ["path"],
                 "properties": { "path": { "type": "string" }, "password": pw.clone() } }
         }),
         json!({
-            "name": "packr_test",
+            "name": "ziplark_test",
             "description": "Verify archive integrity by decompressing every entry.",
             "inputSchema": { "type": "object", "required": ["path"],
                 "properties": { "path": { "type": "string" }, "password": pw.clone() } }
@@ -109,7 +109,7 @@ fn tool_defs(allow_write: bool) -> Vec<Value> {
     ];
     if allow_write {
         tools.push(json!({
-            "name": "packr_extract",
+            "name": "ziplark_extract",
             "description": "Extract an archive into a destination directory.",
             "inputSchema": { "type": "object", "required": ["path", "dest"],
                 "properties": {
@@ -122,7 +122,7 @@ fn tool_defs(allow_write: bool) -> Vec<Value> {
                 } }
         }));
         tools.push(json!({
-            "name": "packr_create",
+            "name": "ziplark_create",
             "description": "Create an archive from files/directories. Format inferred from the output extension unless 'format' is given.",
             "inputSchema": { "type": "object", "required": ["output", "inputs"],
                 "properties": {
@@ -143,13 +143,13 @@ fn handle_call(id: Option<Value>, req: &Value, allow_write: bool) -> Value {
     let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
     let result: Result<String, String> = match name {
-        "packr_info" => call_info(&args),
-        "packr_list" => call_list(&args),
-        "packr_test" => call_test(&args),
-        "packr_extract" if allow_write => call_extract(&args),
-        "packr_create" if allow_write => call_create(&args),
-        "packr_extract" | "packr_create" => {
-            Err("write tools are disabled; start packr-mcp with --allow-write".into())
+        "ziplark_info" => call_info(&args),
+        "ziplark_list" => call_list(&args),
+        "ziplark_test" => call_test(&args),
+        "ziplark_extract" if allow_write => call_extract(&args),
+        "ziplark_create" if allow_write => call_create(&args),
+        "ziplark_extract" | "ziplark_create" => {
+            Err("write tools are disabled; start ziplark-mcp with --allow-write".into())
         }
         other => return error(id, -32602, &format!("unknown tool: {other}")),
     };

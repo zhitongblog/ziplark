@@ -1,8 +1,8 @@
-// Packr desktop frontend. Talks to the Rust engine via Tauri's invoke; all
-// archive work happens in packr-core, identical to the CLI.
+// Ziplark desktop frontend. Talks to the Rust engine via Tauri's invoke; all
+// archive work happens in ziplark-core, identical to the CLI.
 
 const T = window.__TAURI__ || null;
-const invoke = T ? T.core.invoke : async () => { throw new Error("Packr must run in the desktop app"); };
+const invoke = T ? T.core.invoke : async () => { throw new Error("Ziplark must run in the desktop app"); };
 const dialog = T ? T.dialog : null;
 const listen = T ? T.event.listen : null;
 

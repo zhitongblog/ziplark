@@ -1,7 +1,7 @@
-//! # packr-core
+//! # ziplark-core
 //!
-//! The Packr archive engine. One implementation of every archive operation,
-//! shared verbatim by the GUI, the CLI (`packr`) and the MCP server. Nothing
+//! The Ziplark archive engine. One implementation of every archive operation,
+//! shared verbatim by the GUI, the CLI (`ziplark`) and the MCP server. Nothing
 //! in this crate knows about a UI — it takes paths and options and does work.
 //!
 //! Supported formats:
