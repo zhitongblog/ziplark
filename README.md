@@ -63,6 +63,29 @@ ziplark info  mystery.bin
 Every command takes `--json` for scripting. `--include <PAT>` filters entries on
 extract; `--level store|fast|default|best` and `--password` apply to create.
 
+### Right-click (file-manager) integration
+
+Add **Extract here with Ziplark** and **Compress to ZIP with Ziplark** to your
+OS file manager's context menu:
+
+```bash
+ziplark shell-integration install      # enable
+ziplark shell-integration status       # show what's installed
+ziplark shell-integration uninstall    # remove
+```
+
+Per platform: **macOS** installs two Automator Quick Actions (Finder → right-click →
+Quick Actions); **Windows** adds per-user (`HKCU`, no admin) shell verbs on archive
+file types and on files/folders; **Linux** installs KDE service menus and Nautilus
+scripts. Every entry just calls the `ziplark` CLI (`extract-here` / `compress-zip`),
+so it follows wherever the binary lives. Both helper commands are also usable
+directly:
+
+```bash
+ziplark extract-here movie.zip         # → ./movie/ next to the archive
+ziplark compress-zip ./photos ./a.txt  # → ./Archive.zip next to them
+```
+
 ## 3. MCP server — `ziplark-mcp`
 
 A Model Context Protocol server (JSON-RPC over stdio). Read tools

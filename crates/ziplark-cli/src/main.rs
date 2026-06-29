@@ -7,8 +7,10 @@ use ziplark_core::{
     create, detect, extract, list, test, CreateOptions, ExtractOptions, Format, Level, ListOptions,
     Progress,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+
+mod shell_integration;
 
 const HELP: &str = "\
 ziplark — free, fast, cross-platform archiver
@@ -22,6 +24,10 @@ COMMANDS:
     create|c <output> <inputs...>    Create an archive (format from extension)
     test|t <archive>                 Verify archive integrity
     info <archive>                   Detect format
+    extract-here <archive...>        Extract each into a sibling folder (for menus)
+    compress-zip <item...>           Zip the items into a sibling .zip (for menus)
+    shell-integration <install|uninstall|status>
+                                     Manage the OS right-click (file-manager) menu
 
 COMMON OPTIONS:
     -p, --password <PW>   Password for encrypted archives
@@ -71,6 +77,9 @@ fn run(args: &[String]) -> anyhow::Result<ExitCode> {
         "create" | "c" | "a" | "add" => cmd_create(&args[1..]),
         "test" | "t" => cmd_test(&args[1..]),
         "info" | "i" => cmd_info(&args[1..]),
+        "extract-here" => cmd_extract_here(&args[1..]),
+        "compress-zip" => cmd_compress_zip(&args[1..]),
+        "shell-integration" | "shell" => shell_integration::run(&args[1..]),
         other => {
             eprintln!("ziplark: unknown command '{other}'\n");
             print!("{HELP}");
@@ -322,6 +331,134 @@ fn cmd_info(args: &[String]) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::FAILURE)
         }
     }
+}
+
+/// Strip the archive extension(s) from a file name, handling double extensions
+/// like `.tar.gz`. Returns the base name to use for a sibling extract folder.
+fn archive_stem(name: &str) -> String {
+    let l = name.to_ascii_lowercase();
+    for ext in [".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst"] {
+        if l.ends_with(ext) {
+            return name[..name.len() - ext.len()].to_string();
+        }
+    }
+    match name.rsplit_once('.') {
+        Some((stem, _)) if !stem.is_empty() => stem.to_string(),
+        _ => name.to_string(),
+    }
+}
+
+/// Pick a non-existent path by appending " (2)", " (3)", … before the extension
+/// if `path` already exists — so menu actions never clobber.
+fn unique_path(path: PathBuf) -> PathBuf {
+    if !path.exists() {
+        return path;
+    }
+    let parent = path.parent().unwrap_or(Path::new("."));
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+    let ext = path.extension().and_then(|s| s.to_str());
+    for n in 2..1000 {
+        let name = match ext {
+            Some(e) => format!("{stem} ({n}).{e}"),
+            None => format!("{stem} ({n})"),
+        };
+        let cand = parent.join(name);
+        if !cand.exists() {
+            return cand;
+        }
+    }
+    path
+}
+
+/// Best-effort macOS desktop notification (no-op elsewhere). Used so the
+/// right-click actions give visible feedback when launched from Finder.
+fn notify(title: &str, body: &str) {
+    if cfg!(target_os = "macos") {
+        let script = format!(
+            "display notification {:?} with title {:?}",
+            body, title
+        );
+        let _ = std::process::Command::new("osascript")
+            .arg("-e")
+            .arg(script)
+            .status();
+    }
+}
+
+/// `extract-here`: extract each archive into a sibling folder named after it.
+/// This is what the OS right-click "Extract here" menu invokes.
+fn cmd_extract_here(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    if p.positionals.is_empty() {
+        anyhow::bail!("extract-here requires at least one archive");
+    }
+    let mut done = 0usize;
+    let mut errors = Vec::new();
+    for a in &p.positionals {
+        let path = Path::new(a);
+        let parent = path.parent().unwrap_or(Path::new("."));
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or(a);
+        let dest = unique_path(parent.join(archive_stem(name)));
+        let opts = ExtractOptions {
+            password: p.password.clone(),
+            dest: dest.clone(),
+            overwrite: true,
+            include: Vec::new(),
+        };
+        match extract(a, &opts, None) {
+            Ok(r) => {
+                done += 1;
+                println!("extracted {} -> {}", a, r.dest.display());
+            }
+            Err(e) => errors.push(format!("{a}: {e}")),
+        }
+    }
+    if errors.is_empty() {
+        notify("Ziplark", &format!("Extracted {done} archive(s)"));
+        Ok(ExitCode::SUCCESS)
+    } else {
+        let msg = errors.join("; ");
+        notify("Ziplark — extract failed", &msg);
+        anyhow::bail!(msg)
+    }
+}
+
+/// `compress-zip`: zip the given files/folders into a sibling .zip.
+/// This is what the OS right-click "Compress to ZIP" menu invokes.
+fn cmd_compress_zip(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    if p.positionals.is_empty() {
+        anyhow::bail!("compress-zip requires at least one file or folder");
+    }
+    let first = Path::new(&p.positionals[0]);
+    let parent = first.parent().unwrap_or(Path::new(".")).to_path_buf();
+    let out = if p.positionals.len() == 1 {
+        let base = first.file_name().and_then(|s| s.to_str()).unwrap_or("Archive");
+        parent.join(format!("{base}.zip"))
+    } else {
+        parent.join("Archive.zip")
+    };
+    let out = unique_path(out);
+    let inputs: Vec<PathBuf> = p.positionals.iter().map(PathBuf::from).collect();
+    let opts = CreateOptions {
+        format: Format::Zip,
+        level: parse_level(&p.level)?,
+        password: p.password,
+    };
+    let report = create(&out, &inputs, &opts, None)?;
+    println!(
+        "created {} ({} entries)",
+        report.output.display(),
+        report.entries_added
+    );
+    notify(
+        "Ziplark",
+        &format!(
+            "Created {}",
+            out.file_name().and_then(|s| s.to_str()).unwrap_or("archive")
+        ),
+    );
+    Ok(ExitCode::SUCCESS)
 }
 
 /// Fall back to extension-based format guessing for non-existent output files
