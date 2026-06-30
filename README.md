@@ -1,9 +1,33 @@
+<div align="center">
+
 # Ziplark
+
+[![CI](https://github.com/zhitongblog/ziplark/actions/workflows/ci.yml/badge.svg)](https://github.com/zhitongblog/ziplark/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/zhitongblog/ziplark?color=6366f1)](https://github.com/zhitongblog/ziplark/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/zhitongblog/ziplark/total?color=6366f1)](https://github.com/zhitongblog/ziplark/releases)
+[![Stars](https://img.shields.io/github/stars/zhitongblog/ziplark?style=flat&color=6366f1)](https://github.com/zhitongblog/ziplark/stargazers)
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
+[![Website](https://img.shields.io/badge/ziplark.com-6366f1?logo=safari&logoColor=white)](https://ziplark.com)
 
 **Free, fast, cross-platform archiver.** Extracts ZIP, RAR (incl. RAR5), 7z,
 tar and the common compressed-tar variants; creates ZIP (with AES-256), 7z and
 tar archives. One small Rust engine, three ways to drive it: a desktop app, a
 CLI, and an MCP server.
+
+[**Download**](https://ziplark.com/#download) · [Website](https://ziplark.com) · [Report a bug](https://github.com/zhitongblog/ziplark/issues)
+
+</div>
+
+## Install
+
+```bash
+# macOS — Homebrew
+brew install --cask zhitongblog/tap/ziplark   # desktop app
+brew install zhitongblog/tap/ziplark          # CLI + MCP (ziplark, ziplark-mcp)
+```
+
+Or grab a build for any platform from the [releases page](https://github.com/zhitongblog/ziplark/releases/latest)
+(macOS `.dmg`, Windows `.msi`/`.exe`, Linux `.deb`/`.AppImage`, and CLI archives).
 
 | | Read / Extract | Create | Encryption |
 |---|:---:|:---:|---|
