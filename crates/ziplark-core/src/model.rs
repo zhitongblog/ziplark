@@ -20,12 +20,14 @@ pub enum Format {
     Zst,
     Lz4,
     TarLz4,
+    /// ISO 9660 / Joliet disc image (extract-only).
+    Iso,
 }
 
 impl Format {
     /// Whether the engine can create (write) this format.
     pub fn can_create(self) -> bool {
-        !matches!(self, Format::Rar)
+        !matches!(self, Format::Rar | Format::Iso)
     }
 
     /// Human-readable label.
@@ -45,6 +47,7 @@ impl Format {
             Format::Zst => "ZSTD",
             Format::Lz4 => "LZ4",
             Format::TarLz4 => "TAR.LZ4",
+            Format::Iso => "ISO",
         }
     }
 
@@ -65,6 +68,7 @@ impl Format {
             Format::Zst => "zst",
             Format::Lz4 => "lz4",
             Format::TarLz4 => "tar.lz4",
+            Format::Iso => "iso",
         }
     }
 }

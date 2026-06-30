@@ -10,9 +10,9 @@
 [![Website](https://img.shields.io/badge/ziplark.com-6366f1?logo=safari&logoColor=white)](https://ziplark.com)
 
 **Free, fast, cross-platform archiver.** Extracts ZIP, RAR (incl. RAR5), 7z,
-tar and the common compressed-tar variants; creates ZIP (with AES-256), 7z and
-tar archives. One small Rust engine, three ways to drive it: a desktop app, a
-CLI, and an MCP server.
+tar, ISO and the common compressed-tar variants; creates ZIP (with AES-256), 7z
+and tar archives. One small Rust engine, three ways to drive it: a desktop app,
+a CLI, and an MCP server.
 
 [**Download**](https://ziplark.com/#download) · [Website](https://ziplark.com) · [Report a bug](https://github.com/zhitongblog/ziplark/issues)
 
@@ -44,9 +44,11 @@ Or grab a build for any platform from the [releases page](https://github.com/zhi
 | tar | ✅ | ✅ | — |
 | tar.gz / .bz2 / .xz / .zst / .lz4 | ✅ | ✅ | — |
 | gz / bz2 / xz / zst / lz4 (single stream) | ✅ | ✅ | — |
+| ISO 9660 / Joliet (disc image) | ✅ | — | — |
 
-> RAR creation is intentionally unsupported — the RAR compression format is
-> proprietary. Extraction (including RAR5 and encrypted archives) is supported.
+> RAR and ISO are extract-only: RAR's compression format is proprietary, and ISO
+> is a disc-image container (we read ISO 9660 + Joliet with our own dependency-free
+> parser). Everything else can be created as well as read.
 
 ## Why Ziplark
 - **Small.** Size-optimized release profile (`opt-level=z`, LTO, stripped,

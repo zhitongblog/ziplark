@@ -1,6 +1,6 @@
 # Ziplark
 
-> Ziplark is a free, open-source, cross-platform file archiver for macOS, Windows, and Linux. It extracts ZIP, RAR (including RAR5 and encrypted archives), 7z, tar, and the compressed-tar and single-stream variants (gz, bz2, xz, zst, lz4), and it creates ZIP (with AES-256 encryption), 7z, and tar archives. A single ~1.4 MB Rust engine powers three interfaces: a desktop app, a command-line tool (`ziplark`), and an MCP server (`ziplark-mcp`).
+> Ziplark is a free, open-source, cross-platform file archiver for macOS, Windows, and Linux. It extracts ZIP, RAR (including RAR5 and encrypted archives), 7z, tar, and the compressed-tar and single-stream variants (gz, bz2, xz, zst, lz4), and the ISO 9660 / Joliet disc-image format, and it creates ZIP (with AES-256 encryption), 7z, and tar archives. A single ~1.4 MB Rust engine powers three interfaces: a desktop app, a command-line tool (`ziplark`), and an MCP server (`ziplark-mcp`).
 
 Ziplark is built and maintained by one independent developer. It is free forever, GPL-3.0 licensed, contains no ads and no telemetry, and the desktop app uses the operating system's native webview rather than a bundled browser engine, which keeps it small.
 
@@ -24,6 +24,7 @@ Ziplark is built and maintained by one independent developer. It is free forever
 - tar — extract and create
 - tar.gz, tar.bz2, tar.xz, tar.zst, tar.lz4 — extract and create
 - gz, bz2, xz, zst, lz4 (single-stream) — extract and create
+- ISO 9660 / Joliet — extract only (disc images); read with a dependency-free parser, no FUSE
 
 ## How to use it
 

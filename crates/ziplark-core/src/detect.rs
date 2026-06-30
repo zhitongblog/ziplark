@@ -49,8 +49,28 @@ pub fn detect(path: &Path) -> Option<Format> {
         return Some(Format::Tar);
     }
 
+    // ISO 9660: the "CD001" volume-descriptor magic lives at offset 0x8001,
+    // past the 512-byte header, so check it with a dedicated seek.
+    if is_iso(path) {
+        return Some(Format::Iso);
+    }
+
     // Last resort: trust the extension.
     detect_by_extension(&lname)
+}
+
+/// ISO 9660 images carry "CD001" at byte offset 32769 (sector 16, +1).
+fn is_iso(path: &Path) -> bool {
+    use std::io::{Seek, SeekFrom};
+    let mut f = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    if f.seek(SeekFrom::Start(32769)).is_err() {
+        return false;
+    }
+    let mut sig = [0u8; 5];
+    f.read_exact(&mut sig).is_ok() && &sig == b"CD001"
 }
 
 fn is_tar_name(lname: &str, comp_ext: &str) -> bool {
@@ -83,6 +103,7 @@ fn detect_by_extension(lname: &str) -> Option<Format> {
         (".xz", Format::Xz),
         (".zst", Format::Zst),
         (".lz4", Format::Lz4),
+        (".iso", Format::Iso),
     ];
     table
         .iter()

@@ -13,6 +13,7 @@
 //! | RAR / RAR5    | ✅   | ✅      | —      |
 //! | TAR (+gz/bz2/xz/zst/lz4) | ✅ | ✅ | ✅ |
 //! | gz/bz2/xz/zst/lz4 (single stream) | ✅ | ✅ | ✅ |
+//! | ISO 9660 / Joliet (disc image) | ✅ | ✅ | — |
 
 mod detect;
 mod error;
@@ -116,6 +117,7 @@ pub fn list(path: impl AsRef<Path>, opts: &ListOptions) -> Result<ArchiveInfo> {
         Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4 => {
             formats::stream::list(path, fmt, opts)
         }
+        Format::Iso => formats::iso::list(path, fmt, opts),
     }
 }
 
@@ -144,6 +146,7 @@ pub fn extract(
         Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4 => {
             formats::stream::extract(path, fmt, opts, progress)
         }
+        Format::Iso => formats::iso::extract(path, opts, progress),
     }
 }
 
@@ -175,6 +178,7 @@ pub fn create(
             formats::stream::create(output, inputs, opts, progress)
         }
         Format::Rar => Err(Error::CreateUnsupported("RAR".into())),
+        Format::Iso => Err(Error::CreateUnsupported("ISO".into())),
     }
 }
 
@@ -203,5 +207,6 @@ pub fn test(
         Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4 => {
             formats::stream::test(path, fmt, opts, progress)
         }
+        Format::Iso => formats::iso::test(path, opts, progress),
     }
 }

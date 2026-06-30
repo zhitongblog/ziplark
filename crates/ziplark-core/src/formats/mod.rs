@@ -1,3 +1,4 @@
+pub mod iso;
 pub mod rar;
 pub mod sevenz;
 pub mod stream;

@@ -205,3 +205,45 @@ fn single_stream_lz4_roundtrip() {
     assert_eq!(fs::read(&file).unwrap(), fs::read(ex.join("data.txt")).unwrap());
 }
 
+
+fn iso_extract_check(fixture: &str) {
+    let iso = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(fixture);
+    let info = list(&iso, &ListOptions::default()).unwrap();
+    assert_eq!(info.format, Format::Iso, "{fixture}: detected format");
+    assert!(info.entries.iter().any(|e| !e.is_dir), "{fixture}: should list files");
+
+    let root = tmp(&format!("iso-{fixture}"));
+    let report = extract(&iso, &ExtractOptions::new(&root), None).unwrap();
+    assert!(report.files_written >= 2, "{fixture}: files {}", report.files_written);
+
+    // Match on content, not path (ISO 9660 may upper-case names without Joliet).
+    fn find_payload(dir: &Path, needle: &[u8]) -> bool {
+        fs::read_dir(dir).unwrap().any(|e| {
+            let p = e.unwrap().path();
+            if p.is_dir() {
+                find_payload(&p, needle)
+            } else {
+                fs::read(&p).map(|b| b.windows(needle.len()).any(|w| w == needle)).unwrap_or(false)
+            }
+        })
+    }
+    assert!(find_payload(&root, b"hello from inside an iso"), "{fixture}: payload missing");
+}
+
+#[test]
+fn iso_joliet_list_and_extract() {
+    iso_extract_check("sample.iso");
+}
+
+#[test]
+fn iso_plain_list_and_extract() {
+    iso_extract_check("plain.iso");
+}
+
+#[test]
+fn iso_create_is_unsupported() {
+    let root = tmp("isocreate");
+    let src = make_src(&root);
+    let r = create(&root.join("x.iso"), &[src], &CreateOptions::new(Format::Iso), None);
+    assert!(matches!(r, Err(Error::CreateUnsupported(_))));
+}

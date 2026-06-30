@@ -484,6 +484,7 @@ fn format_from_name(name: &str) -> Option<Format> {
         (".xz", Format::Xz),
         (".zst", Format::Zst),
         (".lz4", Format::Lz4),
+        (".iso", Format::Iso),
     ];
     table
         .iter()
