@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ziplark website
+    url: https://ziplark.com
+    about: Downloads, formats and FAQ.
+  - name: Security vulnerability
+    url: https://github.com/zhitongblog/ziplark/security/advisories/new
+    about: Please report security issues privately, not as a public issue.

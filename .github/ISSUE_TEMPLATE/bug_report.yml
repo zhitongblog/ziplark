@@ -1,0 +1,33 @@
+name: Bug report
+description: Something didn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: archive
+    attributes:
+      label: Archive format
+      placeholder: "e.g. RAR5, encrypted 7z, tar.zst"
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [macOS, Windows, Linux]
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: How were you using Ziplark?
+      options: [Desktop app, CLI (ziplark), MCP server, Homebrew/Scoop]
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "ziplark --version, e.g. 0.1.0"
