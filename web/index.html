@@ -6,15 +6,69 @@
   <title>Ziplark — Every archive. One small app.</title>
   <meta name="description" content="Ziplark is a free, fast, cross-platform archiver. Extract ZIP, RAR, 7z and tar; create ZIP (AES-256), 7z and tar. Desktop app, CLI, and MCP server — one small Rust engine." />
   <meta name="theme-color" content="#0e0f17" />
+  <meta name="author" content="Ziplark" />
+  <meta name="keywords" content="archiver, zip, unzip, rar, 7z, tar, extract rar mac, open rar, free WinRAR alternative, 7-Zip alternative, cross-platform archiver, AES-256, gzip, bzip2, xz, zstd, CLI, MCP" />
+  <link rel="canonical" href="https://ziplark.com/" />
   <link rel="icon" type="image/png" href="/favicon.png?v=3" />
   <link rel="apple-touch-icon" href="/icon.png?v=3" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <meta property="og:site_name" content="Ziplark" />
   <meta property="og:title" content="Ziplark — Every archive. One small app." />
-  <meta property="og:description" content="Free, fast, cross-platform archiver. ZIP · RAR · 7z · tar. Desktop + CLI + MCP." />
+  <meta property="og:description" content="Free, fast, cross-platform archiver. Extracts ZIP, RAR, 7z & tar; creates ZIP (AES-256), 7z & tar. Desktop app + CLI + MCP — one small Rust engine." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://ziplark.com" />
-  <meta property="og:image" content="https://ziplark.com/icon.png?v=3" />
-  <meta name="twitter:card" content="summary" />
-  <link rel="stylesheet" href="/styles.css?v=2" />
+  <meta property="og:url" content="https://ziplark.com/" />
+  <meta property="og:image" content="https://ziplark.com/og.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ziplark — Every archive. One small app." />
+  <meta name="twitter:description" content="Free, fast, cross-platform archiver. ZIP · RAR · 7z · tar. Desktop + CLI + MCP." />
+  <meta name="twitter:image" content="https://ziplark.com/og.png?v=1" />
+  <link rel="stylesheet" href="/styles.css?v=3" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Ziplark",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "macOS, Windows, Linux",
+        "description": "Free, open-source, cross-platform file archiver. Extracts ZIP, RAR (incl. RAR5 and encrypted), 7z, tar and gz/bz2/xz/zst; creates ZIP (AES-256), 7z and tar. One small Rust engine with a desktop app, a CLI, and an MCP server.",
+        "url": "https://ziplark.com/",
+        "downloadUrl": "https://ziplark.com/#download",
+        "softwareVersion": "0.1.0",
+        "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "zhitongblog" },
+        "image": "https://ziplark.com/og.png?v=1",
+        "sameAs": ["https://github.com/zhitongblog/ziplark"]
+      },
+      {
+        "@type": "WebSite",
+        "name": "Ziplark",
+        "url": "https://ziplark.com/",
+        "publisher": { "@type": "Person", "name": "zhitongblog" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "Is Ziplark free?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Ziplark is free and open source under GPL-3.0, with no ads and no telemetry." } },
+          { "@type": "Question", "name": "Can Ziplark open RAR files?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Ziplark extracts RAR and RAR5 archives, including password-protected ones. It does not create RAR archives because the RAR compression format is proprietary." } },
+          { "@type": "Question", "name": "Does Ziplark work on macOS, Windows and Linux?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Ziplark runs on macOS (universal, notarized), Windows (x64) and Linux (x64, as .deb and AppImage)." } },
+          { "@type": "Question", "name": "Is Ziplark a good free alternative to WinRAR or 7-Zip?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Ziplark is cross-platform, free and open source, and small. It reads ZIP, RAR, 7z and tar and creates ZIP (AES-256), 7z and tar, with a desktop app, a CLI and an MCP server." } },
+          { "@type": "Question", "name": "Does Ziplark support password-protected and encrypted archives?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Ziplark creates AES-256 encrypted ZIP and 7z archives and reads encrypted RAR and 7z archives." } }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
   <header class="nav">
@@ -27,6 +81,7 @@
       <a href="#formats">Formats</a>
       <a href="#tools">CLI &amp; MCP</a>
       <a href="#download">Download</a>
+      <a href="#faq">FAQ</a>
       <a href="https://github.com/zhitongblog/ziplark" rel="noopener" class="nav-star">★ Star<span id="nav-stars"></span></a>
       <a href="#sponsor" class="nav-sponsor" title="Support the developer"><span class="heart">♥</span> Sponsor</a>
     </nav>
@@ -170,6 +225,44 @@ ziplark test  download.7z</code></pre>
       </div>
       <p class="fineprint">Or build from source: <code>cargo build --release</code>. The desktop app
         builds with <code>cargo tauri build</code>.</p>
+    </section>
+
+    <section id="faq" class="section">
+      <h2>FAQ</h2>
+      <div class="faq">
+        <details>
+          <summary>Is Ziplark free?</summary>
+          <p>Yes — free and open source under GPL-3.0, with no ads and no telemetry.</p>
+        </details>
+        <details>
+          <summary>Can Ziplark open RAR files?</summary>
+          <p>Yes. Ziplark extracts RAR and RAR5 archives, including password-protected ones.
+             It doesn't <em>create</em> RAR archives — that format is proprietary — but it
+             reads them fully.</p>
+        </details>
+        <details>
+          <summary>Does it work on macOS, Windows and Linux?</summary>
+          <p>All three. macOS ships as a universal, notarized build; Windows as an
+             <code>.msi</code>/<code>.exe</code>; Linux as <code>.deb</code> and AppImage.</p>
+        </details>
+        <details>
+          <summary>Is it a good free alternative to WinRAR, 7-Zip or The Unarchiver?</summary>
+          <p>Yes. Ziplark is cross-platform, free and tiny. It reads ZIP, RAR, 7z and tar and
+             creates ZIP (AES-256), 7z and tar — plus it ships a CLI and an MCP server for
+             scripting and automation.</p>
+        </details>
+        <details>
+          <summary>Does it support encrypted / password-protected archives?</summary>
+          <p>Yes. It creates AES-256 encrypted ZIP and 7z archives, and reads encrypted RAR
+             and 7z archives.</p>
+        </details>
+        <details>
+          <summary>Can I use it from the command line or scripts?</summary>
+          <p>Yes — the <code>ziplark</code> CLI does everything the app does, with
+             <code>--json</code> on every command, and <code>ziplark-mcp</code> exposes it to
+             any LLM over the Model Context Protocol.</p>
+        </details>
+      </div>
     </section>
 
     <section id="sponsor" class="section">

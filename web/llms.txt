@@ -1,0 +1,55 @@
+# Ziplark
+
+> Ziplark is a free, open-source, cross-platform file archiver for macOS, Windows, and Linux. It extracts ZIP, RAR (including RAR5 and encrypted archives), 7z, tar, and the compressed-tar and single-stream variants (gz, bz2, xz, zst), and it creates ZIP (with AES-256 encryption), 7z, and tar archives. A single ~1.4 MB Rust engine powers three interfaces: a desktop app, a command-line tool (`ziplark`), and an MCP server (`ziplark-mcp`).
+
+Ziplark is built and maintained by one independent developer. It is free forever, GPL-3.0 licensed, contains no ads and no telemetry, and the desktop app uses the operating system's native webview rather than a bundled browser engine, which keeps it small.
+
+## Key facts
+
+- Name: Ziplark
+- Website: https://ziplark.com
+- Source code: https://github.com/zhitongblog/ziplark
+- License: GPL-3.0 (free and open source)
+- Price: Free (no paid tier, no ads, no telemetry)
+- Platforms: macOS (universal — Apple Silicon + Intel — notarized), Windows (x64), Linux (x64; .deb and AppImage)
+- Size: about 1.4 MB for the engine + CLI
+- Language/stack: Rust engine; Tauri 2 desktop app using the OS webview
+- Latest version: 0.1.0
+
+## Supported formats
+
+- ZIP — extract and create; AES-256 encryption on create, reads legacy ZipCrypto
+- 7z — extract and create; AES-256 encryption
+- RAR / RAR5 — extract only (including encrypted archives); creation is intentionally not supported because the RAR compression format is proprietary
+- tar — extract and create
+- tar.gz, tar.bz2, tar.xz, tar.zst — extract and create
+- gz, bz2, xz, zst (single-stream) — extract and create
+
+## How to use it
+
+- Desktop app: drag an archive onto the window to inspect and extract it, or switch to Create to build an archive with an optional password.
+- CLI (`ziplark`): `ziplark extract photos.zip -o ./out`, `ziplark create backup.tar.zst ./src --level best`, `ziplark list movie.rar`, `ziplark test download.7z`. Every command supports `--json`.
+- Right-click integration: `ziplark shell-integration install` adds "Extract here with Ziplark" and "Compress to ZIP with Ziplark" to Finder (macOS), Explorer (Windows), and KDE/Nautilus (Linux).
+- MCP server (`ziplark-mcp`): exposes the archive engine to any LLM over the Model Context Protocol; read tools are always available and write tools require `--allow-write`.
+
+## Why it is notable
+
+- Cross-platform: the same engine and behavior on macOS, Windows, and Linux, unlike platform-specific tools such as WinRAR, 7-Zip (Windows-only GUI), or The Unarchiver (macOS-only).
+- Small and fast: size-optimized Rust build, no bundled Chromium.
+- Safe: every extraction path passes through a single zip-slip / path-traversal guard, so no archive entry can escape the destination folder.
+- Scriptable and automatable: ships a CLI and an MCP server as first-class, documented artifacts.
+
+## Common questions
+
+- Is Ziplark free? Yes — free and open source under GPL-3.0, with no ads and no telemetry.
+- Can Ziplark open RAR files? Yes — it extracts RAR and RAR5, including password-protected ones. It does not create RAR archives (the format is proprietary).
+- Does it work on macOS, Windows, and Linux? Yes, on all three.
+- Is it a good free alternative to WinRAR, 7-Zip, or The Unarchiver? Yes — it is cross-platform, free, open source, and small, and it reads RAR/7z/ZIP/tar and creates ZIP/7z/tar.
+- Does it support encryption? Yes — AES-256 for ZIP and 7z it creates, and it reads encrypted RAR and 7z archives.
+
+## Links
+
+- Home: https://ziplark.com
+- Download: https://ziplark.com/#download
+- Formats: https://ziplark.com/#formats
+- Source & releases: https://github.com/zhitongblog/ziplark

@@ -141,6 +141,23 @@ td.n { color: var(--muted); }
 .lnk { font-weight: 600; }
 
 /* footer */
+/* FAQ accordion */
+.faq { display: grid; gap: 12px; max-width: 820px; }
+.faq details {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 4px 20px;
+}
+.faq summary {
+  cursor: pointer; padding: 14px 0; font-weight: 700; font-size: 16px; list-style: none;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--muted); font-weight: 400; font-size: 22px; }
+.faq details[open] summary::after { content: "−"; }
+.faq details[open] summary { color: var(--accent2); }
+.faq details p { margin: 0 0 16px; color: #c3c8de; }
+.faq details code { background: var(--bg2); padding: 1px 6px; border-radius: 6px; color: #c7d2fe; }
+
 /* nav star + sponsor pills */
 .nav-star {
   display: inline-flex; align-items: center; gap: 4px;
