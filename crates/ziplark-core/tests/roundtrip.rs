@@ -185,3 +185,23 @@ fn rar_create_is_unsupported() {
     let err = create(root.join("x.rar"), &[src], &CreateOptions::new(Format::Rar), None);
     assert!(matches!(err, Err(Error::CreateUnsupported(_))));
 }
+
+#[test]
+fn roundtrip_tar_lz4() {
+    roundtrip(Format::TarLz4, "tar.lz4");
+}
+
+#[test]
+fn single_stream_lz4_roundtrip() {
+    let root = tmp("lz4");
+    let file = root.join("data.txt");
+    fs::write(&file, b"lz4 single stream payload ".repeat(100)).unwrap();
+    let archive = root.join("data.txt.lz4");
+    create(&archive, &[file.clone()], &CreateOptions::new(Format::Lz4), None).unwrap();
+    let info = list(&archive, &ListOptions::default()).unwrap();
+    assert_eq!(info.format, Format::Lz4);
+    let ex = root.join("ex");
+    extract(&archive, &ExtractOptions::new(&ex), None).unwrap();
+    assert_eq!(fs::read(&file).unwrap(), fs::read(ex.join("data.txt")).unwrap());
+}
+

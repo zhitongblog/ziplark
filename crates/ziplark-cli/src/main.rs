@@ -474,6 +474,8 @@ fn format_from_name(name: &str) -> Option<Format> {
         (".txz", Format::TarXz),
         (".tar.zst", Format::TarZst),
         (".tzst", Format::TarZst),
+        (".tar.lz4", Format::TarLz4),
+        (".tlz4", Format::TarLz4),
         (".tar", Format::Tar),
         (".zip", Format::Zip),
         (".7z", Format::SevenZ),
@@ -481,6 +483,7 @@ fn format_from_name(name: &str) -> Option<Format> {
         (".bz2", Format::Bz2),
         (".xz", Format::Xz),
         (".zst", Format::Zst),
+        (".lz4", Format::Lz4),
     ];
     table
         .iter()

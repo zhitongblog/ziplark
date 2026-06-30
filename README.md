@@ -42,8 +42,8 @@ Or grab a build for any platform from the [releases page](https://github.com/zhi
 | 7z | ✅ | ✅ | AES-256 |
 | RAR / RAR5 | ✅ | — | reads encrypted |
 | tar | ✅ | ✅ | — |
-| tar.gz / .bz2 / .xz / .zst | ✅ | ✅ | — |
-| gz / bz2 / xz / zst (single stream) | ✅ | ✅ | — |
+| tar.gz / .bz2 / .xz / .zst / .lz4 | ✅ | ✅ | — |
+| gz / bz2 / xz / zst / lz4 (single stream) | ✅ | ✅ | — |
 
 > RAR creation is intentionally unsupported — the RAR compression format is
 > proprietary. Extraction (including RAR5 and encrypted archives) is supported.

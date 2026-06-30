@@ -17,10 +17,12 @@ fn parse_format(s: &str) -> Result<Format, String> {
         "tar.bz2" => Format::TarBz2,
         "tar.xz" => Format::TarXz,
         "tar.zst" => Format::TarZst,
+        "tar.lz4" | "tlz4" => Format::TarLz4,
         "gz" => Format::Gz,
         "bz2" => Format::Bz2,
         "xz" => Format::Xz,
         "zst" => Format::Zst,
+        "lz4" => Format::Lz4,
         other => return Err(format!("unknown format '{other}'")),
     })
 }

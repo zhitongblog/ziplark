@@ -30,6 +30,8 @@ time = { version = "0.3", default-features = false }
 sevenz-rust2 = { version = "0.13", features = ["aes256"] }
 # RAR (incl. RAR5) extraction via bundled libunrar (extract-only; creating RAR is proprietary)
 unrar = "0.5"
+# LZ4 frame format (.lz4 / .tar.lz4) — pure Rust, read + write
+lz4_flex = "0.11"
 
 [features]
 default = []

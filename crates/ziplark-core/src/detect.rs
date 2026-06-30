@@ -40,6 +40,9 @@ pub fn detect(path: &Path) -> Option<Format> {
     if head.starts_with(b"\x28\xB5\x2F\xFD") {
         return Some(if is_tar_name(&lname, "zst") { Format::TarZst } else { Format::Zst });
     }
+    if head.starts_with(b"\x04\x22\x4D\x18") {
+        return Some(if is_tar_name(&lname, "lz4") { Format::TarLz4 } else { Format::Lz4 });
+    }
 
     // Uncompressed tar: "ustar" magic lives at offset 257.
     if head.len() > 262 && &head[257..262] == b"ustar" {
@@ -56,6 +59,7 @@ fn is_tar_name(lname: &str, comp_ext: &str) -> bool {
         || (comp_ext == "bz2" && lname.ends_with(".tbz2"))
         || (comp_ext == "xz" && lname.ends_with(".txz"))
         || (comp_ext == "zst" && lname.ends_with(".tzst"))
+        || (comp_ext == "lz4" && lname.ends_with(".tlz4"))
 }
 
 fn detect_by_extension(lname: &str) -> Option<Format> {
@@ -68,6 +72,8 @@ fn detect_by_extension(lname: &str) -> Option<Format> {
         (".txz", Format::TarXz),
         (".tar.zst", Format::TarZst),
         (".tzst", Format::TarZst),
+        (".tar.lz4", Format::TarLz4),
+        (".tlz4", Format::TarLz4),
         (".tar", Format::Tar),
         (".zip", Format::Zip),
         (".7z", Format::SevenZ),
@@ -76,6 +82,7 @@ fn detect_by_extension(lname: &str) -> Option<Format> {
         (".bz2", Format::Bz2),
         (".xz", Format::Xz),
         (".zst", Format::Zst),
+        (".lz4", Format::Lz4),
     ];
     table
         .iter()

@@ -11,8 +11,8 @@
 //! | ZIP (+AES256) | ✅   | ✅      | ✅     |
 //! | 7z            | ✅   | ✅      | ✅     |
 //! | RAR / RAR5    | ✅   | ✅      | —      |
-//! | TAR (+gz/bz2/xz/zst) | ✅ | ✅ | ✅ |
-//! | gz/bz2/xz/zst (single stream) | ✅ | ✅ | ✅ |
+//! | TAR (+gz/bz2/xz/zst/lz4) | ✅ | ✅ | ✅ |
+//! | gz/bz2/xz/zst/lz4 (single stream) | ✅ | ✅ | ✅ |
 
 mod detect;
 mod error;
@@ -105,10 +105,15 @@ pub fn list(path: impl AsRef<Path>, opts: &ListOptions) -> Result<ArchiveInfo> {
         Format::Zip => formats::zip::list(path, fmt, opts),
         Format::SevenZ => formats::sevenz::list(path, fmt, opts),
         Format::Rar => formats::rar::list(path, fmt, opts),
-        Format::Tar | Format::TarGz | Format::TarBz2 | Format::TarXz | Format::TarZst => {
+        Format::Tar
+        | Format::TarGz
+        | Format::TarBz2
+        | Format::TarXz
+        | Format::TarZst
+        | Format::TarLz4 => {
             formats::tar::list(path, fmt, opts)
         }
-        Format::Gz | Format::Bz2 | Format::Xz | Format::Zst => {
+        Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4 => {
             formats::stream::list(path, fmt, opts)
         }
     }
@@ -128,10 +133,15 @@ pub fn extract(
         Format::Zip => formats::zip::extract(path, opts, progress),
         Format::SevenZ => formats::sevenz::extract(path, opts, progress),
         Format::Rar => formats::rar::extract(path, opts, progress),
-        Format::Tar | Format::TarGz | Format::TarBz2 | Format::TarXz | Format::TarZst => {
+        Format::Tar
+        | Format::TarGz
+        | Format::TarBz2
+        | Format::TarXz
+        | Format::TarZst
+        | Format::TarLz4 => {
             formats::tar::extract(path, fmt, opts, progress)
         }
-        Format::Gz | Format::Bz2 | Format::Xz | Format::Zst => {
+        Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4 => {
             formats::stream::extract(path, fmt, opts, progress)
         }
     }
@@ -153,10 +163,15 @@ pub fn create(
     match opts.format {
         Format::Zip => formats::zip::create(output, inputs, opts, progress),
         Format::SevenZ => formats::sevenz::create(output, inputs, opts, progress),
-        Format::Tar | Format::TarGz | Format::TarBz2 | Format::TarXz | Format::TarZst => {
+        Format::Tar
+        | Format::TarGz
+        | Format::TarBz2
+        | Format::TarXz
+        | Format::TarZst
+        | Format::TarLz4 => {
             formats::tar::create(output, inputs, opts, progress)
         }
-        Format::Gz | Format::Bz2 | Format::Xz | Format::Zst => {
+        Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4 => {
             formats::stream::create(output, inputs, opts, progress)
         }
         Format::Rar => Err(Error::CreateUnsupported("RAR".into())),
@@ -177,10 +192,15 @@ pub fn test(
         Format::Zip => formats::zip::test(path, opts, progress),
         Format::SevenZ => formats::sevenz::test(path, opts, progress),
         Format::Rar => formats::rar::test(path, opts, progress),
-        Format::Tar | Format::TarGz | Format::TarBz2 | Format::TarXz | Format::TarZst => {
+        Format::Tar
+        | Format::TarGz
+        | Format::TarBz2
+        | Format::TarXz
+        | Format::TarZst
+        | Format::TarLz4 => {
             formats::tar::test(path, fmt, opts, progress)
         }
-        Format::Gz | Format::Bz2 | Format::Xz | Format::Zst => {
+        Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4 => {
             formats::stream::test(path, fmt, opts, progress)
         }
     }

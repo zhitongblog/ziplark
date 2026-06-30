@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 /// compression extension. `notes.txt.gz` -> `notes.txt`, `blob.zst` -> `blob`.
 fn inner_name(path: &Path) -> String {
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("output");
-    for ext in [".gz", ".bz2", ".xz", ".zst", ".tgz", ".tbz2", ".txz", ".tzst"] {
+    for ext in [".gz", ".bz2", ".xz", ".zst", ".lz4", ".tgz", ".tbz2", ".txz", ".tzst", ".tlz4"] {
         if let Some(stripped) = name.strip_suffix(ext) {
             return stripped.to_string();
         }
@@ -25,6 +25,7 @@ fn decoder(path: &Path, fmt: Format) -> Result<Box<dyn Read>> {
         Format::Bz2 => Box::new(bzip2::read::BzDecoder::new(f)),
         Format::Xz => Box::new(xz2::read::XzDecoder::new(f)),
         Format::Zst => Box::new(zstd::stream::read::Decoder::new(f)?),
+        Format::Lz4 => Box::new(lz4_flex::frame::FrameDecoder::new(f)),
         _ => return Err(Error::UnsupportedFormat(Some(path.to_path_buf()))),
     })
 }
@@ -144,6 +145,12 @@ pub fn create(
             let mut enc = zstd::stream::write::Encoder::new(out, zst_level(opts.level))?;
             io::copy(&mut input, &mut enc)?;
             enc.finish()?;
+        }
+        Format::Lz4 => {
+            // LZ4 frame format has no real "level" knob; block size is fixed default.
+            let mut enc = lz4_flex::frame::FrameEncoder::new(out);
+            io::copy(&mut input, &mut enc)?;
+            enc.finish().map_err(|e| Error::other(e.to_string()))?;
         }
         _ => return Err(Error::UnsupportedFormat(Some(output.to_path_buf()))),
     }

@@ -18,6 +18,8 @@ pub enum Format {
     Bz2,
     Xz,
     Zst,
+    Lz4,
+    TarLz4,
 }
 
 impl Format {
@@ -41,6 +43,8 @@ impl Format {
             Format::Bz2 => "BZIP2",
             Format::Xz => "XZ",
             Format::Zst => "ZSTD",
+            Format::Lz4 => "LZ4",
+            Format::TarLz4 => "TAR.LZ4",
         }
     }
 
@@ -59,6 +63,8 @@ impl Format {
             Format::Bz2 => "bz2",
             Format::Xz => "xz",
             Format::Zst => "zst",
+            Format::Lz4 => "lz4",
+            Format::TarLz4 => "tar.lz4",
         }
     }
 }

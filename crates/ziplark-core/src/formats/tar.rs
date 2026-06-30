@@ -15,6 +15,7 @@ fn open_reader(path: &Path, fmt: Format) -> Result<Box<dyn Read>> {
         Format::TarBz2 => Box::new(bzip2::read::BzDecoder::new(f)),
         Format::TarXz => Box::new(xz2::read::XzDecoder::new(f)),
         Format::TarZst => Box::new(zstd::stream::read::Decoder::new(f)?),
+        Format::TarLz4 => Box::new(lz4_flex::frame::FrameDecoder::new(f)),
         _ => return Err(Error::UnsupportedFormat(Some(path.to_path_buf()))),
     })
 }
@@ -187,6 +188,15 @@ pub fn create(
             let mut b = tar::Builder::new(enc.auto_finish());
             let r = add_all(&mut b, &files, progress)?;
             b.into_inner()?;
+            r
+        }
+        Format::TarLz4 => {
+            let enc = lz4_flex::frame::FrameEncoder::new(out);
+            let mut b = tar::Builder::new(enc);
+            let r = add_all(&mut b, &files, progress)?;
+            b.into_inner()?
+                .finish()
+                .map_err(|e| Error::other(e.to_string()))?;
             r
         }
         _ => return Err(Error::UnsupportedFormat(Some(output.to_path_buf()))),
