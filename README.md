@@ -26,6 +26,13 @@ brew install --cask zhitongblog/tap/ziplark   # desktop app
 brew install zhitongblog/tap/ziplark          # CLI + MCP (ziplark, ziplark-mcp)
 ```
 
+```powershell
+# Windows — Scoop (CLI + MCP)
+scoop bucket add ziplark https://github.com/zhitongblog/scoop-bucket
+scoop install ziplark
+# winget (pending review): winget install zhitongblog.Ziplark
+```
+
 Or grab a build for any platform from the [releases page](https://github.com/zhitongblog/ziplark/releases/latest)
 (macOS `.dmg`, Windows `.msi`/`.exe`, Linux `.deb`/`.AppImage`, and CLI archives).
 
