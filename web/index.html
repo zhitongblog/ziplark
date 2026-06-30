@@ -27,7 +27,8 @@
       <a href="#formats">Formats</a>
       <a href="#tools">CLI &amp; MCP</a>
       <a href="#download">Download</a>
-      <a href="https://github.com/zhitongblog/ziplark" rel="noopener">GitHub ↗</a>
+      <a href="https://github.com/zhitongblog/ziplark" rel="noopener" class="nav-star">★ Star<span id="nav-stars"></span></a>
+      <a href="#sponsor" class="nav-sponsor" title="Support the developer"><span class="heart">♥</span> Sponsor</a>
     </nav>
   </header>
 
@@ -44,8 +45,9 @@
       </p>
       <div class="cta">
         <a id="primary-dl" class="btn primary" href="#download">Download for your OS</a>
-        <a class="btn ghost" href="https://github.com/zhitongblog/ziplark" rel="noopener">Star on GitHub</a>
+        <a id="star-btn" class="btn ghost" href="https://github.com/zhitongblog/ziplark" rel="noopener">★ Star on GitHub<span id="star-count"></span></a>
       </div>
+      <p class="hero-stats" id="hero-stats" hidden></p>
       <p class="hero-note" id="os-note">Universal macOS build is notarized · Windows &amp; Linux installers included</p>
     </section>
 
@@ -169,6 +171,43 @@ ziplark test  download.7z</code></pre>
       <p class="fineprint">Or build from source: <code>cargo build --release</code>. The desktop app
         builds with <code>cargo tauri build</code>.</p>
     </section>
+
+    <section id="sponsor" class="section">
+      <h2>Support Ziplark</h2>
+      <p class="dl-sub">
+        Ziplark is built and maintained by one developer, in their spare time, and it's
+        free forever. If it saves you time, a small sponsorship keeps it alive — and a
+        <a href="https://github.com/zhitongblog/ziplark" rel="noopener">GitHub star</a> helps just as much.
+      </p>
+      <div class="sp-grid">
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-gh">★</span><h3>Star on GitHub</h3></div>
+          <p>Free, takes a second, and helps others discover Ziplark.</p>
+          <a class="btn ghost sp-btn" href="https://github.com/zhitongblog/ziplark" rel="noopener">Star the repo<span id="sp-stars"></span> →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-spon">♥</span><h3>GitHub Sponsors</h3></div>
+          <p>Monthly or one-time, processed by Stripe. Best for international sponsors.</p>
+          <a class="btn primary sp-btn" href="https://github.com/sponsors/zhitongblog" target="_blank" rel="noopener">Sponsor on GitHub →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-pp">P</span><h3>PayPal</h3></div>
+          <p>Worldwide one-time tip — choose any amount in your currency.</p>
+          <a class="btn ghost sp-btn" href="https://paypal.me/solomdapp" target="_blank" rel="noopener">Tip via PayPal →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-ali">支</span><h3>Alipay</h3></div>
+          <p>Open Alipay and scan the QR code.</p>
+          <div class="sp-qr"><img src="/sponsor/alipay-qr.jpg" alt="Alipay QR code" loading="lazy" width="180" height="180" /></div>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-wx">微</span><h3>WeChat Pay</h3></div>
+          <p>Open WeChat and scan the QR code.</p>
+          <div class="sp-qr"><img src="/sponsor/wechat-qr.jpg" alt="WeChat Pay QR code" loading="lazy" width="180" height="180" /></div>
+        </article>
+      </div>
+      <p class="fineprint">Sponsors are listed in the README (with permission). Thank you for keeping Ziplark free. ♥</p>
+    </section>
   </main>
 
   <footer>
@@ -198,6 +237,33 @@ ziplark test  download.7z</code></pre>
     primary.href = BASE + asset.replaceAll("{V}", VERSION);
     const card = document.querySelector('.dl-card[data-os="' + os + '"]');
     if (card) card.classList.add("recommended");
+
+    // Live GitHub stars + total downloads via our edge-cached /api/stats.
+    const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : "" + n);
+    fetch("/api/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => {
+        if (!s) return;
+        // Inline star count on the nav pill / hero & sponsor buttons (>0 only,
+        // so a fresh repo's buttons don't read "★ Star 0").
+        if (typeof s.stars === "number" && s.stars > 0) {
+          const txt = " " + fmt(s.stars);
+          for (const id of ["star-count", "sp-stars", "nav-stars"]) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = txt;
+          }
+        }
+        // Hero stats line: always show whatever real numbers we have.
+        const parts = [];
+        if (typeof s.stars === "number") parts.push("★ " + fmt(s.stars) + " on GitHub");
+        if (typeof s.downloads === "number") parts.push(fmt(s.downloads) + " downloads");
+        const hs = document.getElementById("hero-stats");
+        if (hs && parts.length) {
+          hs.textContent = parts.join("  ·  ");
+          hs.hidden = false;
+        }
+      })
+      .catch(() => {});
   </script>
 </body>
 </html>
