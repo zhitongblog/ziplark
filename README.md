@@ -1,6 +1,6 @@
 <div align="center">
 
-# Ziplark
+<a href="https://ziplark.com"><img src="assets/banner.png" alt="Ziplark — every archive, one small app" width="640" /></a>
 
 [![CI](https://github.com/zhitongblog/ziplark/actions/workflows/ci.yml/badge.svg)](https://github.com/zhitongblog/ziplark/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/zhitongblog/ziplark?color=6366f1)](https://github.com/zhitongblog/ziplark/releases/latest)
