@@ -3,6 +3,6 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
 /styles.css
-  Cache-Control: public, max-age=86400
+  Cache-Control: public, max-age=300, must-revalidate
 /*.png
   Cache-Control: public, max-age=604800
