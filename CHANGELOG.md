@@ -3,6 +3,18 @@
 All notable changes to Ziplark are documented here.
 This project adheres to [Semantic Versioning](https://semver.org).
 
+## [0.2.1] — 2026-07
+
+### Changed
+- **Relicensed to MIT** (© 2026 doaipm). No dependency ever required copyleft;
+  GPL-3.0 was only a scaffolding default. MIT also avoids the GPL-vs-UnRAR
+  "no additional restrictions" conflict.
+- Added copyright / doaipm attribution across the app, CLI (`--version`), site
+  and packaging, and a `THIRD_PARTY_LICENSES.md` inventory with a prominent
+  **UnRAR** acknowledgement. CLI archives now ship the third-party notices.
+
+[0.2.1]: https://github.com/zhitongblog/ziplark/releases/tag/v0.2.1
+
 ## [0.2.0] — 2026-06
 
 ### Added
