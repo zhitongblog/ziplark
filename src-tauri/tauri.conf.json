@@ -33,6 +33,8 @@
       "icons/icon.ico"
     ],
     "category": "Utility",
+    "copyright": "Copyright © 2026 doaipm. MIT licensed.",
+    "licenseFile": "../LICENSE",
     "shortDescription": "Free, fast, cross-platform archiver",
     "longDescription": "Ziplark extracts ZIP, RAR, 7z, tar.* and creates ZIP (AES-256), 7z, and tar archives — small, fast, and free."
   },

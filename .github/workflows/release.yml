@@ -70,7 +70,7 @@ jobs:
           mkdir "$dir"
           cp "target/${{ matrix.target }}/release/ziplark" \
              "target/${{ matrix.target }}/release/ziplark-mcp" \
-             README.md LICENSE "$dir/"
+             README.md LICENSE THIRD_PARTY_LICENSES.md "$dir/"
           tar czf "$dir.tar.gz" "$dir"
           shasum -a 256 "$dir.tar.gz" > "$dir.tar.gz.sha256"
       - name: Package (windows)
@@ -82,7 +82,7 @@ jobs:
           New-Item -ItemType Directory -Path $dir | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/ziplark.exe",
                     "target/${{ matrix.target }}/release/ziplark-mcp.exe",
-                    README.md, LICENSE $dir
+                    README.md, LICENSE, THIRD_PARTY_LICENSES.md $dir
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
           (Get-FileHash "$dir.zip" -Algorithm SHA256).Hash.ToLower() + "  $dir.zip" |
             Out-File -Encoding ascii "$dir.zip.sha256"

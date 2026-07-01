@@ -38,4 +38,4 @@ library (that's why ISO support was deferred — the only capable crate needed F
 
 ## License
 
-By contributing you agree your work is licensed under GPL-3.0.
+By contributing you agree your work is licensed under the MIT license.

@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/zhitongblog/ziplark?color=6366f1)](https://github.com/zhitongblog/ziplark/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/zhitongblog/ziplark/total?color=6366f1)](https://github.com/zhitongblog/ziplark/releases)
 [![Stars](https://img.shields.io/github/stars/zhitongblog/ziplark?style=flat&color=6366f1)](https://github.com/zhitongblog/ziplark/stargazers)
-[![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Website](https://img.shields.io/badge/ziplark.com-6366f1?logo=safari&logoColor=white)](https://ziplark.com)
 
 **Free, fast, cross-platform archiver.** Extracts ZIP, RAR (incl. RAR5), 7z,
@@ -147,4 +147,11 @@ cargo build --release      # all crates, size-optimized
 ```
 
 ## License
-GPL-3.0. Free as in freedom.
+
+**MIT** © 2026 **doaipm** — a doaipm project. See [LICENSE](LICENSE).
+
+Ziplark bundles third-party open-source components under their own licenses,
+acknowledged in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Note in
+particular that RAR extraction uses the **UnRAR** library, which is under the
+UnRAR license (not MIT) and may not be used to re-create the RAR compression
+algorithm.

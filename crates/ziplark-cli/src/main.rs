@@ -70,6 +70,8 @@ fn run(args: &[String]) -> anyhow::Result<ExitCode> {
         }
         "-V" | "--version" => {
             println!("ziplark {}", env!("CARGO_PKG_VERSION"));
+            println!("Copyright (c) 2026 doaipm — MIT licensed. https://ziplark.com");
+            println!("RAR extraction uses UnRAR (see THIRD_PARTY_LICENSES).");
             Ok(ExitCode::SUCCESS)
         }
         "list" | "l" | "ls" => cmd_list(&args[1..]),

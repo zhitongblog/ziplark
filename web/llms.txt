@@ -2,14 +2,14 @@
 
 > Ziplark is a free, open-source, cross-platform file archiver for macOS, Windows, and Linux. It extracts ZIP, RAR (including RAR5 and encrypted archives), 7z, tar, and the compressed-tar and single-stream variants (gz, bz2, xz, zst, lz4), and the ISO 9660 / Joliet disc-image format, and it creates ZIP (with AES-256 encryption), 7z, and tar archives. A single ~1.4 MB Rust engine powers three interfaces: a desktop app, a command-line tool (`ziplark`), and an MCP server (`ziplark-mcp`).
 
-Ziplark is built and maintained by one independent developer. It is free forever, GPL-3.0 licensed, contains no ads and no telemetry, and the desktop app uses the operating system's native webview rather than a bundled browser engine, which keeps it small.
+Ziplark is built and maintained by doaipm (one independent developer). It is free forever, MIT licensed, contains no ads and no telemetry, and the desktop app uses the operating system's native webview rather than a bundled browser engine, which keeps it small.
 
 ## Key facts
 
 - Name: Ziplark
 - Website: https://ziplark.com
 - Source code: https://github.com/zhitongblog/ziplark
-- License: GPL-3.0 (free and open source)
+- License: MIT (free and open source)
 - Price: Free (no paid tier, no ads, no telemetry)
 - Platforms: macOS (universal — Apple Silicon + Intel — notarized), Windows (x64), Linux (x64; .deb and AppImage)
 - Size: about 1.4 MB for the engine + CLI
@@ -42,7 +42,7 @@ Ziplark is built and maintained by one independent developer. It is free forever
 
 ## Common questions
 
-- Is Ziplark free? Yes — free and open source under GPL-3.0, with no ads and no telemetry.
+- Is Ziplark free? Yes — free and open source under MIT, with no ads and no telemetry.
 - Can Ziplark open RAR files? Yes — it extracts RAR and RAR5, including password-protected ones. It does not create RAR archives (the format is proprietary).
 - Does it work on macOS, Windows, and Linux? Yes, on all three.
 - Is it a good free alternative to WinRAR, 7-Zip, or The Unarchiver? Yes — it is cross-platform, free, open source, and small, and it reads RAR/7z/ZIP/tar and creates ZIP/7z/tar.
