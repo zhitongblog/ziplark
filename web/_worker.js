@@ -1,18 +1,20 @@
 /**
  * Cloudflare Pages Advanced-mode worker.
  *
- * Direct-upload Pages projects don't compile a `functions/` directory, so we
- * handle the one dynamic route (/api/stats) here and pass everything else to
- * the static asset server (env.ASSETS).
+ * Handles /api/stats (live GitHub stars + total release downloads) and passes
+ * everything else to the static asset server (env.ASSETS).
  *
- * /api/stats returns Ziplark's live GitHub stars + total release downloads,
- * edge-cached for 5 minutes so visitors never hit GitHub directly and the
- * numbers refresh without a redeploy. Set a GITHUB_TOKEN env var to lift the
- * GitHub rate limit from 60/hr (anon) to 5000/hr.
+ * Resilience: GitHub's anonymous API limit (60/hr) is shared across Cloudflare
+ * edge IPs and gets exhausted, which used to make the numbers vanish. We now:
+ *   1. cache a successful response for 5 min (edge cache), and
+ *   2. keep a *last-known-good* copy for 7 days and serve it whenever the live
+ *      GitHub fetch fails — so the counts never disappear once seen.
+ * Set a GITHUB_TOKEN env var (read-only) to lift the limit to 5000/hr.
  */
 
 const REPO = "zhitongblog/ziplark";
-const CACHE_TTL = 300; // seconds
+const TTL = 300; // fresh edge cache, seconds
+const GOOD_TTL = 604800; // last-known-good retention, seconds (7 days)
 
 export default {
   async fetch(request, env) {
@@ -22,10 +24,30 @@ export default {
   },
 };
 
+function keys(request) {
+  const base = new URL(request.url);
+  base.search = "";
+  const fresh = new Request(base.toString(), { method: "GET" });
+  const good = new Request(base.toString() + "?_good=1", { method: "GET" });
+  return { fresh, good };
+}
+
+function jsonResponse(payload, maxAge, extra) {
+  return new Response(JSON.stringify(payload), {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": `public, max-age=${Math.min(maxAge, 60)}, s-maxage=${maxAge}`,
+      "access-control-allow-origin": "*",
+      ...(extra || {}),
+    },
+  });
+}
+
 async function stats(request, env) {
   const cache = caches.default;
-  const cacheKey = new Request(url(request), request);
-  const hit = await cache.match(cacheKey);
+  const { fresh, good } = keys(request);
+
+  const hit = await cache.match(fresh);
   if (hit) return hit;
 
   const headers = {
@@ -38,16 +60,12 @@ async function stats(request, env) {
   let downloads = null;
   let latest_tag = null;
   let latest_url = null;
-
   try {
     const [repoRes, relRes] = await Promise.all([
       fetch(`https://api.github.com/repos/${REPO}`, { headers }),
       fetch(`https://api.github.com/repos/${REPO}/releases?per_page=100`, { headers }),
     ]);
-    if (repoRes.ok) {
-      const repo = await repoRes.json();
-      stars = repo.stargazers_count ?? 0;
-    }
+    if (repoRes.ok) stars = (await repoRes.json()).stargazers_count ?? 0;
     if (relRes.ok) {
       const rels = await relRes.json();
       let total = 0;
@@ -60,24 +78,26 @@ async function stats(request, env) {
       }
     }
   } catch (_) {
-    /* keep nulls; client falls back gracefully */
+    /* handled by fallback below */
   }
 
-  const res = new Response(
-    JSON.stringify({ stars, downloads, latest_tag, latest_url, fresh: stars !== null }),
-    {
-      headers: {
-        "content-type": "application/json; charset=utf-8",
-        "cache-control": `public, max-age=60, s-maxage=${CACHE_TTL}`,
-        "access-control-allow-origin": "*",
-      },
-    }
-  );
-  // Only cache successful upstream reads so failures retry quickly.
-  if (stars !== null) await cache.put(cacheKey, res.clone());
-  return res;
-}
+  // Success (we got at least the star count): cache fresh + last-known-good.
+  if (stars !== null) {
+    const payload = { stars, downloads, latest_tag, latest_url, fresh: true };
+    const res = jsonResponse(payload, TTL);
+    await cache.put(fresh, res.clone());
+    await cache.put(good, jsonResponse(payload, GOOD_TTL));
+    return res;
+  }
 
-function url(request) {
-  return new URL(request.url).toString();
+  // Failure: serve the last-known-good copy if we have one.
+  const lastGood = await cache.match(good);
+  if (lastGood) {
+    const payload = await lastGood.json();
+    payload.fresh = false;
+    // short cache so we retry GitHub soon, but still show real numbers now.
+    return jsonResponse(payload, 60);
+  }
+
+  return jsonResponse({ stars: null, downloads: null, latest_tag: null, latest_url: null, fresh: false }, 30);
 }
