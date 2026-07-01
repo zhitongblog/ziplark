@@ -87,6 +87,28 @@ fn create_archive(
     core_create(&output, &inputs, &opts, None).map_err(|e| e.to_string())
 }
 
+/// Ziplark's own version, for the app's About/footer.
+#[tauri::command]
+fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Open an http(s) URL in the user's default browser (not the app webview).
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("only http(s) URLs are allowed".into());
+    }
+    let spawn = if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(&url).spawn()
+    } else if cfg!(target_os = "windows") {
+        std::process::Command::new("cmd").args(["/C", "start", "", &url]).spawn()
+    } else {
+        std::process::Command::new("xdg-open").arg(&url).spawn()
+    };
+    spawn.map(|_| ()).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -96,7 +118,9 @@ pub fn run() {
             list_archive,
             test_archive,
             extract_archive,
-            create_archive
+            create_archive,
+            app_version,
+            open_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running Ziplark");

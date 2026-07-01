@@ -139,3 +139,13 @@ select, input[type=password] {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .hidden { display: none !important; }
+
+/* app footer: version + website + license */
+.appfoot {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 7px 12px; border-top: 1px solid var(--border);
+  background: var(--surface); color: var(--muted); font-size: 12px;
+}
+.appfoot a.ext { color: var(--accent); cursor: pointer; }
+.appfoot a.ext:hover { text-decoration: underline; }
+.appfoot .sep { opacity: .45; }

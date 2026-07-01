@@ -34,7 +34,14 @@ code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; f
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
+.nav-left { display: flex; align-items: center; gap: 12px; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; color: var(--text); }
+.byline {
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px;
+}
+.byline:hover { color: var(--accent2); border-color: var(--accent); }
+@media (max-width: 560px) { .byline { display: none; } }
 .brand img { border-radius: 7px; }
 .nav nav { display: flex; gap: 22px; align-items: center; font-size: 14px; font-weight: 600; }
 .nav nav a { color: var(--muted); }

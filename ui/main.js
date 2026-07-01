@@ -234,3 +234,16 @@ if (listen) {
 }
 
 renderInputs();
+
+/* ---------- footer: version + external links ---------- */
+if (T) {
+  invoke("app_version")
+    .then((v) => { $("app-ver").textContent = "Ziplark v" + v; })
+    .catch(() => {});
+}
+document.querySelectorAll(".appfoot .ext").forEach((a) => {
+  a.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (T) invoke("open_url", { url: a.dataset.url }).catch(() => {});
+  });
+});
