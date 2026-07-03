@@ -213,3 +213,19 @@ footer {
 footer .brand { justify-content: center; font-size: 16px; margin-bottom: 10px; color: var(--text); }
 footer p { margin: 4px 0; font-size: 14px; }
 .muted { color: var(--muted); }
+
+/* language picker (i18n) */
+.lang-picker {
+  appearance: none; -webkit-appearance: none;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239aa0b8' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1px solid var(--border); color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 600;
+  padding: 6px 26px 6px 12px; border-radius: 9px; cursor: pointer;
+}
+.lang-picker:hover { border-color: var(--accent); }
+@media (max-width: 720px) { .nav nav .lang-picker { display: inline-block; } }
+
+/* comparison table (homepage + landing pages) */
+.cmp td.win { color: var(--accent2); font-weight: 700; }
+.cmp th.win { color: #fff; }
+.cmp .compare-links { margin-top: 16px; }

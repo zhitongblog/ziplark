@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ziplark — 每一種封存檔，一款小巧 App 全搞定。</title>
+  <meta name="description" content="Ziplark 是一款免費、快速、跨平台的封存工具。可解壓 ZIP、RAR、7z 與 tar，並建立 ZIP（AES-256）、7z 與 tar。桌面 App、CLI 與 MCP 伺服器 — 全部來自同一顆小巧的 Rust 引擎。" />
+  <meta name="theme-color" content="#0e0f17" />
+  <meta name="author" content="Ziplark" />
+  <meta name="keywords" content="封存工具, zip, 解壓縮, rar, 7z, tar, Mac 解壓 rar, 開啟 rar, 免費 WinRAR 替代方案, 7-Zip 替代方案, 跨平台封存工具, AES-256, gzip, bzip2, xz, zstd, CLI, MCP" />
+  <link rel="canonical" href="https://ziplark.com/zh-TW/" />
+  <link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
+  <link rel="alternate" hreflang="zh-CN" href="https://ziplark.com/zh-CN/" />
+  <link rel="alternate" hreflang="zh-TW" href="https://ziplark.com/zh-TW/" />
+  <link rel="alternate" hreflang="ja-JP" href="https://ziplark.com/ja-JP/" />
+  <link rel="alternate" hreflang="ko-KR" href="https://ziplark.com/ko-KR/" />
+  <link rel="alternate" hreflang="de-DE" href="https://ziplark.com/de-DE/" />
+  <link rel="alternate" hreflang="fr-FR" href="https://ziplark.com/fr-FR/" />
+  <link rel="alternate" hreflang="it-IT" href="https://ziplark.com/it-IT/" />
+  <link rel="alternate" hreflang="hi-IN" href="https://ziplark.com/hi-IN/" />
+  <link rel="alternate" hreflang="x-default" href="https://ziplark.com/" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <link rel="apple-touch-icon" href="/icon.png?v=3" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <meta property="og:site_name" content="Ziplark" />
+  <meta property="og:title" content="Ziplark — 每一種封存檔，一款小巧 App 全搞定。" />
+  <meta property="og:description" content="免費、快速、跨平台的封存工具。可解壓 ZIP、RAR、7z 與 tar，並建立 ZIP（AES-256）、7z 與 tar。桌面 App + CLI + MCP — 同一顆小巧的 Rust 引擎。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ziplark.com/zh-TW/" />
+  <meta property="og:image" content="https://ziplark.com/og.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ziplark — 每一種封存檔，一款小巧 App 全搞定。" />
+  <meta name="twitter:description" content="免費、快速、跨平台的封存工具。ZIP · RAR · 7z · tar。桌面版 + CLI + MCP。" />
+  <meta name="twitter:image" content="https://ziplark.com/og.png?v=1" />
+  <link rel="stylesheet" href="/styles.css?v=7" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Ziplark",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "macOS, Windows, Linux",
+        "description": "免費、開源、跨平台的檔案封存工具。可解壓 ZIP、RAR（含 RAR5 與加密檔）、7z、tar、ISO 以及 gz/bz2/xz/zst/lz4；並建立 ZIP（AES-256）、7z 與 tar。同一顆小巧的 Rust 引擎，搭配桌面 App、CLI 與 MCP 伺服器。",
+        "url": "https://ziplark.com/",
+        "downloadUrl": "https://ziplark.com/#download",
+        "softwareVersion": "0.2.1",
+        "license": "https://opensource.org/licenses/MIT",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "doaipm" },
+        "image": "https://ziplark.com/og.png?v=1",
+        "sameAs": ["https://github.com/zhitongblog/ziplark"]
+      },
+      {
+        "@type": "WebSite",
+        "name": "Ziplark",
+        "url": "https://ziplark.com/",
+        "publisher": { "@type": "Person", "name": "doaipm" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "Ziplark 是免費的嗎？",
+            "acceptedAnswer": { "@type": "Answer", "text": "是的。Ziplark 採用 MIT 授權，免費且開源，沒有廣告、沒有遙測。" } },
+          { "@type": "Question", "name": "Ziplark 可以開啟 RAR 檔案嗎？",
+            "acceptedAnswer": { "@type": "Answer", "text": "可以。Ziplark 能解壓 RAR 與 RAR5 封存檔，包含有密碼保護的檔案。它不會建立 RAR 封存檔，因為 RAR 壓縮格式是專有格式。" } },
+          { "@type": "Question", "name": "Ziplark 可以在 macOS、Windows 和 Linux 上使用嗎？",
+            "acceptedAnswer": { "@type": "Answer", "text": "可以。Ziplark 可在 macOS（通用版、已公證）、Windows（x64）與 Linux（x64，提供 .deb 與 AppImage）上執行。" } },
+          { "@type": "Question", "name": "Ziplark 是 WinRAR 或 7-Zip 的優秀免費替代方案嗎？",
+            "acceptedAnswer": { "@type": "Answer", "text": "是的。Ziplark 跨平台、免費、開源且小巧。它能讀取 ZIP、RAR、7z 與 tar，並建立 ZIP（AES-256）、7z 與 tar，還附帶桌面 App、CLI 與 MCP 伺服器。" } },
+          { "@type": "Question", "name": "Ziplark 支援有密碼保護與加密的封存檔嗎？",
+            "acceptedAnswer": { "@type": "Answer", "text": "支援。Ziplark 能建立 AES-256 加密的 ZIP 與 7z 封存檔，並讀取加密的 RAR 與 7z 封存檔。" } }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-left">
+      <a class="brand" href="/">
+        <img src="/favicon.png?v=3" alt="" width="30" height="30" />
+        <span>Ziplark</span>
+      </a>
+      <a class="byline" href="https://doaipm.com" target="_blank" rel="noopener" title="更多 doaipm 作品">由 doaipm 打造 ↗</a>
+    </div>
+    <nav>
+      <a href="#features">功能特色</a>
+      <a href="#formats">支援格式</a>
+      <a href="#tools">CLI 與 MCP</a>
+      <a href="#download">下載</a>
+      <a href="#faq">常見問題</a>
+      <a href="#compare">比較</a>
+      <a href="https://github.com/zhitongblog/ziplark" rel="noopener" class="nav-star">★ Star<span id="nav-stars"></span></a>
+      <a href="#sponsor" class="nav-sponsor" title="支持開發者"><span class="heart">♥</span> 贊助</a>
+      <select class="lang-picker" aria-label="語言" onchange="if(this.value)location.href=this.value">
+        <option value="/">English</option>
+        <option value="/zh-CN/">简体中文</option>
+        <option value="/zh-TW/" selected>繁體中文</option>
+        <option value="/ja-JP/">日本語</option>
+        <option value="/ko-KR/">한국어</option>
+        <option value="/de-DE/">Deutsch</option>
+        <option value="/fr-FR/">Français</option>
+        <option value="/it-IT/">Italiano</option>
+        <option value="/hi-IN/">हिन्दी</option>
+      </select>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <p class="eyebrow">免費且開源 · MIT</p>
+      <h1>每一種封存檔。<br /><span class="grad">一款小巧 App 全搞定。</span></h1>
+      <p class="lede">
+        Ziplark 能解壓 <strong>ZIP、RAR、7z、tar 與 ISO</strong>，並建立
+        <strong>ZIP（AES-256）、7z 與 tar</strong> — 全部來自一個 1.4&nbsp;MB 的執行檔。
+        同一顆 Rust 引擎，三種使用方式：桌面 App、命令列工具，以及 MCP 伺服器。
+      </p>
+      <div class="cta">
+        <a id="primary-dl" class="btn primary" href="#download">下載適合你系統的版本</a>
+        <a id="star-btn" class="btn ghost" href="https://github.com/zhitongblog/ziplark" rel="noopener">★ 在 GitHub 上按 Star<span id="star-count"></span></a>
+      </div>
+      <p class="hero-stats" id="hero-stats" hidden></p>
+      <p class="hero-note" id="os-note">macOS 通用版已通過公證 · 內含 Windows 與 Linux 安裝程式</p>
+    </section>
+
+    <section class="badges">
+      <div><b>~1.4 MB</b><span>引擎 + CLI</span></div>
+      <div><b>3 種系統</b><span>macOS · Windows · Linux</span></div>
+      <div><b>0 追蹤器</b><span>永不遙測</span></div>
+      <div><b>已公證</b><span>已簽章的 macOS App</span></div>
+    </section>
+
+    <section id="features" class="section">
+      <h2>為什麼選擇 Ziplark</h2>
+      <div class="grid">
+        <article class="card">
+          <div class="ic">🪶</div>
+          <h3>小巧又快速</h3>
+          <p>針對體積最佳化的 release 版本 — LTO、去除除錯符號、<code>panic=abort</code>。
+             桌面 App 使用系統內建的 webview，因此不會夾帶 Chromium。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🛡️</div>
+          <h3>設計上就安全</h3>
+          <p>每一條解壓路徑都會通過單一的 zip-slip 防護。任何項目都無法逃出目標資料夾 —
+             無論是精心構造的 ZIP、RAR 還是 tar 都一樣。</p>
+        </article>
+        <article class="card">
+          <div class="ic">⚙️</div>
+          <h3>一顆引擎，三種用法</h3>
+          <p>GUI、CLI 與 MCP 伺服器都是同一顆 Rust 核心之上的輕薄外殼。
+             App 能做的，CLI 也做得一模一樣 — 腳本同樣辦得到。</p>
+        </article>
+        <article class="card">
+          <div class="ic">📦</div>
+          <h3>各種常見格式一網打盡</h3>
+          <p>ZIP、RAR（含 RAR5 與加密檔）、7z、tar 以及各種壓縮 tar 變體、
+             單一串流的 gz/bz2/xz/zst/lz4 — 還有 ISO 9660 光碟映像檔。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="formats" class="section">
+      <h2>格式支援</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>格式</th><th>解壓</th><th>建立</th><th>加密</th></tr></thead>
+          <tbody>
+            <tr><td>ZIP</td><td class="y">✓</td><td class="y">✓</td><td>AES-256（可讀取 ZipCrypto）</td></tr>
+            <tr><td>7z</td><td class="y">✓</td><td class="y">✓</td><td>AES-256</td></tr>
+            <tr><td>RAR / RAR5</td><td class="y">✓</td><td class="n">—</td><td>可讀取加密檔</td></tr>
+            <tr><td>tar</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>tar.gz / .bz2 / .xz / .zst / .lz4</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>gz / bz2 / xz / zst / lz4（單一串流）</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>ISO 9660 / Joliet（光碟映像檔）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint">刻意不支援建立 RAR — RAR 壓縮格式是專有格式。
+        解壓（包含 RAR5 與加密封存檔）則完全支援。</p>
+    </section>
+
+    <section id="tools" class="section">
+      <h2>同樣為終端機與 AI 代理打造</h2>
+      <div class="grid two">
+        <article class="card">
+          <h3>CLI — <code>ziplark</code></h3>
+          <p>列出、解壓、建立與驗證任何封存檔。每個指令都支援 <code>--json</code>，方便寫腳本。</p>
+          <pre><code>ziplark list  movie.rar
+ziplark extract photos.zip -o ./out
+ziplark create backup.tar.zst ./src --level best
+ziplark create secret.zip ./private --password hunter2
+ziplark test  download.7z</code></pre>
+        </article>
+        <article class="card">
+          <h3>MCP 伺服器 — <code>ziplark-mcp</code></h3>
+          <p>透過 Model Context Protocol，從任何 LLM 驅動 Ziplark。讀取工具永遠開啟；
+             寫入操作則受 <code>--allow-write</code> 保護。</p>
+          <pre><code>{
+  "mcpServers": {
+    "ziplark": {
+      "command": "ziplark-mcp",
+      "args": ["--allow-write"]
+    }
+  }
+}</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section id="compare" class="section">
+      <h2>Ziplark 與同類工具比較</h2>
+      <p class="dl-sub">看看 Ziplark 相較主流封存工具的表現。</p>
+      <div class="table-wrap">
+        <table class="cmp">
+          <thead><tr><th>&nbsp;</th><th class="win">Ziplark</th><th>WinRAR</th><th>7-Zip</th><th>Keka</th><th>The Unarchiver</th></tr></thead>
+          <tbody>
+            <tr><td>價格</td><td class="win">免費 (MIT)</td><td>付費</td><td>免費</td><td>免費</td><td>免費</td></tr>
+            <tr><td>支援 macOS、Windows、Linux</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>解壓 RAR / RAR5</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>建立 7z（AES-256）</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+            <tr><td>命令列（--json）</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>AI 代理（MCP）</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>免費且開源</td><td class="win y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint compare-links">深入比較：
+        <a href="/winrar-alternative/">免費 WinRAR 替代方案</a> ·
+        <a href="/open-rar-on-mac/">在 Mac 上開啟 RAR</a> ·
+        <a href="/7zip-for-mac/">Mac 版 7-Zip</a></p>
+    </section>
+
+    <section id="download" class="section">
+      <h2>下載</h2>
+      <p class="dl-sub">版本 <span id="ver">0.1.0</span> · 永久免費 · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">所有版本與檢查碼</a></p>
+      <div class="dl-grid">
+        <div class="dl-card" data-os="mac">
+          <h3>macOS</h3>
+          <p class="muted">通用版 · Apple Silicon 與 Intel · 已公證</p>
+          <a class="btn primary dl" data-asset="Ziplark-v{V}-macos-universal.dmg">下載 .dmg</a>
+          <p class="alt">或使用 <code class="brew">brew install --cask zhitongblog/tap/ziplark</code></p>
+          <p class="alt">僅 CLI：
+            <a class="lnk" data-asset="ziplark-v{V}-aarch64-apple-darwin.tar.gz">arm64</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-apple-darwin.tar.gz">x64</a>
+          </p>
+        </div>
+        <div class="dl-card" data-os="win">
+          <h3>Windows</h3>
+          <p class="muted">x64 · 安裝程式</p>
+          <a class="btn primary dl" data-asset="Ziplark_{V}_x64_en-US.msi">下載 .msi</a>
+          <p class="alt">
+            <a class="lnk" data-asset="Ziplark_{V}_x64-setup.exe">.exe 安裝程式</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-pc-windows-msvc.zip">CLI .zip</a>
+          </p>
+        </div>
+        <div class="dl-card" data-os="linux">
+          <h3>Linux</h3>
+          <p class="muted">x64 · Debian/Ubuntu 與 AppImage</p>
+          <a class="btn primary dl" data-asset="Ziplark_{V}_amd64.AppImage">下載 AppImage</a>
+          <p class="alt">
+            <a class="lnk" data-asset="Ziplark_{V}_amd64.deb">.deb</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-unknown-linux-gnu.tar.gz">CLI .tar.gz</a>
+          </p>
+        </div>
+      </div>
+      <p class="fineprint">或從原始碼建置：<code>cargo build --release</code>。桌面 App 則以
+        <code>cargo tauri build</code> 建置。</p>
+    </section>
+
+    <section id="faq" class="section">
+      <h2>常見問題</h2>
+      <div class="faq">
+        <details>
+          <summary>Ziplark 是免費的嗎？</summary>
+          <p>是的 — 採用 MIT 授權，免費且開源，沒有廣告、沒有遙測。</p>
+        </details>
+        <details>
+          <summary>Ziplark 可以開啟 RAR 檔案嗎？</summary>
+          <p>可以。Ziplark 能解壓 RAR 與 RAR5 封存檔，包含有密碼保護的檔案。
+             它不會<em>建立</em> RAR 封存檔 — 該格式是專有格式 — 但能完整讀取它們。</p>
+        </details>
+        <details>
+          <summary>它能在 macOS、Windows 和 Linux 上運作嗎？</summary>
+          <p>三者皆可。macOS 以通用版、已公證的形式發佈；Windows 提供
+             <code>.msi</code>/<code>.exe</code>；Linux 則提供 <code>.deb</code> 與 AppImage。</p>
+        </details>
+        <details>
+          <summary>它是 WinRAR、7-Zip 或 The Unarchiver 的優秀免費替代方案嗎？</summary>
+          <p>是的。Ziplark 跨平台、免費又輕巧。它能讀取 ZIP、RAR、7z 與 tar，並建立
+             ZIP（AES-256）、7z 與 tar — 還附帶 CLI 與 MCP 伺服器，方便寫腳本與自動化。相關指南：
+             <a href="/winrar-alternative/">免費 WinRAR 替代方案</a>、
+             <a href="/open-rar-on-mac/">在 Mac 上開啟 RAR</a>，以及
+             <a href="/7zip-for-mac/">Mac 版 7-Zip</a>。</p>
+        </details>
+        <details>
+          <summary>它支援加密／有密碼保護的封存檔嗎？</summary>
+          <p>支援。它能建立 AES-256 加密的 ZIP 與 7z 封存檔，並讀取加密的 RAR 與 7z 封存檔。</p>
+        </details>
+        <details>
+          <summary>我可以從命令列或腳本使用它嗎？</summary>
+          <p>可以 — <code>ziplark</code> CLI 能做到 App 所有的功能，每個指令都支援
+             <code>--json</code>，而 <code>ziplark-mcp</code> 則透過 Model Context Protocol
+             將它開放給任何 LLM。</p>
+        </details>
+      </div>
+    </section>
+
+    <section id="sponsor" class="section">
+      <h2>支持 Ziplark</h2>
+      <p class="dl-sub">
+        Ziplark 由一位開發者利用業餘時間打造與維護，而且永久免費。如果它幫你省下時間，
+        一筆小小的贊助就能讓它持續下去 — 一顆
+        <a href="https://github.com/zhitongblog/ziplark" rel="noopener">GitHub star</a> 同樣幫助很大。
+      </p>
+      <div class="sp-grid">
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-gh">★</span><h3>在 GitHub 上按 Star</h3></div>
+          <p>免費，只需一秒，還能幫助更多人發現 Ziplark。</p>
+          <a class="btn ghost sp-btn" href="https://github.com/zhitongblog/ziplark" rel="noopener">為此專案按 Star<span id="sp-stars"></span> →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-spon">♥</span><h3>GitHub Sponsors</h3></div>
+          <p>可每月或單次贊助，由 Stripe 處理。最適合國際贊助者。</p>
+          <a class="btn primary sp-btn" href="https://github.com/sponsors/zhitongblog" target="_blank" rel="noopener">在 GitHub 上贊助 →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-pp">P</span><h3>PayPal</h3></div>
+          <p>全球通用的單次打賞 — 用你的幣別任選金額。</p>
+          <a class="btn ghost sp-btn" href="https://paypal.me/solomdapp" target="_blank" rel="noopener">用 PayPal 打賞 →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-ali">支</span><h3>支付寶</h3></div>
+          <p>開啟支付寶並掃描 QR code。</p>
+          <div class="sp-qr"><img src="/sponsor/alipay-qr.jpg" alt="支付寶 QR code" loading="lazy" width="180" height="180" /></div>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-wx">微</span><h3>微信支付</h3></div>
+          <p>開啟微信並掃描 QR code。</p>
+          <div class="sp-qr"><img src="/sponsor/wechat-qr.jpg" alt="微信支付 QR code" loading="lazy" width="180" height="180" /></div>
+        </article>
+      </div>
+      <p class="fineprint">贊助者將列於 README（經同意後）。感謝你讓 Ziplark 保持免費。♥</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand">
+      <img src="/favicon.png?v=3" alt="" width="22" height="22" />
+      <span>Ziplark</span>
+    </div>
+    <p>免費、快速、跨平台的封存工具。採用 <a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> 授權 · 一項 <strong>doaipm</strong> 專案。</p>
+    <p class="muted">相關指南：<a href="/winrar-alternative/">免費 WinRAR 替代方案</a> ·
+      <a href="/open-rar-on-mac/">在 Mac 上開啟 RAR</a> · <a href="/7zip-for-mac/">Mac 版 7-Zip</a></p>
+    <p class="muted">© 2026 doaipm · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+  </footer>
+
+  <script>
+    const VERSION = "0.2.1";
+    const BASE = "https://github.com/zhitongblog/ziplark/releases/download/v" + VERSION + "/";
+    document.getElementById("ver").textContent = VERSION;
+    // Wire every data-asset link to its release URL ({V} -> version).
+    for (const a of document.querySelectorAll("[data-asset]")) {
+      a.href = BASE + a.dataset.asset.replaceAll("{V}", VERSION);
+    }
+    // OS detection: point the hero button at the right installer + highlight card.
+    const ua = navigator.userAgent;
+    let os = "mac", label = "下載 macOS 版", asset = "Ziplark-v{V}-macos-universal.dmg";
+    if (/Windows/i.test(ua)) { os = "win"; label = "下載 Windows 版"; asset = "Ziplark_{V}_x64_en-US.msi"; }
+    else if (/Linux/i.test(ua) && !/Android/i.test(ua)) { os = "linux"; label = "下載 Linux 版"; asset = "Ziplark_{V}_amd64.AppImage"; }
+    const primary = document.getElementById("primary-dl");
+    primary.textContent = label;
+    primary.href = BASE + asset.replaceAll("{V}", VERSION);
+    const card = document.querySelector('.dl-card[data-os="' + os + '"]');
+    if (card) card.classList.add("recommended");
+
+    // Live GitHub stars + total downloads via our edge-cached /api/stats.
+    const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : "" + n);
+    fetch("/api/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => {
+        if (!s) return;
+        // Inline star count on the nav pill / hero & sponsor buttons (>0 only,
+        // so a fresh repo's buttons don't read "★ Star 0").
+        if (typeof s.stars === "number" && s.stars > 0) {
+          const txt = " " + fmt(s.stars);
+          for (const id of ["star-count", "sp-stars", "nav-stars"]) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = txt;
+          }
+        }
+        // Hero stats line: always show whatever real numbers we have.
+        const parts = [];
+        if (typeof s.stars === "number") parts.push("★ " + fmt(s.stars) + " on GitHub");
+        if (typeof s.downloads === "number") parts.push(fmt(s.downloads) + " downloads");
+        const hs = document.getElementById("hero-stats");
+        if (hs && parts.length) {
+          hs.textContent = parts.join("  ·  ");
+          hs.hidden = false;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

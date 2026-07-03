@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="hi-IN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ziplark — हर आर्काइव। एक छोटा-सा ऐप।</title>
+  <meta name="description" content="Ziplark एक मुफ़्त, तेज़ और क्रॉस-प्लेटफ़ॉर्म आर्काइवर है। ZIP, RAR, 7z और tar एक्सट्रैक्ट करें; ZIP (AES-256), 7z और tar बनाएँ। डेस्कटॉप ऐप, CLI और MCP सर्वर — एक छोटा-सा Rust इंजन।" />
+  <meta name="theme-color" content="#0e0f17" />
+  <meta name="author" content="Ziplark" />
+  <meta name="keywords" content="archiver, zip, unzip, rar, 7z, tar, extract rar mac, open rar, free WinRAR alternative, 7-Zip alternative, cross-platform archiver, AES-256, gzip, bzip2, xz, zstd, CLI, MCP" />
+  <link rel="canonical" href="https://ziplark.com/hi-IN/" />
+  <link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
+  <link rel="alternate" hreflang="zh-CN" href="https://ziplark.com/zh-CN/" />
+  <link rel="alternate" hreflang="zh-TW" href="https://ziplark.com/zh-TW/" />
+  <link rel="alternate" hreflang="ja-JP" href="https://ziplark.com/ja-JP/" />
+  <link rel="alternate" hreflang="ko-KR" href="https://ziplark.com/ko-KR/" />
+  <link rel="alternate" hreflang="de-DE" href="https://ziplark.com/de-DE/" />
+  <link rel="alternate" hreflang="fr-FR" href="https://ziplark.com/fr-FR/" />
+  <link rel="alternate" hreflang="it-IT" href="https://ziplark.com/it-IT/" />
+  <link rel="alternate" hreflang="hi-IN" href="https://ziplark.com/hi-IN/" />
+  <link rel="alternate" hreflang="x-default" href="https://ziplark.com/" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <link rel="apple-touch-icon" href="/icon.png?v=3" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <meta property="og:site_name" content="Ziplark" />
+  <meta property="og:title" content="Ziplark — हर आर्काइव। एक छोटा-सा ऐप।" />
+  <meta property="og:description" content="मुफ़्त, तेज़, क्रॉस-प्लेटफ़ॉर्म आर्काइवर। ZIP, RAR, 7z और tar एक्सट्रैक्ट करता है; ZIP (AES-256), 7z और tar बनाता है। डेस्कटॉप ऐप + CLI + MCP — एक छोटा-सा Rust इंजन।" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ziplark.com/hi-IN/" />
+  <meta property="og:image" content="https://ziplark.com/og.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ziplark — हर आर्काइव। एक छोटा-सा ऐप।" />
+  <meta name="twitter:description" content="मुफ़्त, तेज़, क्रॉस-प्लेटफ़ॉर्म आर्काइवर। ZIP · RAR · 7z · tar। डेस्कटॉप + CLI + MCP।" />
+  <meta name="twitter:image" content="https://ziplark.com/og.png?v=1" />
+  <link rel="stylesheet" href="/styles.css?v=7" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Ziplark",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "macOS, Windows, Linux",
+        "description": "मुफ़्त, ओपन-सोर्स, क्रॉस-प्लेटफ़ॉर्म फ़ाइल आर्काइवर। ZIP, RAR (RAR5 और एन्क्रिप्टेड सहित), 7z, tar, ISO और gz/bz2/xz/zst/lz4 एक्सट्रैक्ट करता है; ZIP (AES-256), 7z और tar बनाता है। एक छोटा-सा Rust इंजन, साथ में एक डेस्कटॉप ऐप, एक CLI और एक MCP सर्वर।",
+        "url": "https://ziplark.com/",
+        "downloadUrl": "https://ziplark.com/#download",
+        "softwareVersion": "0.2.1",
+        "license": "https://opensource.org/licenses/MIT",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "doaipm" },
+        "image": "https://ziplark.com/og.png?v=1",
+        "sameAs": ["https://github.com/zhitongblog/ziplark"]
+      },
+      {
+        "@type": "WebSite",
+        "name": "Ziplark",
+        "url": "https://ziplark.com/",
+        "publisher": { "@type": "Person", "name": "doaipm" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "क्या Ziplark मुफ़्त है?",
+            "acceptedAnswer": { "@type": "Answer", "text": "हाँ। Ziplark MIT के तहत मुफ़्त और ओपन सोर्स है, न कोई विज्ञापन और न ही कोई टेलीमेट्री।" } },
+          { "@type": "Question", "name": "क्या Ziplark RAR फ़ाइलें खोल सकता है?",
+            "acceptedAnswer": { "@type": "Answer", "text": "हाँ। Ziplark RAR और RAR5 आर्काइव एक्सट्रैक्ट करता है, जिनमें पासवर्ड से सुरक्षित आर्काइव भी शामिल हैं। यह RAR आर्काइव नहीं बनाता क्योंकि RAR कम्प्रेशन फ़ॉर्मैट प्रोप्राइटरी है।" } },
+          { "@type": "Question", "name": "क्या Ziplark macOS, Windows और Linux पर काम करता है?",
+            "acceptedAnswer": { "@type": "Answer", "text": "हाँ। Ziplark macOS (यूनिवर्सल, नोटराइज़्ड), Windows (x64) और Linux (x64, .deb और AppImage के रूप में) पर चलता है।" } },
+          { "@type": "Question", "name": "क्या Ziplark, WinRAR या 7-Zip का एक अच्छा मुफ़्त विकल्प है?",
+            "acceptedAnswer": { "@type": "Answer", "text": "हाँ। Ziplark क्रॉस-प्लेटफ़ॉर्म, मुफ़्त और ओपन सोर्स है, और छोटा है। यह ZIP, RAR, 7z और tar पढ़ता है और ZIP (AES-256), 7z और tar बनाता है, साथ में एक डेस्कटॉप ऐप, एक CLI और एक MCP सर्वर।" } },
+          { "@type": "Question", "name": "क्या Ziplark पासवर्ड से सुरक्षित और एन्क्रिप्टेड आर्काइव को सपोर्ट करता है?",
+            "acceptedAnswer": { "@type": "Answer", "text": "हाँ। Ziplark AES-256 एन्क्रिप्टेड ZIP और 7z आर्काइव बनाता है और एन्क्रिप्टेड RAR तथा 7z आर्काइव पढ़ता है।" } }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-left">
+      <a class="brand" href="/">
+        <img src="/favicon.png?v=3" alt="" width="30" height="30" />
+        <span>Ziplark</span>
+      </a>
+      <a class="byline" href="https://doaipm.com" target="_blank" rel="noopener" title="More from doaipm">by doaipm ↗</a>
+    </div>
+    <nav>
+      <a href="#features">फ़ीचर्स</a>
+      <a href="#formats">फ़ॉर्मैट</a>
+      <a href="#tools">CLI &amp; MCP</a>
+      <a href="#download">डाउनलोड</a>
+      <a href="#faq">सामान्य प्रश्न</a>
+      <a href="#compare">तुलना</a>
+      <a href="https://github.com/zhitongblog/ziplark" rel="noopener" class="nav-star">★ Star<span id="nav-stars"></span></a>
+      <a href="#sponsor" class="nav-sponsor" title="Support the developer"><span class="heart">♥</span> स्पॉन्सर</a>
+      <select class="lang-picker" aria-label="Language" onchange="if(this.value)location.href=this.value">
+        <option value="/">English</option>
+        <option value="/zh-CN/">简体中文</option>
+        <option value="/zh-TW/">繁體中文</option>
+        <option value="/ja-JP/">日本語</option>
+        <option value="/ko-KR/">한국어</option>
+        <option value="/de-DE/">Deutsch</option>
+        <option value="/fr-FR/">Français</option>
+        <option value="/it-IT/">Italiano</option>
+        <option value="/hi-IN/" selected>हिन्दी</option>
+      </select>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <p class="eyebrow">मुफ़्त और ओपन सोर्स · MIT</p>
+      <h1>हर आर्काइव।<br /><span class="grad">एक छोटा-सा ऐप।</span></h1>
+      <p class="lede">
+        Ziplark <strong>ZIP, RAR, 7z, tar और ISO</strong> एक्सट्रैक्ट करता है, और
+        <strong>ZIP (AES-256), 7z और tar</strong> बनाता है — महज़ 1.4&nbsp;MB की बाइनरी से।
+        एक Rust इंजन, इसे चलाने के तीन तरीके: एक डेस्कटॉप ऐप, एक कमांड-लाइन
+        टूल, और एक MCP सर्वर।
+      </p>
+      <div class="cta">
+        <a id="primary-dl" class="btn primary" href="#download">अपने OS के लिए डाउनलोड करें</a>
+        <a id="star-btn" class="btn ghost" href="https://github.com/zhitongblog/ziplark" rel="noopener">★ GitHub पर Star करें<span id="star-count"></span></a>
+      </div>
+      <p class="hero-stats" id="hero-stats" hidden></p>
+      <p class="hero-note" id="os-note">यूनिवर्सल macOS बिल्ड नोटराइज़्ड है · Windows और Linux इंस्टॉलर शामिल हैं</p>
+    </section>
+
+    <section class="badges">
+      <div><b>~1.4 MB</b><span>इंजन + CLI</span></div>
+      <div><b>3 OS</b><span>macOS · Windows · Linux</span></div>
+      <div><b>0 ट्रैकर</b><span>कभी कोई टेलीमेट्री नहीं</span></div>
+      <div><b>नोटराइज़्ड</b><span>साइन किया macOS ऐप</span></div>
+    </section>
+
+    <section id="features" class="section">
+      <h2>Ziplark ही क्यों</h2>
+      <div class="grid">
+        <article class="card">
+          <div class="ic">🪶</div>
+          <h3>छोटा और तेज़</h3>
+          <p>साइज़ के लिए ऑप्टिमाइज़्ड रिलीज़ बिल्ड — LTO, स्ट्रिप्ड, <code>panic=abort</code>।
+             डेस्कटॉप ऐप OS के webview का उपयोग करता है, इसलिए कोई बंडल किया गया Chromium नहीं है।</p>
+        </article>
+        <article class="card">
+          <div class="ic">🛡️</div>
+          <h3>डिज़ाइन से ही सुरक्षित</h3>
+          <p>हर एक्सट्रैक्शन पाथ एक ही zip-slip गार्ड से होकर गुज़रता है। कोई भी एंट्री
+             डेस्टिनेशन फ़ोल्डर से बाहर नहीं निकल सकती — किसी भी बनावटी ZIP, RAR या tar से नहीं।</p>
+        </article>
+        <article class="card">
+          <div class="ic">⚙️</div>
+          <h3>एक इंजन, तीन तरीके</h3>
+          <p>GUI, CLI और MCP सर्वर एक ही Rust कोर के ऊपर पतले शेल हैं।
+             ऐप जो कुछ करता है, CLI वही सटीक रूप से करता है — और स्क्रिप्ट भी कर सकती हैं।</p>
+        </article>
+        <article class="card">
+          <div class="ic">📦</div>
+          <h3>हर आम फ़ॉर्मैट</h3>
+          <p>ZIP, RAR (RAR5 और एन्क्रिप्टेड सहित), 7z, tar और कम्प्रेस्ड-tar
+             वैरिएंट, सिंगल-स्ट्रीम gz/bz2/xz/zst/lz4 — और ISO 9660 डिस्क इमेज।</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="formats" class="section">
+      <h2>फ़ॉर्मैट सपोर्ट</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>फ़ॉर्मैट</th><th>एक्सट्रैक्ट</th><th>बनाएँ</th><th>एन्क्रिप्शन</th></tr></thead>
+          <tbody>
+            <tr><td>ZIP</td><td class="y">✓</td><td class="y">✓</td><td>AES-256 (ZipCrypto पढ़ता है)</td></tr>
+            <tr><td>7z</td><td class="y">✓</td><td class="y">✓</td><td>AES-256</td></tr>
+            <tr><td>RAR / RAR5</td><td class="y">✓</td><td class="n">—</td><td>एन्क्रिप्टेड पढ़ता है</td></tr>
+            <tr><td>tar</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>tar.gz / .bz2 / .xz / .zst / .lz4</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>gz / bz2 / xz / zst / lz4 (सिंगल स्ट्रीम)</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>ISO 9660 / Joliet (डिस्क इमेज)</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint">RAR बनाना जानबूझकर सपोर्ट नहीं किया गया है — RAR कम्प्रेशन फ़ॉर्मैट
+        प्रोप्राइटरी है। एक्सट्रैक्शन (RAR5 और एन्क्रिप्टेड आर्काइव सहित) पूरी तरह काम करता है।</p>
+    </section>
+
+    <section id="tools" class="section">
+      <h2>टर्मिनल और एजेंट के लिए भी बनाया गया</h2>
+      <div class="grid two">
+        <article class="card">
+          <h3>CLI — <code>ziplark</code></h3>
+          <p>किसी भी आर्काइव को लिस्ट करें, एक्सट्रैक्ट करें, बनाएँ और वेरिफ़ाई करें। स्क्रिप्टिंग के लिए हर
+             कमांड पर <code>--json</code>।</p>
+          <pre><code>ziplark list  movie.rar
+ziplark extract photos.zip -o ./out
+ziplark create backup.tar.zst ./src --level best
+ziplark create secret.zip ./private --password hunter2
+ziplark test  download.7z</code></pre>
+        </article>
+        <article class="card">
+          <h3>MCP सर्वर — <code>ziplark-mcp</code></h3>
+          <p>Model Context Protocol के ज़रिए किसी भी LLM से Ziplark चलाएँ। रीड टूल
+             हमेशा चालू रहते हैं; राइट <code>--allow-write</code> के पीछे गेट किए गए हैं।</p>
+          <pre><code>{
+  "mcpServers": {
+    "ziplark": {
+      "command": "ziplark-mcp",
+      "args": ["--allow-write"]
+    }
+  }
+}</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section id="compare" class="section">
+      <h2>Ziplark बनाम विकल्प</h2>
+      <p class="dl-sub">लोकप्रिय आर्काइवर की तुलना में Ziplark कैसा है।</p>
+      <div class="table-wrap">
+        <table class="cmp">
+          <thead><tr><th>&nbsp;</th><th class="win">Ziplark</th><th>WinRAR</th><th>7-Zip</th><th>Keka</th><th>The Unarchiver</th></tr></thead>
+          <tbody>
+            <tr><td>कीमत</td><td class="win">मुफ़्त (MIT)</td><td>सशुल्क</td><td>मुफ़्त</td><td>मुफ़्त</td><td>मुफ़्त</td></tr>
+            <tr><td>macOS, Windows और Linux पर चलता है</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>RAR और RAR5 निकालता है</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>7z बनाता है (AES-256)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+            <tr><td>कमांड लाइन (--json)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>AI एजेंट (MCP)</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>मुफ़्त और ओपन सोर्स</td><td class="win y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint compare-links">विस्तार से तुलना करें:
+        <a href="/winrar-alternative/">मुफ़्त WinRAR विकल्प</a> ·
+        <a href="/open-rar-on-mac/">Mac पर RAR खोलें</a> ·
+        <a href="/7zip-for-mac/">Mac के लिए 7-Zip</a></p>
+    </section>
+
+    <section id="download" class="section">
+      <h2>डाउनलोड</h2>
+      <p class="dl-sub">वर्शन <span id="ver">0.1.0</span> · हमेशा के लिए मुफ़्त · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">सभी रिलीज़ और चेकसम</a></p>
+      <div class="dl-grid">
+        <div class="dl-card" data-os="mac">
+          <h3>macOS</h3>
+          <p class="muted">यूनिवर्सल · Apple Silicon और Intel · नोटराइज़्ड</p>
+          <a class="btn primary dl" data-asset="Ziplark-v{V}-macos-universal.dmg">.dmg डाउनलोड करें</a>
+          <p class="alt">या <code class="brew">brew install --cask zhitongblog/tap/ziplark</code></p>
+          <p class="alt">सिर्फ़ CLI:
+            <a class="lnk" data-asset="ziplark-v{V}-aarch64-apple-darwin.tar.gz">arm64</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-apple-darwin.tar.gz">x64</a>
+          </p>
+        </div>
+        <div class="dl-card" data-os="win">
+          <h3>Windows</h3>
+          <p class="muted">x64 · इंस्टॉलर</p>
+          <a class="btn primary dl" data-asset="Ziplark_{V}_x64_en-US.msi">.msi डाउनलोड करें</a>
+          <p class="alt">
+            <a class="lnk" data-asset="Ziplark_{V}_x64-setup.exe">.exe सेटअप</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-pc-windows-msvc.zip">CLI .zip</a>
+          </p>
+        </div>
+        <div class="dl-card" data-os="linux">
+          <h3>Linux</h3>
+          <p class="muted">x64 · Debian/Ubuntu और AppImage</p>
+          <a class="btn primary dl" data-asset="Ziplark_{V}_amd64.AppImage">AppImage डाउनलोड करें</a>
+          <p class="alt">
+            <a class="lnk" data-asset="Ziplark_{V}_amd64.deb">.deb</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-unknown-linux-gnu.tar.gz">CLI .tar.gz</a>
+          </p>
+        </div>
+      </div>
+      <p class="fineprint">या सोर्स से बिल्ड करें: <code>cargo build --release</code>। डेस्कटॉप ऐप
+        <code>cargo tauri build</code> से बिल्ड होता है।</p>
+    </section>
+
+    <section id="faq" class="section">
+      <h2>सामान्य प्रश्न</h2>
+      <div class="faq">
+        <details>
+          <summary>क्या Ziplark मुफ़्त है?</summary>
+          <p>हाँ — MIT के तहत मुफ़्त और ओपन सोर्स, न कोई विज्ञापन और न ही कोई टेलीमेट्री।</p>
+        </details>
+        <details>
+          <summary>क्या Ziplark RAR फ़ाइलें खोल सकता है?</summary>
+          <p>हाँ। Ziplark RAR और RAR5 आर्काइव एक्सट्रैक्ट करता है, जिनमें पासवर्ड से सुरक्षित आर्काइव भी शामिल हैं।
+             यह RAR आर्काइव <em>बनाता</em> नहीं है — वह फ़ॉर्मैट प्रोप्राइटरी है — लेकिन उन्हें
+             पूरी तरह पढ़ता है।</p>
+        </details>
+        <details>
+          <summary>क्या यह macOS, Windows और Linux पर काम करता है?</summary>
+          <p>तीनों पर। macOS एक यूनिवर्सल, नोटराइज़्ड बिल्ड के रूप में आता है; Windows एक
+             <code>.msi</code>/<code>.exe</code> के रूप में; Linux <code>.deb</code> और AppImage के रूप में।</p>
+        </details>
+        <details>
+          <summary>क्या यह WinRAR, 7-Zip या The Unarchiver का एक अच्छा मुफ़्त विकल्प है?</summary>
+          <p>हाँ। Ziplark क्रॉस-प्लेटफ़ॉर्म, मुफ़्त और बेहद छोटा है। यह ZIP, RAR, 7z और tar पढ़ता है और
+             ZIP (AES-256), 7z और tar बनाता है — साथ ही स्क्रिप्टिंग और ऑटोमेशन के लिए एक CLI और एक MCP सर्वर
+             के साथ आता है। गाइड:
+             <a href="/winrar-alternative/">मुफ़्त WinRAR विकल्प</a>,
+             <a href="/open-rar-on-mac/">Mac पर RAR खोलें</a>, और
+             <a href="/7zip-for-mac/">Mac के लिए 7-Zip</a>।</p>
+        </details>
+        <details>
+          <summary>क्या यह एन्क्रिप्टेड / पासवर्ड से सुरक्षित आर्काइव को सपोर्ट करता है?</summary>
+          <p>हाँ। यह AES-256 एन्क्रिप्टेड ZIP और 7z आर्काइव बनाता है, और एन्क्रिप्टेड RAR
+             तथा 7z आर्काइव पढ़ता है।</p>
+        </details>
+        <details>
+          <summary>क्या मैं इसे कमांड लाइन या स्क्रिप्ट से इस्तेमाल कर सकता हूँ?</summary>
+          <p>हाँ — <code>ziplark</code> CLI वह सब कुछ करती है जो ऐप करता है, हर कमांड पर
+             <code>--json</code> के साथ, और <code>ziplark-mcp</code> इसे Model Context Protocol के ज़रिए
+             किसी भी LLM के सामने उपलब्ध कराता है।</p>
+        </details>
+      </div>
+    </section>
+
+    <section id="sponsor" class="section">
+      <h2>Ziplark को सहयोग दें</h2>
+      <p class="dl-sub">
+        Ziplark को एक ही डेवलपर ने अपने खाली समय में बनाया और सँभाला है, और यह
+        हमेशा के लिए मुफ़्त है। अगर यह आपका समय बचाता है, तो एक छोटा-सा स्पॉन्सरशिप इसे ज़िंदा रखता है — और एक
+        <a href="https://github.com/zhitongblog/ziplark" rel="noopener">GitHub स्टार</a> भी उतनी ही मदद करता है।
+      </p>
+      <div class="sp-grid">
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-gh">★</span><h3>GitHub पर Star करें</h3></div>
+          <p>मुफ़्त है, एक पल लगता है, और दूसरों को Ziplark खोजने में मदद करता है।</p>
+          <a class="btn ghost sp-btn" href="https://github.com/zhitongblog/ziplark" rel="noopener">रेपो को Star करें<span id="sp-stars"></span> →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-spon">♥</span><h3>GitHub Sponsors</h3></div>
+          <p>मासिक या एक-बार, Stripe द्वारा प्रोसेस किया जाता है। अंतरराष्ट्रीय स्पॉन्सर के लिए सबसे बढ़िया।</p>
+          <a class="btn primary sp-btn" href="https://github.com/sponsors/zhitongblog" target="_blank" rel="noopener">GitHub पर स्पॉन्सर करें →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-pp">P</span><h3>PayPal</h3></div>
+          <p>दुनिया भर में एक-बार टिप — अपनी करेंसी में कोई भी राशि चुनें।</p>
+          <a class="btn ghost sp-btn" href="https://paypal.me/solomdapp" target="_blank" rel="noopener">PayPal से टिप दें →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-ali">支</span><h3>Alipay</h3></div>
+          <p>Alipay खोलें और QR कोड स्कैन करें।</p>
+          <div class="sp-qr"><img src="/sponsor/alipay-qr.jpg" alt="Alipay QR code" loading="lazy" width="180" height="180" /></div>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-wx">微</span><h3>WeChat Pay</h3></div>
+          <p>WeChat खोलें और QR कोड स्कैन करें।</p>
+          <div class="sp-qr"><img src="/sponsor/wechat-qr.jpg" alt="WeChat Pay QR code" loading="lazy" width="180" height="180" /></div>
+        </article>
+      </div>
+      <p class="fineprint">स्पॉन्सर README में सूचीबद्ध किए जाते हैं (अनुमति के साथ)। Ziplark को मुफ़्त रखने के लिए धन्यवाद। ♥</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand">
+      <img src="/favicon.png?v=3" alt="" width="22" height="22" />
+      <span>Ziplark</span>
+    </div>
+    <p>मुफ़्त, तेज़, क्रॉस-प्लेटफ़ॉर्म आर्काइवर। <a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> लाइसेंस्ड · एक <strong>doaipm</strong> प्रोजेक्ट।</p>
+    <p class="muted">गाइड: <a href="/winrar-alternative/">मुफ़्त WinRAR विकल्प</a> ·
+      <a href="/open-rar-on-mac/">Mac पर RAR खोलें</a> · <a href="/7zip-for-mac/">Mac के लिए 7-Zip</a></p>
+    <p class="muted">© 2026 doaipm · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+  </footer>
+
+  <script>
+    const VERSION = "0.2.1";
+    const BASE = "https://github.com/zhitongblog/ziplark/releases/download/v" + VERSION + "/";
+    document.getElementById("ver").textContent = VERSION;
+    // Wire every data-asset link to its release URL ({V} -> version).
+    for (const a of document.querySelectorAll("[data-asset]")) {
+      a.href = BASE + a.dataset.asset.replaceAll("{V}", VERSION);
+    }
+    // OS detection: point the hero button at the right installer + highlight card.
+    const ua = navigator.userAgent;
+    let os = "mac", label = "macOS के लिए डाउनलोड करें", asset = "Ziplark-v{V}-macos-universal.dmg";
+    if (/Windows/i.test(ua)) { os = "win"; label = "Windows के लिए डाउनलोड करें"; asset = "Ziplark_{V}_x64_en-US.msi"; }
+    else if (/Linux/i.test(ua) && !/Android/i.test(ua)) { os = "linux"; label = "Linux के लिए डाउनलोड करें"; asset = "Ziplark_{V}_amd64.AppImage"; }
+    const primary = document.getElementById("primary-dl");
+    primary.textContent = label;
+    primary.href = BASE + asset.replaceAll("{V}", VERSION);
+    const card = document.querySelector('.dl-card[data-os="' + os + '"]');
+    if (card) card.classList.add("recommended");
+
+    // Live GitHub stars + total downloads via our edge-cached /api/stats.
+    const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : "" + n);
+    fetch("/api/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => {
+        if (!s) return;
+        // Inline star count on the nav pill / hero & sponsor buttons (>0 only,
+        // so a fresh repo's buttons don't read "★ Star 0").
+        if (typeof s.stars === "number" && s.stars > 0) {
+          const txt = " " + fmt(s.stars);
+          for (const id of ["star-count", "sp-stars", "nav-stars"]) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = txt;
+          }
+        }
+        // Hero stats line: always show whatever real numbers we have.
+        const parts = [];
+        if (typeof s.stars === "number") parts.push("★ " + fmt(s.stars) + " on GitHub");
+        if (typeof s.downloads === "number") parts.push(fmt(s.downloads) + " downloads");
+        const hs = document.getElementById("hero-stats");
+        if (hs && parts.length) {
+          hs.textContent = parts.join("  ·  ");
+          hs.hidden = false;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

@@ -9,6 +9,16 @@
   <meta name="author" content="Ziplark" />
   <meta name="keywords" content="archiver, zip, unzip, rar, 7z, tar, extract rar mac, open rar, free WinRAR alternative, 7-Zip alternative, cross-platform archiver, AES-256, gzip, bzip2, xz, zstd, CLI, MCP" />
   <link rel="canonical" href="https://ziplark.com/" />
+  <link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
+  <link rel="alternate" hreflang="zh-CN" href="https://ziplark.com/zh-CN/" />
+  <link rel="alternate" hreflang="zh-TW" href="https://ziplark.com/zh-TW/" />
+  <link rel="alternate" hreflang="ja-JP" href="https://ziplark.com/ja-JP/" />
+  <link rel="alternate" hreflang="ko-KR" href="https://ziplark.com/ko-KR/" />
+  <link rel="alternate" hreflang="de-DE" href="https://ziplark.com/de-DE/" />
+  <link rel="alternate" hreflang="fr-FR" href="https://ziplark.com/fr-FR/" />
+  <link rel="alternate" hreflang="it-IT" href="https://ziplark.com/it-IT/" />
+  <link rel="alternate" hreflang="hi-IN" href="https://ziplark.com/hi-IN/" />
+  <link rel="alternate" hreflang="x-default" href="https://ziplark.com/" />
   <link rel="icon" type="image/png" href="/favicon.png?v=3" />
   <link rel="apple-touch-icon" href="/icon.png?v=3" />
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
@@ -24,7 +34,7 @@
   <meta name="twitter:title" content="Ziplark — Every archive. One small app." />
   <meta name="twitter:description" content="Free, fast, cross-platform archiver. ZIP · RAR · 7z · tar. Desktop + CLI + MCP." />
   <meta name="twitter:image" content="https://ziplark.com/og.png?v=1" />
-  <link rel="stylesheet" href="/styles.css?v=5" />
+  <link rel="stylesheet" href="/styles.css?v=7" />
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -85,8 +95,20 @@
       <a href="#tools">CLI &amp; MCP</a>
       <a href="#download">Download</a>
       <a href="#faq">FAQ</a>
+      <a href="#compare">Compare</a>
       <a href="https://github.com/zhitongblog/ziplark" rel="noopener" class="nav-star">★ Star<span id="nav-stars"></span></a>
       <a href="#sponsor" class="nav-sponsor" title="Support the developer"><span class="heart">♥</span> Sponsor</a>
+      <select class="lang-picker" aria-label="Language" onchange="if(this.value)location.href=this.value">
+        <option value="/" selected>English</option>
+        <option value="/zh-CN/">简体中文</option>
+        <option value="/zh-TW/">繁體中文</option>
+        <option value="/ja-JP/">日本語</option>
+        <option value="/ko-KR/">한국어</option>
+        <option value="/de-DE/">Deutsch</option>
+        <option value="/fr-FR/">Français</option>
+        <option value="/it-IT/">Italiano</option>
+        <option value="/hi-IN/">हिन्दी</option>
+      </select>
     </nav>
   </header>
 
@@ -195,6 +217,29 @@ ziplark test  download.7z</code></pre>
       </div>
     </section>
 
+    <section id="compare" class="section">
+      <h2>Ziplark vs the alternatives</h2>
+      <p class="dl-sub">How Ziplark compares to popular archivers.</p>
+      <div class="table-wrap">
+        <table class="cmp">
+          <thead><tr><th>&nbsp;</th><th class="win">Ziplark</th><th>WinRAR</th><th>7-Zip</th><th>Keka</th><th>The Unarchiver</th></tr></thead>
+          <tbody>
+            <tr><td>Price</td><td class="win">Free (MIT)</td><td>Paid</td><td>Free</td><td>Free</td><td>Free</td></tr>
+            <tr><td>Runs on macOS, Windows & Linux</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>Extracts RAR & RAR5</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>Creates 7z (AES-256)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+            <tr><td>Command line (--json)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>AI agent (MCP)</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>Free & open source</td><td class="win y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint compare-links">Compare in depth:
+        <a href="/winrar-alternative/">Free WinRAR alternative</a> ·
+        <a href="/open-rar-on-mac/">Open RAR on Mac</a> ·
+        <a href="/7zip-for-mac/">7-Zip for Mac</a></p>
+    </section>
+
     <section id="download" class="section">
       <h2>Download</h2>
       <p class="dl-sub">Version <span id="ver">0.1.0</span> · free forever · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">all releases &amp; checksums</a></p>
@@ -254,7 +299,10 @@ ziplark test  download.7z</code></pre>
           <summary>Is it a good free alternative to WinRAR, 7-Zip or The Unarchiver?</summary>
           <p>Yes. Ziplark is cross-platform, free and tiny. It reads ZIP, RAR, 7z and tar and
              creates ZIP (AES-256), 7z and tar — plus it ships a CLI and an MCP server for
-             scripting and automation.</p>
+             scripting and automation. Guides:
+             <a href="/winrar-alternative/">free WinRAR alternative</a>,
+             <a href="/open-rar-on-mac/">open RAR on Mac</a>, and
+             <a href="/7zip-for-mac/">7-Zip for Mac</a>.</p>
         </details>
         <details>
           <summary>Does it support encrypted / password-protected archives?</summary>
@@ -314,6 +362,8 @@ ziplark test  download.7z</code></pre>
       <span>Ziplark</span>
     </div>
     <p>Free, fast, cross-platform archiver. Licensed <a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> · a <strong>doaipm</strong> project.</p>
+    <p class="muted">Guides: <a href="/winrar-alternative/">Free WinRAR alternative</a> ·
+      <a href="/open-rar-on-mac/">Open RAR on Mac</a> · <a href="/7zip-for-mac/">7-Zip for Mac</a></p>
     <p class="muted">© 2026 doaipm · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
   </footer>
 

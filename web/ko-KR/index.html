@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ko-KR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ziplark — 모든 압축 파일을. 작은 앱 하나로.</title>
+  <meta name="description" content="Ziplark는 무료이며 빠른 크로스플랫폼 압축 도구입니다. ZIP, RAR, 7z, tar을 풀고 ZIP(AES-256), 7z, tar을 만듭니다. 데스크톱 앱, CLI, MCP 서버 — 하나의 작은 Rust 엔진으로." />
+  <meta name="theme-color" content="#0e0f17" />
+  <meta name="author" content="Ziplark" />
+  <meta name="keywords" content="압축 도구, zip, 압축 풀기, rar, 7z, tar, 맥에서 rar 열기, rar 열기, 무료 WinRAR 대안, 7-Zip 대안, 크로스플랫폼 압축 도구, AES-256, gzip, bzip2, xz, zstd, CLI, MCP" />
+  <link rel="canonical" href="https://ziplark.com/ko-KR/" />
+  <link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
+  <link rel="alternate" hreflang="zh-CN" href="https://ziplark.com/zh-CN/" />
+  <link rel="alternate" hreflang="zh-TW" href="https://ziplark.com/zh-TW/" />
+  <link rel="alternate" hreflang="ja-JP" href="https://ziplark.com/ja-JP/" />
+  <link rel="alternate" hreflang="ko-KR" href="https://ziplark.com/ko-KR/" />
+  <link rel="alternate" hreflang="de-DE" href="https://ziplark.com/de-DE/" />
+  <link rel="alternate" hreflang="fr-FR" href="https://ziplark.com/fr-FR/" />
+  <link rel="alternate" hreflang="it-IT" href="https://ziplark.com/it-IT/" />
+  <link rel="alternate" hreflang="hi-IN" href="https://ziplark.com/hi-IN/" />
+  <link rel="alternate" hreflang="x-default" href="https://ziplark.com/" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <link rel="apple-touch-icon" href="/icon.png?v=3" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <meta property="og:site_name" content="Ziplark" />
+  <meta property="og:title" content="Ziplark — 모든 압축 파일을. 작은 앱 하나로." />
+  <meta property="og:description" content="무료이며 빠른 크로스플랫폼 압축 도구. ZIP, RAR, 7z, tar을 풀고 ZIP(AES-256), 7z, tar을 만듭니다. 데스크톱 앱 + CLI + MCP — 하나의 작은 Rust 엔진." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ziplark.com/ko-KR/" />
+  <meta property="og:image" content="https://ziplark.com/og.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ziplark — 모든 압축 파일을. 작은 앱 하나로." />
+  <meta name="twitter:description" content="무료이며 빠른 크로스플랫폼 압축 도구. ZIP · RAR · 7z · tar. 데스크톱 + CLI + MCP." />
+  <meta name="twitter:image" content="https://ziplark.com/og.png?v=1" />
+  <link rel="stylesheet" href="/styles.css?v=7" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Ziplark",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "macOS, Windows, Linux",
+        "description": "무료 오픈소스 크로스플랫폼 파일 압축 도구. ZIP, RAR(RAR5 및 암호화 포함), 7z, tar, ISO, gz/bz2/xz/zst/lz4를 풀고 ZIP(AES-256), 7z, tar을 만듭니다. 데스크톱 앱, CLI, MCP 서버를 갖춘 하나의 작은 Rust 엔진입니다.",
+        "url": "https://ziplark.com/",
+        "downloadUrl": "https://ziplark.com/#download",
+        "softwareVersion": "0.2.1",
+        "license": "https://opensource.org/licenses/MIT",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "doaipm" },
+        "image": "https://ziplark.com/og.png?v=1",
+        "sameAs": ["https://github.com/zhitongblog/ziplark"]
+      },
+      {
+        "@type": "WebSite",
+        "name": "Ziplark",
+        "url": "https://ziplark.com/",
+        "publisher": { "@type": "Person", "name": "doaipm" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "Ziplark는 무료인가요?",
+            "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 MIT 라이선스로 배포되는 무료 오픈소스 소프트웨어이며, 광고도 없고 텔레메트리도 없습니다." } },
+          { "@type": "Question", "name": "Ziplark로 RAR 파일을 열 수 있나요?",
+            "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 암호로 보호된 것을 포함해 RAR 및 RAR5 압축 파일을 풉니다. RAR 압축 형식은 독점 형식이기 때문에 RAR 압축 파일을 만들지는 않습니다." } },
+          { "@type": "Question", "name": "Ziplark는 macOS, Windows, Linux에서 동작하나요?",
+            "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 macOS(유니버설, 공증됨), Windows(x64), Linux(x64, .deb 및 AppImage 형태)에서 실행됩니다." } },
+          { "@type": "Question", "name": "Ziplark는 WinRAR나 7-Zip의 좋은 무료 대안인가요?",
+            "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 크로스플랫폼이며 무료 오픈소스이고 가볍습니다. ZIP, RAR, 7z, tar을 읽고 ZIP(AES-256), 7z, tar을 만들며 데스크톱 앱, CLI, MCP 서버를 함께 제공합니다." } },
+          { "@type": "Question", "name": "Ziplark는 암호로 보호되고 암호화된 압축 파일을 지원하나요?",
+            "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 AES-256으로 암호화된 ZIP 및 7z 압축 파일을 만들고, 암호화된 RAR 및 7z 압축 파일을 읽습니다." } }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-left">
+      <a class="brand" href="/">
+        <img src="/favicon.png?v=3" alt="" width="30" height="30" />
+        <span>Ziplark</span>
+      </a>
+      <a class="byline" href="https://doaipm.com" target="_blank" rel="noopener" title="doaipm의 다른 프로젝트">by doaipm ↗</a>
+    </div>
+    <nav>
+      <a href="#features">기능</a>
+      <a href="#formats">형식</a>
+      <a href="#tools">CLI &amp; MCP</a>
+      <a href="#download">다운로드</a>
+      <a href="#faq">FAQ</a>
+      <a href="#compare">비교</a>
+      <a href="https://github.com/zhitongblog/ziplark" rel="noopener" class="nav-star">★ Star<span id="nav-stars"></span></a>
+      <a href="#sponsor" class="nav-sponsor" title="개발자 후원하기"><span class="heart">♥</span> 후원</a>
+      <select class="lang-picker" aria-label="언어" onchange="if(this.value)location.href=this.value">
+        <option value="/">English</option>
+        <option value="/zh-CN/">简体中文</option>
+        <option value="/zh-TW/">繁體中文</option>
+        <option value="/ja-JP/">日本語</option>
+        <option value="/ko-KR/" selected>한국어</option>
+        <option value="/de-DE/">Deutsch</option>
+        <option value="/fr-FR/">Français</option>
+        <option value="/it-IT/">Italiano</option>
+        <option value="/hi-IN/">हिन्दी</option>
+      </select>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <p class="eyebrow">무료 &amp; 오픈소스 · MIT</p>
+      <h1>모든 압축 파일을.<br /><span class="grad">작은 앱 하나로.</span></h1>
+      <p class="lede">
+        Ziplark는 <strong>ZIP, RAR, 7z, tar, ISO</strong>를 풀고
+        <strong>ZIP(AES-256), 7z, tar</strong>을 만듭니다 — 단 1.4&nbsp;MB의 바이너리로.
+        하나의 Rust 엔진, 그것을 다루는 세 가지 방법: 데스크톱 앱, 명령줄
+        도구, 그리고 MCP 서버.
+      </p>
+      <div class="cta">
+        <a id="primary-dl" class="btn primary" href="#download">내 OS용 다운로드</a>
+        <a id="star-btn" class="btn ghost" href="https://github.com/zhitongblog/ziplark" rel="noopener">★ GitHub에서 Star<span id="star-count"></span></a>
+      </div>
+      <p class="hero-stats" id="hero-stats" hidden></p>
+      <p class="hero-note" id="os-note">macOS 유니버설 빌드는 공증됨 · Windows &amp; Linux 설치 프로그램 포함</p>
+    </section>
+
+    <section class="badges">
+      <div><b>~1.4 MB</b><span>엔진 + CLI</span></div>
+      <div><b>3개 OS</b><span>macOS · Windows · Linux</span></div>
+      <div><b>추적기 0개</b><span>텔레메트리 없음, 언제나</span></div>
+      <div><b>공증됨</b><span>서명된 macOS 앱</span></div>
+    </section>
+
+    <section id="features" class="section">
+      <h2>왜 Ziplark인가</h2>
+      <div class="grid">
+        <article class="card">
+          <div class="ic">🪶</div>
+          <h3>작고 빠릅니다</h3>
+          <p>크기를 최적화한 릴리스 빌드 — LTO, 스트립, <code>panic=abort</code>.
+             데스크톱 앱은 OS 웹뷰를 사용하므로 Chromium이 번들되지 않습니다.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🛡️</div>
+          <h3>설계부터 안전하게</h3>
+          <p>모든 압축 해제 경로는 단일 zip-slip 가드를 거칩니다. 어떤 항목도
+             대상 폴더를 벗어날 수 없습니다 — 조작된 ZIP, RAR, tar에서도 결코.</p>
+        </article>
+        <article class="card">
+          <div class="ic">⚙️</div>
+          <h3>하나의 엔진, 세 가지 방법</h3>
+          <p>GUI, CLI, MCP 서버는 하나의 Rust 코어를 감싼 얇은 껍데기입니다.
+             앱이 하는 일을 CLI도 똑같이 하고 — 스크립트도 마찬가지입니다.</p>
+        </article>
+        <article class="card">
+          <div class="ic">📦</div>
+          <h3>흔히 쓰는 모든 형식</h3>
+          <p>ZIP, RAR(RAR5 &amp; 암호화 포함), 7z, tar과 압축된 tar
+             변형들, 단일 스트림 gz/bz2/xz/zst/lz4 — 그리고 ISO 9660 디스크 이미지.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="formats" class="section">
+      <h2>지원 형식</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>형식</th><th>압축 풀기</th><th>압축 만들기</th><th>암호화</th></tr></thead>
+          <tbody>
+            <tr><td>ZIP</td><td class="y">✓</td><td class="y">✓</td><td>AES-256 (ZipCrypto 읽기)</td></tr>
+            <tr><td>7z</td><td class="y">✓</td><td class="y">✓</td><td>AES-256</td></tr>
+            <tr><td>RAR / RAR5</td><td class="y">✓</td><td class="n">—</td><td>암호화된 것 읽기</td></tr>
+            <tr><td>tar</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>tar.gz / .bz2 / .xz / .zst / .lz4</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>gz / bz2 / xz / zst / lz4 (단일 스트림)</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
+            <tr><td>ISO 9660 / Joliet (디스크 이미지)</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint">RAR 압축 만들기는 의도적으로 지원하지 않습니다 — RAR 압축 형식은
+        독점 형식이기 때문입니다. 압축 풀기(RAR5 및 암호화된 압축 파일 포함)는 완전하게 동작합니다.</p>
+    </section>
+
+    <section id="tools" class="section">
+      <h2>터미널과 에이전트를 위한 설계도</h2>
+      <div class="grid two">
+        <article class="card">
+          <h3>CLI — <code>ziplark</code></h3>
+          <p>어떤 압축 파일이든 목록을 보고, 풀고, 만들고, 검증하세요. 스크립팅을 위해
+             모든 명령에 <code>--json</code>을 지원합니다.</p>
+          <pre><code>ziplark list  movie.rar
+ziplark extract photos.zip -o ./out
+ziplark create backup.tar.zst ./src --level best
+ziplark create secret.zip ./private --password hunter2
+ziplark test  download.7z</code></pre>
+        </article>
+        <article class="card">
+          <h3>MCP 서버 — <code>ziplark-mcp</code></h3>
+          <p>Model Context Protocol을 통해 어떤 LLM에서든 Ziplark를 다루세요. 읽기 도구는
+             항상 켜져 있고, 쓰기는 <code>--allow-write</code> 뒤에서 통제됩니다.</p>
+          <pre><code>{
+  "mcpServers": {
+    "ziplark": {
+      "command": "ziplark-mcp",
+      "args": ["--allow-write"]
+    }
+  }
+}</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section id="compare" class="section">
+      <h2>Ziplark과 대체 도구 비교</h2>
+      <p class="dl-sub">인기 아카이버와 Ziplark를 비교해 보세요.</p>
+      <div class="table-wrap">
+        <table class="cmp">
+          <thead><tr><th>&nbsp;</th><th class="win">Ziplark</th><th>WinRAR</th><th>7-Zip</th><th>Keka</th><th>The Unarchiver</th></tr></thead>
+          <tbody>
+            <tr><td>가격</td><td class="win">무료 (MIT)</td><td>유료</td><td>무료</td><td>무료</td><td>무료</td></tr>
+            <tr><td>macOS · Windows · Linux 지원</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>RAR / RAR5 압축 해제</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>7z 생성 (AES-256)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+            <tr><td>명령줄 (--json)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>AI 에이전트 (MCP)</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>무료 및 오픈 소스</td><td class="win y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint compare-links">자세히 비교:
+        <a href="/winrar-alternative/">무료 WinRAR 대안</a> ·
+        <a href="/open-rar-on-mac/">Mac에서 RAR 열기</a> ·
+        <a href="/7zip-for-mac/">Mac용 7-Zip</a></p>
+    </section>
+
+    <section id="download" class="section">
+      <h2>다운로드</h2>
+      <p class="dl-sub">버전 <span id="ver">0.1.0</span> · 영원히 무료 · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">모든 릴리스 &amp; 체크섬</a></p>
+      <div class="dl-grid">
+        <div class="dl-card" data-os="mac">
+          <h3>macOS</h3>
+          <p class="muted">유니버설 · Apple Silicon &amp; Intel · 공증됨</p>
+          <a class="btn primary dl" data-asset="Ziplark-v{V}-macos-universal.dmg">.dmg 다운로드</a>
+          <p class="alt">또는 <code class="brew">brew install --cask zhitongblog/tap/ziplark</code></p>
+          <p class="alt">CLI만:
+            <a class="lnk" data-asset="ziplark-v{V}-aarch64-apple-darwin.tar.gz">arm64</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-apple-darwin.tar.gz">x64</a>
+          </p>
+        </div>
+        <div class="dl-card" data-os="win">
+          <h3>Windows</h3>
+          <p class="muted">x64 · 설치 프로그램</p>
+          <a class="btn primary dl" data-asset="Ziplark_{V}_x64_en-US.msi">.msi 다운로드</a>
+          <p class="alt">
+            <a class="lnk" data-asset="Ziplark_{V}_x64-setup.exe">.exe 설치</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-pc-windows-msvc.zip">CLI .zip</a>
+          </p>
+        </div>
+        <div class="dl-card" data-os="linux">
+          <h3>Linux</h3>
+          <p class="muted">x64 · Debian/Ubuntu &amp; AppImage</p>
+          <a class="btn primary dl" data-asset="Ziplark_{V}_amd64.AppImage">AppImage 다운로드</a>
+          <p class="alt">
+            <a class="lnk" data-asset="Ziplark_{V}_amd64.deb">.deb</a> ·
+            <a class="lnk" data-asset="ziplark-v{V}-x86_64-unknown-linux-gnu.tar.gz">CLI .tar.gz</a>
+          </p>
+        </div>
+      </div>
+      <p class="fineprint">또는 소스에서 빌드하세요: <code>cargo build --release</code>. 데스크톱 앱은
+        <code>cargo tauri build</code>로 빌드됩니다.</p>
+    </section>
+
+    <section id="faq" class="section">
+      <h2>FAQ</h2>
+      <div class="faq">
+        <details>
+          <summary>Ziplark는 무료인가요?</summary>
+          <p>네 — MIT 라이선스의 무료 오픈소스이며, 광고도 없고 텔레메트리도 없습니다.</p>
+        </details>
+        <details>
+          <summary>Ziplark로 RAR 파일을 열 수 있나요?</summary>
+          <p>네. Ziplark는 암호로 보호된 것을 포함해 RAR 및 RAR5 압축 파일을 풉니다.
+             RAR 압축 파일을 <em>만들지는</em> 않습니다 — 그 형식은 독점 형식입니다 — 하지만
+             완전하게 읽습니다.</p>
+        </details>
+        <details>
+          <summary>macOS, Windows, Linux에서 동작하나요?</summary>
+          <p>세 가지 모두요. macOS는 유니버설 공증 빌드로, Windows는
+             <code>.msi</code>/<code>.exe</code>로, Linux는 <code>.deb</code>과 AppImage로 제공됩니다.</p>
+        </details>
+        <details>
+          <summary>WinRAR, 7-Zip, The Unarchiver의 좋은 무료 대안인가요?</summary>
+          <p>네. Ziplark는 크로스플랫폼이고 무료이며 아주 가볍습니다. ZIP, RAR, 7z, tar을 읽고
+             ZIP(AES-256), 7z, tar을 만듭니다 — 게다가 스크립팅과 자동화를 위한 CLI와 MCP 서버도
+             함께 제공합니다. 가이드:
+             <a href="/winrar-alternative/">무료 WinRAR 대안</a>,
+             <a href="/open-rar-on-mac/">맥에서 RAR 열기</a>,
+             <a href="/7zip-for-mac/">맥용 7-Zip</a>.</p>
+        </details>
+        <details>
+          <summary>암호화된 / 암호로 보호된 압축 파일을 지원하나요?</summary>
+          <p>네. AES-256으로 암호화된 ZIP 및 7z 압축 파일을 만들고, 암호화된 RAR
+             및 7z 압축 파일을 읽습니다.</p>
+        </details>
+        <details>
+          <summary>명령줄이나 스크립트에서 사용할 수 있나요?</summary>
+          <p>네 — <code>ziplark</code> CLI는 앱이 하는 모든 것을 하며, 모든 명령에
+             <code>--json</code>을 지원합니다. 그리고 <code>ziplark-mcp</code>는 Model Context Protocol을 통해
+             어떤 LLM에도 이를 노출합니다.</p>
+        </details>
+      </div>
+    </section>
+
+    <section id="sponsor" class="section">
+      <h2>Ziplark 후원하기</h2>
+      <p class="dl-sub">
+        Ziplark는 한 명의 개발자가 여가 시간에 만들고 유지하며, 영원히
+        무료입니다. 시간을 아껴준다면 작은 후원이 이 프로젝트를 살아 있게 합니다 — 그리고
+        <a href="https://github.com/zhitongblog/ziplark" rel="noopener">GitHub star</a> 하나도 그만큼 큰 도움이 됩니다.
+      </p>
+      <div class="sp-grid">
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-gh">★</span><h3>GitHub에서 Star</h3></div>
+          <p>무료이고 몇 초면 되며, 다른 사람들이 Ziplark를 발견하는 데 도움이 됩니다.</p>
+          <a class="btn ghost sp-btn" href="https://github.com/zhitongblog/ziplark" rel="noopener">저장소에 Star 남기기<span id="sp-stars"></span> →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-spon">♥</span><h3>GitHub Sponsors</h3></div>
+          <p>월간 또는 일회성, Stripe로 처리됩니다. 해외 후원자에게 가장 좋습니다.</p>
+          <a class="btn primary sp-btn" href="https://github.com/sponsors/zhitongblog" target="_blank" rel="noopener">GitHub에서 후원하기 →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-pp">P</span><h3>PayPal</h3></div>
+          <p>전 세계 어디서나 일회성 후원 — 원하는 통화로 금액을 선택하세요.</p>
+          <a class="btn ghost sp-btn" href="https://paypal.me/solomdapp" target="_blank" rel="noopener">PayPal로 후원하기 →</a>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-ali">支</span><h3>Alipay</h3></div>
+          <p>Alipay를 열고 QR 코드를 스캔하세요.</p>
+          <div class="sp-qr"><img src="/sponsor/alipay-qr.jpg" alt="Alipay QR 코드" loading="lazy" width="180" height="180" /></div>
+        </article>
+        <article class="sp-card">
+          <div class="sp-head"><span class="sp-ic sp-wx">微</span><h3>WeChat Pay</h3></div>
+          <p>WeChat을 열고 QR 코드를 스캔하세요.</p>
+          <div class="sp-qr"><img src="/sponsor/wechat-qr.jpg" alt="WeChat Pay QR 코드" loading="lazy" width="180" height="180" /></div>
+        </article>
+      </div>
+      <p class="fineprint">후원자는 (동의를 받아) README에 기재됩니다. Ziplark를 무료로 유지하는 데 도움을 주셔서 감사합니다. ♥</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand">
+      <img src="/favicon.png?v=3" alt="" width="22" height="22" />
+      <span>Ziplark</span>
+    </div>
+    <p>무료이며 빠른 크로스플랫폼 압축 도구. <a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> 라이선스 · <strong>doaipm</strong> 프로젝트.</p>
+    <p class="muted">가이드: <a href="/winrar-alternative/">무료 WinRAR 대안</a> ·
+      <a href="/open-rar-on-mac/">맥에서 RAR 열기</a> · <a href="/7zip-for-mac/">맥용 7-Zip</a></p>
+    <p class="muted">© 2026 doaipm · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+  </footer>
+
+  <script>
+    const VERSION = "0.2.1";
+    const BASE = "https://github.com/zhitongblog/ziplark/releases/download/v" + VERSION + "/";
+    document.getElementById("ver").textContent = VERSION;
+    // Wire every data-asset link to its release URL ({V} -> version).
+    for (const a of document.querySelectorAll("[data-asset]")) {
+      a.href = BASE + a.dataset.asset.replaceAll("{V}", VERSION);
+    }
+    // OS detection: point the hero button at the right installer + highlight card.
+    const ua = navigator.userAgent;
+    let os = "mac", label = "macOS용 다운로드", asset = "Ziplark-v{V}-macos-universal.dmg";
+    if (/Windows/i.test(ua)) { os = "win"; label = "Windows용 다운로드"; asset = "Ziplark_{V}_x64_en-US.msi"; }
+    else if (/Linux/i.test(ua) && !/Android/i.test(ua)) { os = "linux"; label = "Linux용 다운로드"; asset = "Ziplark_{V}_amd64.AppImage"; }
+    const primary = document.getElementById("primary-dl");
+    primary.textContent = label;
+    primary.href = BASE + asset.replaceAll("{V}", VERSION);
+    const card = document.querySelector('.dl-card[data-os="' + os + '"]');
+    if (card) card.classList.add("recommended");
+
+    // Live GitHub stars + total downloads via our edge-cached /api/stats.
+    const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : "" + n);
+    fetch("/api/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => {
+        if (!s) return;
+        // Inline star count on the nav pill / hero & sponsor buttons (>0 only,
+        // so a fresh repo's buttons don't read "★ Star 0").
+        if (typeof s.stars === "number" && s.stars > 0) {
+          const txt = " " + fmt(s.stars);
+          for (const id of ["star-count", "sp-stars", "nav-stars"]) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = txt;
+          }
+        }
+        // Hero stats line: always show whatever real numbers we have.
+        const parts = [];
+        if (typeof s.stars === "number") parts.push("★ " + fmt(s.stars) + " on GitHub");
+        if (typeof s.downloads === "number") parts.push(fmt(s.downloads) + " downloads");
+        const hs = document.getElementById("hero-stats");
+        if (hs && parts.length) {
+          hs.textContent = parts.join("  ·  ");
+          hs.hidden = false;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>
