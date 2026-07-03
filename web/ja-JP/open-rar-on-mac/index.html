@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mac で RAR ファイルを開く方法（無料）— Ziplark</title>
+  <meta name="description" content="macOS は単体では RAR ファイルを開けません。Ziplark は、パスワード保護されたものも含め、ドラッグ＆ドロップで Mac 上の RAR と RAR5 を展開する、無料・オープンソースのアプリです。Apple Silicon と Intel に対応、公証済み。" />
+  <meta name="theme-color" content="#0e0f17" />
+  <meta name="keywords" content="Mac で RAR を開く, Mac で RAR ファイルを開く方法, Mac 版 RAR 展開ツール, unrar mac, Mac で RAR を無料で展開, Mac 版 RAR オープナー, WinRAR なしで Mac で RAR を開く, rar5 mac" />
+  <link rel="canonical" href="https://ziplark.com/ja-JP/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="zh-CN" href="https://ziplark.com/zh-CN/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="zh-TW" href="https://ziplark.com/zh-TW/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="ja-JP" href="https://ziplark.com/ja-JP/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="ko-KR" href="https://ziplark.com/ko-KR/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="de-DE" href="https://ziplark.com/de-DE/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="fr-FR" href="https://ziplark.com/fr-FR/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="it-IT" href="https://ziplark.com/it-IT/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="hi-IN" href="https://ziplark.com/hi-IN/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="x-default" href="https://ziplark.com/open-rar-on-mac/" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <meta property="og:site_name" content="Ziplark" />
+  <meta property="og:title" content="Mac で RAR ファイルを開く方法（無料）" />
+  <meta property="og:description" content="macOS は標準では RAR を開けません。Ziplark なら Mac で RAR と RAR5 を無料で展開 — ドラッグ、ドロップ、完了。" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://ziplark.com/ja-JP/open-rar-on-mac/" />
+  <meta property="og:image" content="https://ziplark.com/og.png?v=1" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Mac で RAR ファイルを開く方法（無料）" />
+  <meta name="twitter:description" content="macOS は標準では RAR を開けません。Ziplark なら無料でできます。" />
+  <link rel="stylesheet" href="/styles.css?v=7" />
+  <style>
+    .lp-hero { text-align: center; padding: clamp(48px, 9vw, 90px) 0 34px; }
+    .lp-hero h1 { font-size: clamp(30px, 5.4vw, 52px); line-height: 1.08; letter-spacing: -.03em; font-weight: 800; margin: 0; }
+    .lp-hero .lede { margin-top: 20px; }
+    .lp-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+    .crumbs { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+    .crumbs a { color: var(--muted); } .crumbs a:hover { color: var(--text); }
+    .cmp td.win { color: var(--accent2); font-weight: 700; }
+    .cmp th.win { color: #fff; }
+    .prose { max-width: 760px; color: #c3c8de; }
+    .prose h2 { color: var(--text); }
+    .prose h3 { color: var(--text); margin: 26px 0 6px; font-size: 18px; }
+    .prose ol, .prose ul { padding-left: 20px; }
+    .prose li { margin: 6px 0; }
+    .prose code { background: var(--surface); padding: 1px 6px; border-radius: 6px; color: #c7d2fe; }
+    .steps { counter-reset: s; display: grid; gap: 12px; max-width: 760px; }
+    .steps .step { display: flex; gap: 14px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+    .steps .step::before { counter-increment: s; content: counter(s); flex: 0 0 28px; height: 28px; border-radius: 50%; background: linear-gradient(120deg, var(--accent), #7c3aed); color: #fff; font-weight: 700; display: grid; place-items: center; }
+    .steps .step p { margin: 0; color: #c3c8de; }
+    .steps .step b { color: var(--text); }
+  </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Ziplark", "item": "https://ziplark.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Open RAR on Mac", "item": "https://ziplark.com/open-rar-on-mac/" }
+      ]},
+      { "@type": "HowTo", "name": "Mac で RAR ファイルを無料で開く方法",
+        "step": [
+          { "@type": "HowToStep", "name": "Ziplark をインストール", "text": "ziplark.com から macOS 版 Ziplark をダウンロードするか、brew install --cask zhitongblog/tap/ziplark を実行します。" },
+          { "@type": "HowToStep", "name": "RAR を開く", "text": ".rar ファイルをダブルクリックするか、Ziplark のウィンドウにドラッグして中身を確認します。" },
+          { "@type": "HowToStep", "name": "展開する", "text": "展開先フォルダーを選んで展開します。アーカイブが保護されている場合は、先にパスワードを入力してください。" }
+        ]
+      },
+      { "@type": "FAQPage", "mainEntity": [
+        { "@type": "Question", "name": "macOS は標準で RAR ファイルを開けますか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "いいえ。macOS 内蔵のアーカイブユーティリティは ZIP と tar を開けますが、RAR は開けません。RAR と RAR5 ファイルを展開するには、Ziplark のようなサードパーティ製アプリが必要です。" } },
+        { "@type": "Question", "name": "Mac で RAR ファイルを無料で開くにはどうすればよいですか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "Ziplark（無料・オープンソース）をインストールし、.rar ファイルをダブルクリックするか Ziplark のウィンドウにドラッグして、展開先を選びます。RAR、RAR5、パスワード保護されたアーカイブに対応しています。" } },
+        { "@type": "Question", "name": "Apple Silicon の Mac で動作しますか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "はい。Ziplark は、Apple Silicon（M シリーズ）と Intel の Mac の両方に対応する、ユニバーサルで公証済みの macOS ビルドを提供します。" } },
+        { "@type": "Question", "name": "Mac でパスワード保護された RAR ファイルを開けますか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "はい。Ziplark は macOS 上で暗号化された RAR と RAR5 アーカイブを読み込めます — 求められたらパスワードを入力してください。" } }
+      ]}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-left">
+      <a class="brand" href="/ja-JP/"><img src="/favicon.png?v=3" alt="" width="30" height="30" /><span>Ziplark</span></a>
+      <a class="byline" href="https://doaipm.com" target="_blank" rel="noopener" title="doaipm のその他の作品">by doaipm ↗</a>
+    </div>
+    <nav>
+      <a href="/ja-JP/#formats">対応形式</a>
+      <a href="/ja-JP/#tools">CLI と MCP</a>
+      <a href="/ja-JP/#download">ダウンロード</a>
+      <a href="/ja-JP/#faq">よくある質問</a>
+      <select class="lang-picker" aria-label="Language" onchange="if(this.value)location.href=this.value">
+        <option value="/open-rar-on-mac/">English</option>
+        <option value="/zh-CN/open-rar-on-mac/">简体中文</option>
+        <option value="/zh-TW/open-rar-on-mac/">繁體中文</option>
+        <option value="/ja-JP/open-rar-on-mac/" selected>日本語</option>
+        <option value="/ko-KR/open-rar-on-mac/">한국어</option>
+        <option value="/de-DE/open-rar-on-mac/">Deutsch</option>
+        <option value="/fr-FR/open-rar-on-mac/">Français</option>
+        <option value="/it-IT/open-rar-on-mac/">Italiano</option>
+        <option value="/hi-IN/open-rar-on-mac/">हिन्दी</option>
+      </select>
+      <a href="https://github.com/zhitongblog/ziplark" rel="noopener" class="nav-star">★ Star</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="lp-hero">
+      <p class="crumbs"><a href="/ja-JP/">Ziplark</a> › Mac で RAR を開く</p>
+      <p class="eyebrow">無料・オープンソース · Apple Silicon と Intel · 公証済み</p>
+      <h1>Mac で RAR ファイルを<br />開く方法 — 無料</h1>
+      <p class="lede">
+        macOS は単体では <strong>.rar</strong> ファイルを開けません — 内蔵のアーカイブユーティリティは
+        ZIP と tar のみに対応します。<strong>Ziplark</strong> は、（パスワード保護されたものも含め）
+        <strong>RAR と RAR5</strong> をドラッグ＆ドロップで展開する、無料・オープンソースのアプリです。
+      </p>
+      <div class="lp-cta">
+        <a class="btn primary" href="/ja-JP/#download">macOS 版をダウンロード</a>
+        <a class="btn ghost" href="https://github.com/zhitongblog/ziplark" rel="noopener">★ GitHub で Star</a>
+      </div>
+      <p class="hero-note">または <code class="brew">brew install --cask zhitongblog/tap/ziplark</code></p>
+    </section>
+
+    <section class="section">
+      <h2>3 ステップで RAR を開く</h2>
+      <div class="steps">
+        <div class="step"><p><b>Ziplark をインストール。</b><a href="/ja-JP/#download">macOS 版をダウンロード</a>
+          （ユニバーサル・公証済み）するか、<code>brew install --cask zhitongblog/tap/ziplark</code> を実行します。</p></div>
+        <div class="step"><p><b>RAR を開く。</b><code>.rar</code> ファイルをダブルクリックするか、Ziplark の
+          ウィンドウにドラッグして中身をすべてプレビューします。</p></div>
+        <div class="step"><p><b>展開する。</b>展開先を選んで展開をクリックします。保護されている場合は、
+          先にパスワードを入力してください — RAR5 と暗号化アーカイブに対応しています。</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Mac 向け無料 RAR オープナーの比較</h2>
+      <div class="table-wrap">
+        <table class="cmp">
+          <thead><tr><th>&nbsp;</th><th class="win">Ziplark</th><th>The Unarchiver</th><th>Keka</th></tr></thead>
+          <tbody>
+            <tr><td>価格</td><td class="win">無料 (MIT)</td><td>無料</td><td>無料 / App Store で有料</td></tr>
+            <tr><td>RAR / RAR5 を展開</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>ZIP / 7z を作成（AES-256）</td><td class="win y">✓</td><td class="n">展開のみ</td><td class="y">✓</td></tr>
+            <tr><td>オープンソース</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>コマンドライン + <code>--json</code></td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>AI / MCP 連携</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>Windows と Linux でも利用可</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint">The Unarchiver は展開のみです。Ziplark は展開<em>も</em>作成もでき、
+        CLI と MCP サーバーを備え、完全にオープンソースです。</p>
+    </section>
+
+    <section class="section" id="faq">
+      <h2>Mac で RAR を開く — よくある質問</h2>
+      <div class="faq">
+        <details><summary>追加ソフトなしで macOS は RAR ファイルを開けますか？</summary>
+          <p>いいえ。内蔵のアーカイブユーティリティは ZIP と tar には対応しますが、RAR には対応しません。
+             <code>.rar</code> や <code>.rar5</code> ファイルを開くには、Ziplark のようなアプリが必要です。</p></details>
+        <details><summary>Mac で RAR を開くのに Ziplark は無料ですか？</summary>
+          <p>はい — MIT ライセンスの無料・オープンソースで、試用期間も広告もありません。</p></details>
+        <details><summary>Apple Silicon（M1/M2/M3）で動作しますか？</summary>
+          <p>はい。macOS ビルドはユニバーサルで公証済みのため、Apple Silicon と Intel の両方でネイティブに動作します。</p></details>
+        <details><summary>分割された RAR アーカイブ（.part1.rar）を開けますか？</summary>
+          <p>はい — 最初のパートを Ziplark で指定すれば、分割セットを結合して展開します。</p></details>
+      </div>
+      <p class="fineprint" style="margin-top:22px">関連： <a href="/ja-JP/winrar-alternative/">無料の WinRAR 代替</a> ·
+        <a href="/ja-JP/7zip-for-mac/">Mac 版 7-Zip</a> · <a href="/ja-JP/">Ziplark ホーム</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand"><img src="/favicon.png?v=3" alt="" width="22" height="22" /><span>Ziplark</span></div>
+    <p>無料・高速・クロスプラットフォームのアーカイバー。<a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> ライセンス · <strong>doaipm</strong> のプロジェクト。</p>
+    <p class="muted">© 2026 doaipm · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+  </footer>
+</body>
+</html>

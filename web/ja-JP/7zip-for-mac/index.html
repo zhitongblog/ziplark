@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mac 版 7-Zip — .7z を開いて作成できる無料の代替 | Ziplark</title>
+  <meta name="description" content="7-Zip には公式の Mac アプリがありません。Ziplark は、AES-256 で macOS 上の .7z を開いて作成できる無料・オープンソースの代替です — さらに ZIP、RAR、tar なども対応。Apple Silicon と Intel に対応、公証済み。" />
+  <meta name="theme-color" content="#0e0f17" />
+  <meta name="keywords" content="Mac 版 7zip, 7-Zip mac, Mac で 7z を開く, Mac 版 7z 展開ツール, Mac で 7z を作成, Mac 版 7zip 代替, p7zip mac GUI, Mac で 7z を無料で展開" />
+  <link rel="canonical" href="https://ziplark.com/ja-JP/7zip-for-mac/" />
+  <link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
+  <link rel="alternate" hreflang="zh-CN" href="https://ziplark.com/zh-CN/7zip-for-mac/" />
+  <link rel="alternate" hreflang="zh-TW" href="https://ziplark.com/zh-TW/7zip-for-mac/" />
+  <link rel="alternate" hreflang="ja-JP" href="https://ziplark.com/ja-JP/7zip-for-mac/" />
+  <link rel="alternate" hreflang="ko-KR" href="https://ziplark.com/ko-KR/7zip-for-mac/" />
+  <link rel="alternate" hreflang="de-DE" href="https://ziplark.com/de-DE/7zip-for-mac/" />
+  <link rel="alternate" hreflang="fr-FR" href="https://ziplark.com/fr-FR/7zip-for-mac/" />
+  <link rel="alternate" hreflang="it-IT" href="https://ziplark.com/it-IT/7zip-for-mac/" />
+  <link rel="alternate" hreflang="hi-IN" href="https://ziplark.com/hi-IN/7zip-for-mac/" />
+  <link rel="alternate" hreflang="x-default" href="https://ziplark.com/7zip-for-mac/" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <meta property="og:site_name" content="Ziplark" />
+  <meta property="og:title" content="Mac 版 7-Zip — 無料の代替（Ziplark）" />
+  <meta property="og:description" content="7-Zip には Mac アプリがありません。Ziplark なら macOS で AES-256 の .7z を開いて作成でき、無料・オープンソースです。" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://ziplark.com/ja-JP/7zip-for-mac/" />
+  <meta property="og:image" content="https://ziplark.com/og.png?v=1" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Mac 版 7-Zip — 無料の代替（Ziplark）" />
+  <meta name="twitter:description" content="7-Zip には Mac アプリがありません。Ziplark なら macOS で .7z を無料で開いて作成できます。" />
+  <link rel="stylesheet" href="/styles.css?v=7" />
+  <style>
+    .lp-hero { text-align: center; padding: clamp(48px, 9vw, 90px) 0 34px; }
+    .lp-hero h1 { font-size: clamp(30px, 5.4vw, 52px); line-height: 1.08; letter-spacing: -.03em; font-weight: 800; margin: 0; }
+    .lp-hero .lede { margin-top: 20px; }
+    .lp-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+    .crumbs { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+    .crumbs a { color: var(--muted); } .crumbs a:hover { color: var(--text); }
+    .cmp td.win { color: var(--accent2); font-weight: 700; }
+    .cmp th.win { color: #fff; }
+    .prose { max-width: 760px; color: #c3c8de; }
+    .prose h2 { color: var(--text); }
+    .prose h3 { color: var(--text); margin: 26px 0 6px; font-size: 18px; }
+    .prose ol, .prose ul { padding-left: 20px; }
+    .prose li { margin: 6px 0; }
+    .prose code { background: var(--surface); padding: 1px 6px; border-radius: 6px; color: #c7d2fe; }
+  </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Ziplark", "item": "https://ziplark.com/" },
+        { "@type": "ListItem", "position": 2, "name": "7-Zip for Mac", "item": "https://ziplark.com/7zip-for-mac/" }
+      ]},
+      { "@type": "FAQPage", "mainEntity": [
+        { "@type": "Question", "name": "Mac 版の 7-Zip はありますか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "macOS 向けの公式な 7-Zip デスクトップアプリはありません — あるのはコマンドライン版の p7zip 移植版だけです。Ziplark は、AES-256 で暗号化されたものも含め .7z アーカイブを開いて作成できる、本物の Mac アプリを備えた無料・オープンソースの代替です。" } },
+        { "@type": "Question", "name": "Mac で .7z ファイルを開くにはどうすればよいですか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "macOS は単体では .7z を開けません。Ziplark（無料）をインストールし、.7z ファイルをダブルクリックするかウィンドウにドラッグして、展開先を選びます。" } },
+        { "@type": "Question", "name": "Mac で 7z アーカイブを作成できますか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "はい。Ziplark は macOS 上で、任意で AES-256 暗号化を付けた .7z アーカイブを、ZIP や tar とあわせて作成できます。作成タブで 7z 形式と圧縮レベルを選ぶか、ziplark CLI を使います。" } },
+        { "@type": "Question", "name": "Mac の 7z は AES-256 暗号化に対応していますか？",
+          "acceptedAnswer": { "@type": "Answer", "text": "はい。Ziplark は macOS、Windows、Linux で AES-256 暗号化された 7z アーカイブを読み書きできます。" } }
+      ]}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-left">
+      <a class="brand" href="/ja-JP/"><img src="/favicon.png?v=3" alt="" width="30" height="30" /><span>Ziplark</span></a>
+      <a class="byline" href="https://doaipm.com" target="_blank" rel="noopener" title="doaipm のその他の作品">by doaipm ↗</a>
+    </div>
+    <nav>
+      <a href="/ja-JP/#formats">対応形式</a>
+      <a href="/ja-JP/#tools">CLI と MCP</a>
+      <a href="/ja-JP/#download">ダウンロード</a>
+      <a href="/ja-JP/#faq">よくある質問</a>
+      <select class="lang-picker" aria-label="Language" onchange="if(this.value)location.href=this.value">
+        <option value="/7zip-for-mac/">English</option>
+        <option value="/zh-CN/7zip-for-mac/">简体中文</option>
+        <option value="/zh-TW/7zip-for-mac/">繁體中文</option>
+        <option value="/ja-JP/7zip-for-mac/" selected>日本語</option>
+        <option value="/ko-KR/7zip-for-mac/">한국어</option>
+        <option value="/de-DE/7zip-for-mac/">Deutsch</option>
+        <option value="/fr-FR/7zip-for-mac/">Français</option>
+        <option value="/it-IT/7zip-for-mac/">Italiano</option>
+        <option value="/hi-IN/7zip-for-mac/">हिन्दी</option>
+      </select>
+      <a href="https://github.com/zhitongblog/ziplark" rel="noopener" class="nav-star">★ Star</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="lp-hero">
+      <p class="crumbs"><a href="/ja-JP/">Ziplark</a> › Mac 版 7-Zip</p>
+      <p class="eyebrow">無料・オープンソース · .7z を読み書き · AES-256</p>
+      <h1>Mac 版 7-Zip、<br />無料で。</h1>
+      <p class="lede">
+        macOS 向けの公式な <strong>7-Zip</strong> アプリはありません — あるのはコマンドライン版の
+        <code>p7zip</code> 移植版だけです。<strong>Ziplark</strong> は、<strong>.7z を（AES-256 で）開いて作成</strong>
+        できる本物の Mac アプリを備えた無料・オープンソースの代替で、ZIP、RAR、tar と圧縮 tar の
+        各種にも対応します。
+      </p>
+      <div class="lp-cta">
+        <a class="btn primary" href="/ja-JP/#download">macOS 版をダウンロード</a>
+        <a class="btn ghost" href="https://github.com/zhitongblog/ziplark" rel="noopener">★ GitHub で Star</a>
+      </div>
+      <p class="hero-note">または <code class="brew">brew install --cask zhitongblog/tap/ziplark</code></p>
+    </section>
+
+    <section class="section">
+      <h2>Mac における Ziplark と 7-Zip / p7zip の比較</h2>
+      <div class="table-wrap">
+        <table class="cmp">
+          <thead><tr><th>&nbsp;</th><th class="win">Ziplark</th><th>7-Zip（公式）</th><th>p7zip（CLI）</th></tr></thead>
+          <tbody>
+            <tr><td>ネイティブ Mac アプリ</td><td class="win y">✓</td><td class="n">Windows のみ</td><td class="n">ターミナルのみ</td></tr>
+            <tr><td>.7z を開く</td><td class="win y">✓</td><td class="n">Mac 非対応</td><td class="y">✓</td></tr>
+            <tr><td>.7z を作成（AES-256）</td><td class="win y">✓</td><td class="n">Mac 非対応</td><td class="y">✓</td></tr>
+            <tr><td>ZIP / RAR / tar / ISO にも対応</td><td class="win y">✓</td><td class="y">✓（Win）</td><td class="n">7z/zip/tar</td></tr>
+            <tr><td>ドラッグ＆ドロップ GUI</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td><code>--json</code> 付き CLI</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>AI / MCP 連携</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>メンテナンス継続・オープンソース</td><td class="win y">✓</td><td class="y">✓</td><td class="n">放置された移植版</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="prose">
+        <h2>なぜ「Mac 版 7-Zip」を検索するのか</h2>
+        <p>7-Zip は Windows の定番アーカイバーなので、Mac に移行した人は同じものを探し —
+          そして壁にぶつかります。公式の 7-Zip には macOS アプリがないのです。よくある回避策は、
+          古びた <code>p7zip</code> コマンドラインか、App Store の有料ユーティリティです。</p>
+        <p>Ziplark は、あなたが本当に欲しかった部分を提供します。AES-256 で <code>.7z</code> を読み書きし、
+          ZIP、RAR（展開）、tar、ISO にも対応する、小さくネイティブな Mac アプリです。さらに
+          7-Zip のスクリプト性が気に入っていた方のために、本物の CLI と、AI エージェント向けの
+          MCP サーバーも同梱しています。</p>
+
+        <h3>Mac で .7z を作成する</h3>
+        <p>アプリで <strong>作成</strong>を開き、ファイルをドラッグして、<strong>7z</strong> と圧縮レベルを選び、
+          AES-256 用のパスワードを付けて保存します。ターミナルからは：</p>
+        <pre><code>ziplark create archive.7z ./folder --level best
+ziplark create secret.7z ./folder --password hunter2</code></pre>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <h2>Mac の 7-Zip — よくある質問</h2>
+      <div class="faq">
+        <details><summary>macOS 向けの公式な 7-Zip はありますか？</summary>
+          <p>いいえ — あるのは <code>p7zip</code> コマンドライン移植版だけです。Ziplark は、macOS 上で GUI から
+             <code>.7z</code> を開いて作成できる無料・オープンソースのアプリです。</p></details>
+        <details><summary>Mac で .7z ファイルを展開するにはどうすればよいですか？</summary>
+          <p>Ziplark をインストールし、<code>.7z</code> をダブルクリックするかウィンドウにドラッグして、
+             展開先を選びます。</p></details>
+        <details><summary>暗号化された 7z アーカイブを作成できますか？</summary>
+          <p>はい — Ziplark はすべての OS で AES-256 暗号化された <code>.7z</code>（および ZIP）アーカイブを作成します。</p></details>
+        <details><summary>Apple Silicon で動作しますか？</summary>
+          <p>はい。macOS ビルドはユニバーサルで、Apple Silicon と Intel 向けに公証済みです。</p></details>
+      </div>
+      <p class="fineprint" style="margin-top:22px">関連： <a href="/ja-JP/open-rar-on-mac/">Mac で RAR を開く</a> ·
+        <a href="/ja-JP/winrar-alternative/">無料の WinRAR 代替</a> · <a href="/ja-JP/">Ziplark ホーム</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand"><img src="/favicon.png?v=3" alt="" width="22" height="22" /><span>Ziplark</span></div>
+    <p>無料・高速・クロスプラットフォームのアーカイバー。<a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> ライセンス · <strong>doaipm</strong> のプロジェクト。</p>
+    <p class="muted">© 2026 doaipm · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+  </footer>
+</body>
+</html>

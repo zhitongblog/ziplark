@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko-KR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mac에서 RAR 파일 여는 법 (무료) — Ziplark</title>
+  <meta name="description" content="macOS는 자체적으로 RAR 파일을 열지 못합니다. Ziplark는 드래그 앤 드롭으로 Mac에서 RAR 및 RAR5를 — 암호로 보호된 것까지 — 푸는 무료 오픈소스 앱입니다. Apple Silicon &amp; Intel, 공증됨." />
+  <meta name="theme-color" content="#0e0f17" />
+  <meta name="keywords" content="맥에서 rar 열기, mac rar 파일 여는 법, mac rar 압축 풀기, unrar mac, mac에서 rar 무료로 풀기, mac rar 열기 프로그램, winrar 없이 mac에서 rar 열기, rar5 mac" />
+  <link rel="canonical" href="https://ziplark.com/ko-KR/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="zh-CN" href="https://ziplark.com/zh-CN/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="zh-TW" href="https://ziplark.com/zh-TW/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="ja-JP" href="https://ziplark.com/ja-JP/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="ko-KR" href="https://ziplark.com/ko-KR/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="de-DE" href="https://ziplark.com/de-DE/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="fr-FR" href="https://ziplark.com/fr-FR/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="it-IT" href="https://ziplark.com/it-IT/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="hi-IN" href="https://ziplark.com/hi-IN/open-rar-on-mac/" />
+  <link rel="alternate" hreflang="x-default" href="https://ziplark.com/open-rar-on-mac/" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <meta property="og:site_name" content="Ziplark" />
+  <meta property="og:title" content="Mac에서 RAR 파일 여는 법 (무료)" />
+  <meta property="og:description" content="macOS는 기본적으로 RAR를 열지 못합니다. Ziplark는 Mac에서 RAR 및 RAR5를 무료로 풉니다 — 끌고, 놓으면, 끝." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://ziplark.com/ko-KR/open-rar-on-mac/" />
+  <meta property="og:image" content="https://ziplark.com/og.png?v=1" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Mac에서 RAR 파일 여는 법 (무료)" />
+  <meta name="twitter:description" content="macOS는 기본적으로 RAR를 열지 못합니다. Ziplark는 무료로 해냅니다." />
+  <link rel="stylesheet" href="/styles.css?v=7" />
+  <style>
+    .lp-hero { text-align: center; padding: clamp(48px, 9vw, 90px) 0 34px; }
+    .lp-hero h1 { font-size: clamp(30px, 5.4vw, 52px); line-height: 1.08; letter-spacing: -.03em; font-weight: 800; margin: 0; }
+    .lp-hero .lede { margin-top: 20px; }
+    .lp-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+    .crumbs { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+    .crumbs a { color: var(--muted); } .crumbs a:hover { color: var(--text); }
+    .cmp td.win { color: var(--accent2); font-weight: 700; }
+    .cmp th.win { color: #fff; }
+    .prose { max-width: 760px; color: #c3c8de; }
+    .prose h2 { color: var(--text); }
+    .prose h3 { color: var(--text); margin: 26px 0 6px; font-size: 18px; }
+    .prose ol, .prose ul { padding-left: 20px; }
+    .prose li { margin: 6px 0; }
+    .prose code { background: var(--surface); padding: 1px 6px; border-radius: 6px; color: #c7d2fe; }
+    .steps { counter-reset: s; display: grid; gap: 12px; max-width: 760px; }
+    .steps .step { display: flex; gap: 14px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+    .steps .step::before { counter-increment: s; content: counter(s); flex: 0 0 28px; height: 28px; border-radius: 50%; background: linear-gradient(120deg, var(--accent), #7c3aed); color: #fff; font-weight: 700; display: grid; place-items: center; }
+    .steps .step p { margin: 0; color: #c3c8de; }
+    .steps .step b { color: var(--text); }
+  </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Ziplark", "item": "https://ziplark.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Open RAR on Mac", "item": "https://ziplark.com/open-rar-on-mac/" }
+      ]},
+      { "@type": "HowTo", "name": "How to open a RAR file on Mac for free",
+        "step": [
+          { "@type": "HowToStep", "name": "Ziplark 설치", "text": "ziplark.com에서 macOS용 Ziplark를 다운로드하거나 brew install --cask zhitongblog/tap/ziplark를 실행하세요." },
+          { "@type": "HowToStep", "name": "RAR 열기", "text": ".rar 파일을 더블클릭하거나 Ziplark 창으로 끌어다 놓아 내용을 확인하세요." },
+          { "@type": "HowToStep", "name": "압축 풀기", "text": "대상 폴더를 고르고 압축을 푸세요. 압축 파일이 보호되어 있다면 먼저 암호를 입력하세요." }
+        ]
+      },
+      { "@type": "FAQPage", "mainEntity": [
+        { "@type": "Question", "name": "macOS는 기본적으로 RAR 파일을 열 수 있나요?",
+          "acceptedAnswer": { "@type": "Answer", "text": "아니요. macOS에 내장된 압축 유틸리티는 ZIP과 tar은 열지만 RAR은 열지 못합니다. RAR 및 RAR5 파일을 풀려면 Ziplark 같은 서드파티 앱이 필요합니다." } },
+        { "@type": "Question", "name": "Mac에서 RAR 파일을 무료로 여는 방법은 무엇인가요?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Ziplark(무료, 오픈소스)를 설치한 뒤 .rar 파일을 더블클릭하거나 Ziplark 창으로 끌어다 놓고 풀 위치를 고르세요. RAR, RAR5, 암호로 보호된 압축 파일을 모두 처리합니다." } },
+        { "@type": "Question", "name": "Apple Silicon Mac에서도 동작하나요?",
+          "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 Apple Silicon(M 시리즈)과 Intel Mac 모두를 위한 유니버설 공증 macOS 빌드를 제공합니다." } },
+        { "@type": "Question", "name": "Mac에서 암호로 보호된 RAR 파일도 열 수 있나요?",
+          "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 macOS에서 암호화된 RAR 및 RAR5 압축 파일을 읽습니다 — 메시지가 나오면 암호를 입력하세요." } }
+      ]}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-left">
+      <a class="brand" href="/ko-KR/"><img src="/favicon.png?v=3" alt="" width="30" height="30" /><span>Ziplark</span></a>
+      <a class="byline" href="https://doaipm.com" target="_blank" rel="noopener" title="doaipm의 다른 프로젝트">by doaipm ↗</a>
+    </div>
+    <nav>
+      <a href="/ko-KR/#formats">형식</a>
+      <a href="/ko-KR/#tools">CLI &amp; MCP</a>
+      <a href="/ko-KR/#download">다운로드</a>
+      <a href="/ko-KR/#faq">FAQ</a>
+      <select class="lang-picker" aria-label="Language" onchange="if(this.value)location.href=this.value">
+        <option value="/open-rar-on-mac/">English</option>
+        <option value="/zh-CN/open-rar-on-mac/">简体中文</option>
+        <option value="/zh-TW/open-rar-on-mac/">繁體中文</option>
+        <option value="/ja-JP/open-rar-on-mac/">日本語</option>
+        <option value="/ko-KR/open-rar-on-mac/" selected>한국어</option>
+        <option value="/de-DE/open-rar-on-mac/">Deutsch</option>
+        <option value="/fr-FR/open-rar-on-mac/">Français</option>
+        <option value="/it-IT/open-rar-on-mac/">Italiano</option>
+        <option value="/hi-IN/open-rar-on-mac/">हिन्दी</option>
+      </select>
+      <a href="https://github.com/zhitongblog/ziplark" rel="noopener" class="nav-star">★ Star</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="lp-hero">
+      <p class="crumbs"><a href="/ko-KR/">Ziplark</a> › Mac에서 RAR 열기</p>
+      <p class="eyebrow">무료 &amp; 오픈소스 · Apple Silicon &amp; Intel · 공증됨</p>
+      <h1>Mac에서 RAR 파일<br />여는 법 — 무료</h1>
+      <p class="lede">
+        macOS는 <strong>.rar</strong> 파일을 자체적으로 열지 못합니다 — 내장된 압축 유틸리티는
+        ZIP과 tar만 처리하니까요. <strong>Ziplark</strong>는 드래그 앤 드롭으로 <strong>RAR과 RAR5</strong>를
+        (암호로 보호된 것까지) 푸는 무료 오픈소스 앱입니다.
+      </p>
+      <div class="lp-cta">
+        <a class="btn primary" href="/ko-KR/#download">macOS용 다운로드</a>
+        <a class="btn ghost" href="https://github.com/zhitongblog/ziplark" rel="noopener">★ GitHub에서 Star</a>
+      </div>
+      <p class="hero-note">또는 <code class="brew">brew install --cask zhitongblog/tap/ziplark</code></p>
+    </section>
+
+    <section class="section">
+      <h2>세 단계로 RAR 열기</h2>
+      <div class="steps">
+        <div class="step"><p><b>Ziplark를 설치하세요.</b> <a href="/ko-KR/#download">macOS 빌드를 다운로드</a>하거나
+          (유니버설, 공증됨) <code>brew install --cask zhitongblog/tap/ziplark</code>를 실행하세요.</p></div>
+        <div class="step"><p><b>RAR을 여세요.</b> <code>.rar</code> 파일을 더블클릭하거나, Ziplark 창으로
+          끌어다 놓아 안에 든 것을 모두 미리 보세요.</p></div>
+        <div class="step"><p><b>압축을 푸세요.</b> 대상을 고르고 풀기를 클릭하세요. 보호되어 있다면
+          먼저 암호를 입력하세요 — RAR5와 암호화된 압축 파일을 지원합니다.</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Mac용 무료 RAR 열기 도구 비교</h2>
+      <div class="table-wrap">
+        <table class="cmp">
+          <thead><tr><th>&nbsp;</th><th class="win">Ziplark</th><th>The Unarchiver</th><th>Keka</th></tr></thead>
+          <tbody>
+            <tr><td>가격</td><td class="win">무료 (MIT)</td><td>무료</td><td>App Store에서 무료 / 유료</td></tr>
+            <tr><td>RAR / RAR5 압축 풀기</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>ZIP / 7z 만들기 (AES-256)</td><td class="win y">✓</td><td class="n">풀기만</td><td class="y">✓</td></tr>
+            <tr><td>오픈소스</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>명령줄 + <code>--json</code></td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>AI / MCP 연동</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>Windows &amp; Linux도 지원</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fineprint">The Unarchiver는 풀기만 합니다. Ziplark는 압축 파일을 풀고 <em>만들기</em>까지 하며,
+        CLI + MCP 서버를 제공하고, 완전한 오픈소스입니다.</p>
+    </section>
+
+    <section class="section" id="faq">
+      <h2>Mac에서 RAR 열기 — FAQ</h2>
+      <div class="faq">
+        <details><summary>추가 소프트웨어 없이 macOS에서 RAR 파일을 열 수 있나요?</summary>
+          <p>아니요. 내장된 압축 유틸리티는 ZIP과 tar은 처리하지만 RAR은 처리하지 못합니다.
+             <code>.rar</code>과 <code>.rar5</code> 파일을 열려면 Ziplark 같은 앱이 필요합니다.</p></details>
+        <details><summary>Mac에서 RAR을 여는 데 Ziplark는 무료인가요?</summary>
+          <p>네 — MIT 라이선스의 무료 오픈소스이며, 체험판도 광고도 없습니다.</p></details>
+        <details><summary>Apple Silicon(M1/M2/M3)에서도 실행되나요?</summary>
+          <p>네. macOS 빌드는 유니버설이며 공증되어 있어, Apple Silicon과 Intel에서 네이티브로 실행됩니다.</p></details>
+        <details><summary>여러 파트로 나뉜 RAR 압축 파일(.part1.rar)도 열 수 있나요?</summary>
+          <p>네 — Ziplark에 첫 번째 파트를 지정하면 세트를 다시 조합해 압축을 풉니다.</p></details>
+      </div>
+      <p class="fineprint" style="margin-top:22px">관련: <a href="/ko-KR/winrar-alternative/">무료 WinRAR 대안</a> ·
+        <a href="/ko-KR/7zip-for-mac/">Mac용 7-Zip</a> · <a href="/ko-KR/">Ziplark 홈</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand"><img src="/favicon.png?v=3" alt="" width="22" height="22" /><span>Ziplark</span></div>
+    <p>무료이며 빠른 크로스플랫폼 압축 도구. <a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> 라이선스 · <strong>doaipm</strong> 프로젝트.</p>
+    <p class="muted">© 2026 doaipm · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+  </footer>
+</body>
+</html>
