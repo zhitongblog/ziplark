@@ -73,6 +73,11 @@ jobs:
              README.md LICENSE THIRD_PARTY_LICENSES.md "$dir/"
           tar czf "$dir.tar.gz" "$dir"
           shasum -a 256 "$dir.tar.gz" > "$dir.tar.gz.sha256"
+      - name: Clean-machine smoke test (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: pwsh scripts/windows-smoke.ps1 -BinDir target/${{ matrix.target }}/release -SkipGui
+
       - name: Package (windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
@@ -104,8 +109,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, bundles: "deb,appimage" }
-          - { os: windows-latest, bundles: "msi,nsis" }
+          - { os: ubuntu-latest, bundles: "deb,appimage", extraArgs: "" }
+          - { os: windows-latest, bundles: "msi,nsis", extraArgs: "--target x86_64-pc-windows-msvc" }
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -115,6 +120,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Build GUI + clean-machine smoke test (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cargo build --release --target x86_64-pc-windows-msvc -p ziplark-gui -p ziplark-cli -p ziplark-mcp
+          pwsh scripts/windows-smoke.ps1 -BinDir target/x86_64-pc-windows-msvc/release
+
       - name: Build & upload desktop installers
         uses: tauri-apps/tauri-action@v0
         env:
@@ -122,4 +134,4 @@ jobs:
         with:
           tagName: ${{ needs.create-release.outputs.tag }}
           releaseName: Ziplark ${{ needs.create-release.outputs.tag }}
-          args: --bundles ${{ matrix.bundles }}
+          args: --bundles ${{ matrix.bundles }} ${{ matrix.extraArgs }}

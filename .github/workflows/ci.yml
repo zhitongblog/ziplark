@@ -4,6 +4,13 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  # Windows work always names the target explicitly. Without --target, Cargo
+  # applies the crt-static rustflags from .cargo/config.toml to build scripts
+  # and proc-macros too; with it, they stay host-native and only the shipped
+  # artifacts get the static CRT.
+  WIN_TARGET: x86_64-pc-windows-msvc
+
 jobs:
   test:
     name: test (${{ matrix.os }})
@@ -11,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -27,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -39,3 +46,24 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Build desktop app
         run: cargo build -p ziplark-gui
+
+  # Windows gets its own job because it carries an extra obligation: the
+  # binaries must run on a *clean* Windows install. CI runners are not clean
+  # (they ship the VC++ redistributable), so scripts/windows-smoke.ps1 proves
+  # the property from the PE import tables instead of by running the binary.
+  # See microsoft/winget-pkgs#395332 for what happens when we don't.
+  windows:
+    name: windows (clean-machine smoke)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.WIN_TARGET }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Test engine + CLI + MCP
+        run: cargo test --target ${{ env.WIN_TARGET }} -p ziplark-core -p ziplark-cli -p ziplark-mcp
+      - name: Build GUI + CLI + MCP (release)
+        run: cargo build --release --target ${{ env.WIN_TARGET }} -p ziplark-gui -p ziplark-cli -p ziplark-mcp
+      - name: Clean-machine smoke test
+        run: pwsh scripts/windows-smoke.ps1 -BinDir target/${{ env.WIN_TARGET }}/release
