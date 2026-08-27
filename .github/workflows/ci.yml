@@ -63,7 +63,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Test engine + CLI + MCP
         run: cargo test --target ${{ env.WIN_TARGET }} -p ziplark-core -p ziplark-cli -p ziplark-mcp
+      # Build the GUI the way `tauri build` does (it recompiles with the
+      # `custom-protocol` feature), so the smoke test below inspects the same
+      # binary shape that ends up in the installers.
       - name: Build GUI + CLI + MCP (release)
-        run: cargo build --release --target ${{ env.WIN_TARGET }} -p ziplark-gui -p ziplark-cli -p ziplark-mcp
+        run: |
+          npm install -g @tauri-apps/cli@v2
+          cargo build --release --target ${{ env.WIN_TARGET }} -p ziplark-cli -p ziplark-mcp
+          tauri build --no-bundle --target ${{ env.WIN_TARGET }}
       - name: Clean-machine smoke test
         run: pwsh scripts/windows-smoke.ps1 -BinDir target/${{ env.WIN_TARGET }}/release

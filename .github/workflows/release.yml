@@ -120,11 +120,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      # `tauri build` recompiles the GUI with the `custom-protocol` feature and
+      # overwrites whatever a plain `cargo build` produced, so smoke-testing a
+      # cargo-built exe would verify a binary we never ship. Do the tauri build
+      # here, verify *that* exe, and let tauri-action's own build below land on
+      # the same fingerprint (a cache hit) before it bundles and uploads.
       - name: Build GUI + clean-machine smoke test (windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          cargo build --release --target x86_64-pc-windows-msvc -p ziplark-gui -p ziplark-cli -p ziplark-mcp
+          npm install -g @tauri-apps/cli@v2
+          cargo build --release --target x86_64-pc-windows-msvc -p ziplark-cli -p ziplark-mcp
+          tauri build --no-bundle --target x86_64-pc-windows-msvc
           pwsh scripts/windows-smoke.ps1 -BinDir target/x86_64-pc-windows-msvc/release
 
       - name: Build & upload desktop installers
