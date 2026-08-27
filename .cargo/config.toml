@@ -1,0 +1,22 @@
+# Statically link the MSVC C/C++ runtime on Windows.
+#
+# Without this, our binaries import VCRUNTIME140.dll (from the C deps: bzip2,
+# xz2, zstd) and MSVCP140.dll (from libunrar, which is C++). Neither ships with
+# Windows, so on a machine without the "Visual C++ Redistributable" installed
+# every Ziplark binary dies at startup with STATUS_DLL_NOT_FOUND
+# (0xC0000135 / -1073741515) before main() ever runs.
+#
+# That is exactly what killed the winget submission (microsoft/winget-pkgs#395332):
+# the validation VM is a clean Windows image, so ziplark-gui.exe never started.
+#
+# `cc` picks up the crt-static target feature and switches the bundled C/C++ to
+# /MT, so the C deps stay consistent with the Rust side.
+#
+# scripts/windows-smoke.ps1 asserts the resulting import tables reference only
+# DLLs that ship with Windows; CI runs it on every push.
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
