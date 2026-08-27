@@ -178,10 +178,14 @@ function Test-Imports {
         $bad += "$dll (not known to ship with Windows)"
     }
 
+    # Small binaries are a stated selling point, and the static CRT costs some
+    # size -- keep that cost visible on every run rather than discovering it later.
+    $kb = [math]::Round((Get-Item $Path).Length / 1KB, 1)
+
     if ($bad.Count) {
         Fail "$name depends on DLLs a clean Windows does not have:`n        - $($bad -join "`n        - ")"
     } else {
-        Pass "$name imports only DLLs that ship with Windows ($($imports.Count) of them)"
+        Pass "$name -- $kb KB, imports only DLLs that ship with Windows ($($imports.Count) of them)"
     }
 }
 
