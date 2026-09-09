@@ -26,8 +26,13 @@ xz2 = "0.1"
 zstd = "0.13"
 # timestamp conversion (re-uses the copy already pulled in by zip's `time` feature)
 time = { version = "0.3", default-features = false }
-# 7z: pure-Rust read + write (aes256 = encrypted .7z support)
-sevenz-rust2 = { version = "0.13", features = ["aes256"] }
+# 7z: pure-Rust read + write. `compress` enables the encoder (incl. the
+# multi-threaded LZMA2 one); the codec features let us open .7z archives that
+# were written with something other than LZMA2 — bzip2/deflate/lz4/zstd reuse
+# crates we already link for the tar variants, so they cost almost nothing.
+sevenz-rust2 = { version = "0.22", default-features = false, features = [
+    "compress", "aes256", "bzip2", "deflate", "lz4", "zstd", "ppmd",
+] }
 # RAR (incl. RAR5) extraction via bundled libunrar (extract-only; creating RAR is proprietary)
 unrar = "0.5"
 # LZ4 frame format (.lz4 / .tar.lz4) — pure Rust, read + write

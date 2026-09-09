@@ -5,6 +5,25 @@ This project adheres to [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Changed
+- **7z archives are now solid, and compression uses every core.** We were
+  writing one compression block per file, so LZMA2 restarted — new dictionary,
+  new encoder — for every entry, and nothing was ever compressed against
+  anything else. On a 235 MB / 15,043-file tree that cost 584 s and produced a
+  48.7 MB archive; it is now 104 s and 33.9 MB (system 7-Zip, for reference:
+  40.8 s and 32.4 MB). Entries are packed into solid blocks of up to 256 MiB —
+  capped so that pulling one file out of a big archive stays bounded — and
+  encoded with the multi-threaded LZMA2 encoder. Archives are verified
+  interoperable with 7-Zip in both directions, encrypted ones included.
+- **`--level` now does something for 7z.** It was accepted and ignored; store /
+  fast / default / best map to COPY and LZMA2 presets 1 / 6 / 9.
+- 7z gained the codecs needed to *open* archives other tools produce: bzip2,
+  deflate, lz4, zstd and PPMd, alongside the LZMA/LZMA2 we already had.
+- `ziplark list` on a 7z now reports each entry's real modification time, CRC
+  and compressed size, and whether the archive is encrypted is read from the
+  archive's own coder chain instead of from whether the caller passed a
+  password.
+
 ### Fixed
 - **Security: a crafted tar could write outside the destination directory.**
   `tar`/`tar.gz`/… restore symlinks, and the guard only ever checked entry

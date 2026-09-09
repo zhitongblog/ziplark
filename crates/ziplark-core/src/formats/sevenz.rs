@@ -1,13 +1,35 @@
 use crate::error::{Error, Result};
 use crate::formats::{collect_inputs, create_file, ensure_parent, DestGuard};
 use crate::model::*;
-use crate::{CreateOptions, ExtractOptions, ListOptions, ProgressFn};
+use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
+use sevenz_rust2::encoder_options::{AesEncoderOptions, Lzma2Options};
 use sevenz_rust2::{
-    AesEncoderOptions, Password, SevenZArchiveEntry, SevenZMethod, SevenZReader, SevenZWriter,
+    Archive, ArchiveEntry as SevenZEntry, ArchiveReader, ArchiveWriter, EncoderConfiguration,
+    EncoderMethod, Password, SourceReader,
 };
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+
+/// How much *input* goes into one solid block.
+///
+/// 7z compresses a block as a single LZMA2 stream, so entries in the same block
+/// share a dictionary — which is where nearly all of the compression on a tree
+/// of small, similar files comes from. Writing one block per entry (what we did
+/// before) throws that away and pays a fresh encoder setup per file.
+///
+/// The cap exists because a block is also the unit of *decompression*: pulling
+/// one file out of a block means decoding everything before it. 256 MiB keeps
+/// single-file extraction from a large archive bounded while still giving the
+/// dictionary plenty to work with.
+const SOLID_BLOCK_BYTES: u64 = 256 * 1024 * 1024;
+
+/// Input per independently-compressed chunk when encoding with several threads.
+///
+/// The multi-threaded LZMA2 encoder splits the stream into chunks and resets
+/// the dictionary at each boundary, so this trades a little ratio for cores.
+/// It is clamped up to the dictionary size by the encoder.
+const MT_CHUNK_BYTES: u64 = 32 * 1024 * 1024;
 
 fn map_err(e: sevenz_rust2::Error) -> Error {
     use sevenz_rust2::Error as E;
@@ -29,9 +51,35 @@ fn password(opts_pw: &Option<String>) -> Password {
     }
 }
 
+/// Whether any block in the archive is AES-encrypted.
+///
+/// This reads the archive's own coder chain. The old code reported "encrypted"
+/// when the *caller* had supplied a password, which answered a different
+/// question entirely.
+fn is_encrypted(archive: &Archive) -> bool {
+    archive.blocks.iter().any(|block| {
+        block
+            .coders
+            .iter()
+            .any(|c| c.encoder_method_id() == EncoderMethod::AES256_SHA256.id())
+    })
+}
+
+/// 7z stores Windows FILETIME; the model wants unix seconds.
+fn modified(entry: &SevenZEntry) -> Option<i64> {
+    if !entry.has_last_modified_date {
+        return None;
+    }
+    let t: std::time::SystemTime = entry.last_modified_date.into();
+    t.duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_secs() as i64)
+}
+
 pub fn list(path: &Path, fmt: Format, opts: &ListOptions) -> Result<ArchiveInfo> {
-    let reader = SevenZReader::open(path, password(&opts.password)).map_err(map_err)?;
+    let reader = ArchiveReader::open(path, password(&opts.password)).map_err(map_err)?;
     let archive = reader.archive();
+    let encrypted = is_encrypted(archive);
     let mut entries = Vec::with_capacity(archive.files.len());
     let mut total_size = 0u64;
     for f in &archive.files {
@@ -40,10 +88,10 @@ pub fn list(path: &Path, fmt: Format, opts: &ListOptions) -> Result<ArchiveInfo>
             path: f.name().to_string(),
             is_dir: f.is_directory(),
             size: f.size(),
-            compressed_size: None,
-            encrypted: opts.password.is_some(),
-            modified: None,
-            crc32: None,
+            compressed_size: (f.compressed_size > 0).then_some(f.compressed_size),
+            encrypted,
+            modified: modified(f),
+            crc32: f.has_crc.then_some(f.crc as u32),
         });
     }
     let total_compressed = std::fs::metadata(path)?.len();
@@ -51,14 +99,14 @@ pub fn list(path: &Path, fmt: Format, opts: &ListOptions) -> Result<ArchiveInfo>
         format: fmt,
         path: path.to_path_buf(),
         entries,
-        encrypted: opts.password.is_some(),
+        encrypted,
         total_size,
         total_compressed,
     })
 }
 
 pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Result<ExtractReport> {
-    let mut reader = SevenZReader::open(path, password(&opts.password)).map_err(map_err)?;
+    let mut reader = ArchiveReader::open(path, password(&opts.password)).map_err(map_err)?;
     std::fs::create_dir_all(&opts.dest)?;
 
     let mut report = ExtractReport {
@@ -98,6 +146,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                 first_error = Some(e);
                 return Ok(false);
             }
+
             let mut out = match create_file(&out_path, opts.overwrite) {
                 Ok(f) => f,
                 Err(e) => {
@@ -133,7 +182,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
 }
 
 pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<TestReport> {
-    let mut reader = SevenZReader::open(path, password(&opts.password)).map_err(map_err)?;
+    let mut reader = ArchiveReader::open(path, password(&opts.password)).map_err(map_err)?;
     let mut tested = 0u64;
     let mut bad = Vec::new();
     reader
@@ -164,6 +213,37 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
     })
 }
 
+/// The coder chain for new archives: optional AES on the outside, then LZMA2
+/// (or plain COPY at `Level::Store`).
+fn content_methods(opts: &CreateOptions) -> Vec<EncoderConfiguration> {
+    let mut methods: Vec<EncoderConfiguration> = Vec::new();
+    if let Some(pw) = &opts.password {
+        methods.push(AesEncoderOptions::new(Password::from(pw.as_str())).into());
+    }
+    methods.push(match opts.level {
+        Level::Store => EncoderMethod::COPY.into(),
+        level => lzma2_options(level).into(),
+    });
+    methods
+}
+
+fn lzma2_options(level: Level) -> Lzma2Options {
+    let preset = match level {
+        Level::Store => 0,
+        Level::Fast => 1,
+        Level::Default => 6,
+        Level::Best => 9,
+    };
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get() as u32)
+        .unwrap_or(1);
+    if threads > 1 {
+        Lzma2Options::from_level_mt(preset, threads, MT_CHUNK_BYTES)
+    } else {
+        Lzma2Options::from_level(preset)
+    }
+}
+
 pub fn create(
     output: &Path,
     inputs: &[PathBuf],
@@ -172,43 +252,54 @@ pub fn create(
 ) -> Result<CreateReport> {
     let files = collect_inputs(inputs)?;
     let out = File::create(output)?;
-    let mut writer = SevenZWriter::new(out).map_err(map_err)?;
-
-    if let Some(pw) = &opts.password {
-        // Match the crate's own encrypted-archive recipe: AES-256 over LZMA2.
-        writer.set_content_methods(vec![
-            AesEncoderOptions::new(Password::from(pw.as_str())).into(),
-            SevenZMethod::LZMA2.into(),
-        ]);
-    }
+    let mut writer = ArchiveWriter::new(out).map_err(map_err)?;
+    writer.set_content_methods(content_methods(opts));
 
     let total = files.len() as u64;
     let mut entries_added = 0u64;
     let mut bytes_in = 0u64;
+    // Files accumulate here until they add up to a solid block.
+    let mut block: Vec<(SevenZEntry, LazyFile)> = Vec::new();
+    let mut block_bytes = 0u64;
 
     for (idx, (src, rel)) in files.iter().enumerate() {
+        let done = idx as u64 + 1;
+
         if rel.ends_with('/') {
-            let entry = SevenZArchiveEntry::new_folder(rel.trim_end_matches('/'));
+            let entry = SevenZEntry::new_directory(rel.trim_end_matches('/'));
             writer
                 .push_archive_entry::<&[u8]>(entry, None)
                 .map_err(map_err)?;
-        } else {
-            let entry = SevenZArchiveEntry::from_path(src, rel.clone());
-            let f = File::open(src)?;
-            bytes_in += f.metadata()?.len();
-            writer.push_archive_entry(entry, Some(f)).map_err(map_err)?;
-            entries_added += 1;
+            continue;
         }
+
+        // `from_path` fills in the name and timestamps but leaves `size` to the
+        // writer, so ask the filesystem — block accounting needs it.
+        let size = std::fs::metadata(src)?.len();
+        let mut entry = SevenZEntry::from_path(src, rel.clone());
+        entry.size = size;
+
+        block.push((entry, LazyFile::new(src.clone())));
+        block_bytes += size;
+        bytes_in += size;
+        entries_added += 1;
+
         progress(Progress {
             current_path: rel.clone(),
-            entries_done: idx as u64 + 1,
+            entries_done: done,
             entries_total: total,
             bytes_done: bytes_in,
             bytes_total: 0,
         });
-    }
 
-    let mut finished = writer.finish().map_err(|e| Error::Io(e))?;
+        if block_bytes >= SOLID_BLOCK_BYTES {
+            write_block(&mut writer, &mut block)?;
+            block_bytes = 0;
+        }
+    }
+    write_block(&mut writer, &mut block)?;
+
+    let mut finished = writer.finish().map_err(Error::Io)?;
     finished.flush()?;
     let bytes_out = std::fs::metadata(output)?.len();
     Ok(CreateReport {
@@ -218,6 +309,61 @@ pub fn create(
         bytes_in,
         bytes_out,
     })
+}
+
+/// Compress everything accumulated so far as one solid block.
+fn write_block<W: Write + std::io::Seek>(
+    writer: &mut ArchiveWriter<W>,
+    block: &mut Vec<(SevenZEntry, LazyFile)>,
+) -> Result<()> {
+    if block.is_empty() {
+        return Ok(());
+    }
+    let (entries, sources): (Vec<_>, Vec<_>) = block.drain(..).unzip();
+    let readers: Vec<SourceReader<LazyFile>> = sources.into_iter().map(SourceReader::from).collect();
+    writer
+        .push_archive_entries(entries, readers)
+        .map_err(map_err)?;
+    Ok(())
+}
+
+/// A file that opens on first read and closes itself at EOF.
+///
+/// The writer takes one reader per entry for the whole block up front, and a
+/// block can hold many thousands of small files — handing it that many open
+/// files at once would blow through the process's descriptor limit. Entries are
+/// read strictly in order, so at most one file is ever actually open.
+struct LazyFile {
+    path: PathBuf,
+    file: Option<File>,
+    finished: bool,
+}
+
+impl LazyFile {
+    fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            file: None,
+            finished: false,
+        }
+    }
+}
+
+impl Read for LazyFile {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.finished {
+            return Ok(0);
+        }
+        if self.file.is_none() {
+            self.file = Some(File::open(&self.path)?);
+        }
+        let n = self.file.as_mut().unwrap().read(buf)?;
+        if n == 0 {
+            self.file = None;
+            self.finished = true;
+        }
+        Ok(n)
+    }
 }
 
 fn matches_filter(name: &str, include: &[String]) -> bool {
