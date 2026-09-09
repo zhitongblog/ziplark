@@ -16,6 +16,7 @@
 //! | ISO 9660 / Joliet (disc image) | ✅ | ✅ | — |
 
 mod detect;
+mod encoding;
 mod error;
 mod formats;
 mod model;

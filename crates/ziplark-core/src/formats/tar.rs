@@ -1,3 +1,4 @@
+use crate::encoding::NameDecoder;
 use crate::error::{Error, Result};
 use crate::formats::{collect_inputs, ensure_parent, prepare_leaf, DestGuard};
 use crate::model::*;
@@ -26,12 +27,15 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
     let mut entries = Vec::new();
     let mut total_size = 0u64;
 
+    let mut names = NameDecoder::new();
     for entry in archive.entries()? {
         let entry = entry?;
         let is_dir = entry.header().entry_type().is_dir();
         let size = entry.size();
         total_size += size;
-        let name = entry.path()?.to_string_lossy().to_string();
+        let raw = entry.path_bytes().into_owned();
+        names.sample(&raw);
+        let name = names.decode(&raw);
         entries.push(ArchiveEntry {
             path: name,
             is_dir,
@@ -71,10 +75,13 @@ pub fn extract(
     };
 
     let mut guard = DestGuard::new(&opts.dest);
+    let mut names = NameDecoder::new();
     for (i, entry) in archive.entries()?.enumerate() {
         let mut entry = entry?;
         let idx = i as u64 + 1;
-        let name = entry.path()?.to_string_lossy().to_string();
+        let raw = entry.path_bytes().into_owned();
+        names.sample(&raw);
+        let name = names.decode(&raw);
         if !matches_filter(&name, &opts.include) {
             continue;
         }
@@ -92,11 +99,11 @@ pub fn extract(
         ensure_parent(&out_path)?;
 
         if kind.is_symlink() || kind.is_hard_link() {
-            let target = entry
-                .link_name()?
+            let target_raw = entry
+                .link_name_bytes()
                 .ok_or_else(|| Error::corrupt(format!("{name}: link entry with no target")))?
-                .to_string_lossy()
-                .to_string();
+                .into_owned();
+            let target = names.decode(&target_raw);
             unpack_link(&mut guard, kind.is_symlink(), &target, &out_path, opts.overwrite)?;
             report.files_written += 1;
             progress(Progress {

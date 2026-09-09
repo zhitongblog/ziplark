@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org).
   are refused too. Links that stay inside are still restored as links.
   The guard is shared, so ZIP, 7z, RAR and ISO get the same protection against
   symlinks already present in the destination.
+- **Non-UTF-8 filenames are no longer mojibake.** A ZIP written by Windows
+  Explorer or WinRAR on a Chinese, Japanese or Korean system stores names as raw
+  code-page bytes with general-purpose bit 11 clear; reading those as CP437 (the
+  `zip` crate's default) turned `中文文件.txt` into `ÖÐÎÄÎÄ¼þ.txt`, in the
+  listing and on disk. ZIP and tar names are now decoded per archive: valid
+  UTF-8 is taken as-is, anything else is decoded with an encoding detected from
+  all of the archive's names at once (chardetng), falling back to the machine's
+  own code page when the sample is too short to call.
 
 ## [0.2.2] — 2026-08
 

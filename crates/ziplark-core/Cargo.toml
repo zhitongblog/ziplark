@@ -32,6 +32,16 @@ sevenz-rust2 = { version = "0.13", features = ["aes256"] }
 unrar = "0.5"
 # LZ4 frame format (.lz4 / .tar.lz4) — pure Rust, read + write
 lz4_flex = "0.11"
+# Legacy filename decoding. ZIP and tar store raw bytes in the creating
+# machine's code page (CP936/CP932/CP949/CP950 on CJK Windows); chardetng
+# guesses which one, encoding_rs decodes it. Both are pure Rust, no C.
+chardetng = "0.1"
+encoding_rs = "0.8"
+
+# GetACP(), so a legacy ZIP opened on the localized Windows that made it decodes
+# with that machine's code page when the name is too short to detect.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Globalization"] }
 
 [features]
 default = []
