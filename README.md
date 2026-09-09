@@ -52,8 +52,11 @@ Or grab a build for any platform from the [releases page](https://github.com/zhi
 ## Why Ziplark
 - **Small.** Size-optimized release profile (`opt-level=z`, LTO, stripped,
   `panic=abort`). The desktop app uses the OS webview (no bundled Chromium).
-- **Safe.** Every extraction path is funneled through a single zip-slip guard —
-  no entry can ever escape the destination directory.
+- **Safe.** Every extraction path is funneled through a single guard, and it
+  checks both ways out: the entry name (`../`, absolute paths) *and* what is
+  actually on disk, so a symlink — planted by an earlier entry of the same
+  archive or sitting in the destination already — can't be used to redirect a
+  write. No entry can escape the destination directory.
 - **One engine.** The GUI, CLI and MCP server are thin shells over
   [`ziplark-core`](crates/ziplark-core); whatever the CLI does, the app does
   identically.

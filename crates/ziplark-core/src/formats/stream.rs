@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::formats::ensure_parent;
+use crate::formats::{create_file, ensure_parent};
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
 use std::fs::File;
@@ -62,14 +62,8 @@ pub fn extract(
     let name = inner_name(path);
     let out_path = opts.dest.join(&name);
     ensure_parent(&out_path)?;
-    if out_path.exists() && !opts.overwrite {
-        return Err(Error::other(format!(
-            "{} already exists (use overwrite)",
-            out_path.display()
-        )));
-    }
     let mut dec = decoder(path, fmt)?;
-    let mut out = File::create(&out_path)?;
+    let mut out = create_file(&out_path, opts.overwrite)?;
     let n = io::copy(&mut dec, &mut out).map_err(map_stream_err)?;
     progress(Progress {
         current_path: name,

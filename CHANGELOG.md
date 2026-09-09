@@ -3,6 +3,22 @@
 All notable changes to Ziplark are documented here.
 This project adheres to [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Fixed
+- **Security: a crafted tar could write outside the destination directory.**
+  `tar`/`tar.gz`/… restore symlinks, and the guard only ever checked entry
+  *names*. An archive storing `evil -> /somewhere` followed by an entry named
+  `evil/owned.txt` used neither `..` nor an absolute path, so the name check
+  passed it and the write followed the link out of the destination — enough to
+  drop a file in `~/.zshrc` or `~/Library/LaunchAgents`. Extraction now runs
+  through a `DestGuard` that also refuses to descend through a symlink, and
+  never writes through one sitting at the target path (`symlink_metadata`, so
+  even a dangling link is caught). Hard links pointing outside the destination
+  are refused too. Links that stay inside are still restored as links.
+  The guard is shared, so ZIP, 7z, RAR and ISO get the same protection against
+  symlinks already present in the destination.
+
 ## [0.2.2] — 2026-08
 
 ### Fixed

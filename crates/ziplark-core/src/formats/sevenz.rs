@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::formats::{collect_inputs, ensure_parent, safe_join};
+use crate::formats::{collect_inputs, create_file, ensure_parent, DestGuard};
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, ListOptions, ProgressFn};
 use sevenz_rust2::{
@@ -69,6 +69,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
     };
     let mut first_error: Option<Error> = None;
     let mut idx = 0u64;
+    let mut guard = DestGuard::new(&opts.dest);
 
     reader
         .for_each_entries(|entry, rd| {
@@ -77,8 +78,8 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
             if !matches_filter(&name, &opts.include) {
                 return Ok(true);
             }
-            // Funnel through the shared zip-slip guard.
-            let out_path = match safe_join(&opts.dest, &name) {
+            // Funnel through the shared extraction guard.
+            let out_path = match guard.join(&name) {
                 Ok(p) => p,
                 Err(e) => {
                     first_error = Some(e);
@@ -97,17 +98,10 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                 first_error = Some(e);
                 return Ok(false);
             }
-            if out_path.exists() && !opts.overwrite {
-                first_error = Some(Error::other(format!(
-                    "{} already exists (use overwrite)",
-                    out_path.display()
-                )));
-                return Ok(false);
-            }
-            let mut out = match File::create(&out_path) {
+            let mut out = match create_file(&out_path, opts.overwrite) {
                 Ok(f) => f,
                 Err(e) => {
-                    first_error = Some(Error::Io(e));
+                    first_error = Some(e);
                     return Ok(false);
                 }
             };

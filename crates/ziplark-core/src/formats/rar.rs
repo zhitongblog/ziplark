@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::formats::{ensure_parent, safe_join};
+use crate::formats::{ensure_parent, prepare_leaf, DestGuard};
 use crate::model::*;
 use crate::{ExtractOptions, ListOptions, ProgressFn};
 use std::path::Path;
@@ -70,6 +70,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         dest: opts.dest.clone(),
     };
     let mut idx = 0u64;
+    let mut guard = DestGuard::new(&opts.dest);
 
     loop {
         let bf = match arch.read_header().map_err(map_err)? {
@@ -89,7 +90,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         let wanted = matches_filter(&name, &opts.include);
         if is_dir {
             if wanted {
-                let out_path = safe_join(&opts.dest, &name)?;
+                let out_path = guard.join(&name)?;
                 std::fs::create_dir_all(&out_path)?;
                 report.dirs_created += 1;
             }
@@ -101,14 +102,11 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
             continue;
         }
 
-        let out_path = safe_join(&opts.dest, &name)?;
+        let out_path = guard.join(&name)?;
         ensure_parent(&out_path)?;
-        if out_path.exists() && !opts.overwrite {
-            return Err(Error::other(format!(
-                "{} already exists (use overwrite)",
-                out_path.display()
-            )));
-        }
+        // libunrar opens the file itself, so the leaf has to be cleared of any
+        // symlink here rather than at the point of writing.
+        prepare_leaf(&out_path, opts.overwrite)?;
         arch = bf.extract_to(&out_path).map_err(map_err)?;
         report.files_written += 1;
         report.bytes_written += size;

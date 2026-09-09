@@ -5,13 +5,14 @@
 //! `LBA * 2048` and copy `size` bytes. We prefer the Joliet supplementary
 //! descriptor when present (Unicode / long names) and fall back to the plain
 //! primary descriptor (upper-case 8.3 names). Extraction funnels through
-//! `safe_join`; `.`/`..` records are skipped and recursion depth is bounded.
+//! the shared `DestGuard`; `.`/`..` records are skipped and recursion depth is
+//! bounded.
 //!
 //! Disc images are containers, not a compression format, so there is no
 //! `create` (`Format::Iso.can_create()` is false).
 
 use crate::error::{Error, Result};
-use crate::formats::{ensure_parent, safe_join};
+use crate::formats::{create_file, ensure_parent, DestGuard};
 use crate::model::*;
 use crate::{ExtractOptions, ListOptions, ProgressFn};
 use std::fs::File;
@@ -240,7 +241,8 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         dest: opts.dest.clone(),
     };
     let mut idx = 0u64;
-    extract_dir(&mut f, lba, size, joliet, "", opts, &mut report, &mut idx, progress, 0)?;
+    let mut guard = DestGuard::new(&opts.dest);
+    extract_dir(&mut f, lba, size, joliet, "", opts, &mut report, &mut idx, progress, 0, &mut guard)?;
     Ok(report)
 }
 
@@ -256,6 +258,7 @@ fn extract_dir(
     idx: &mut u64,
     progress: ProgressFn,
     depth: u32,
+    guard: &mut DestGuard,
 ) -> Result<()> {
     if depth > MAX_DEPTH {
         return Ok(());
@@ -263,25 +266,21 @@ fn extract_dir(
     for rec in read_dir(f, lba, size, joliet)? {
         let rel = child_rel(prefix, &rec.name);
         if rec.is_dir {
-            let out = safe_join(&opts.dest, &rel)?;
+            let out = guard.join(&rel)?;
             std::fs::create_dir_all(&out)?;
             report.dirs_created += 1;
-            extract_dir(f, rec.lba, rec.size, joliet, &rel, opts, report, idx, progress, depth + 1)?;
+            extract_dir(
+                f, rec.lba, rec.size, joliet, &rel, opts, report, idx, progress, depth + 1, guard,
+            )?;
             continue;
         }
         if !matches_filter(&rel, &opts.include) {
             continue;
         }
-        let out = safe_join(&opts.dest, &rel)?;
+        let out = guard.join(&rel)?;
         ensure_parent(&out)?;
-        if out.exists() && !opts.overwrite {
-            return Err(Error::other(format!(
-                "{} already exists (use overwrite)",
-                out.display()
-            )));
-        }
+        let mut w = create_file(&out, opts.overwrite)?;
         f.seek(SeekFrom::Start(rec.lba as u64 * SECTOR))?;
-        let mut w = File::create(&out)?;
         let n = io::copy(&mut f.take(rec.size as u64), &mut w).map_err(corrupt)?;
         report.files_written += 1;
         report.bytes_written += n;

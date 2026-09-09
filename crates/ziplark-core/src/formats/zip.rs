@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::formats::{collect_inputs, ensure_parent, safe_join};
+use crate::formats::{collect_inputs, create_file, ensure_parent, DestGuard};
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
 use std::fs::File;
@@ -66,6 +66,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
     std::fs::create_dir_all(&opts.dest)?;
 
     let total = archive.len() as u64;
+    let mut guard = DestGuard::new(&opts.dest);
     let mut report = ExtractReport {
         files_written: 0,
         dirs_created: 0,
@@ -84,7 +85,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         if !matches_filter(&name, &opts.include) {
             continue;
         }
-        let out_path = safe_join(&opts.dest, &name)?;
+        let out_path = guard.join(&name)?;
 
         if entry.is_dir() {
             std::fs::create_dir_all(&out_path)?;
@@ -93,13 +94,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         }
 
         ensure_parent(&out_path)?;
-        if out_path.exists() && !opts.overwrite {
-            return Err(Error::other(format!(
-                "{} already exists (use overwrite)",
-                out_path.display()
-            )));
-        }
-        let mut out = File::create(&out_path)?;
+        let mut out = create_file(&out_path, opts.overwrite)?;
         let n = io::copy(&mut entry, &mut out)?;
         report.files_written += 1;
         report.bytes_written += n;

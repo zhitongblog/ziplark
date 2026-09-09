@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::formats::{collect_inputs, ensure_parent, safe_join};
+use crate::formats::{collect_inputs, ensure_parent, prepare_leaf, DestGuard};
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
 use std::fs::File;
@@ -70,30 +70,49 @@ pub fn extract(
         dest: opts.dest.clone(),
     };
 
-    let mut idx = 0u64;
-    for entry in archive.entries()? {
+    let mut guard = DestGuard::new(&opts.dest);
+    for (i, entry) in archive.entries()?.enumerate() {
         let mut entry = entry?;
-        idx += 1;
+        let idx = i as u64 + 1;
         let name = entry.path()?.to_string_lossy().to_string();
         if !matches_filter(&name, &opts.include) {
             continue;
         }
-        let out_path = safe_join(&opts.dest, &name)?;
+        // Validates the name *and* refuses to descend through a symlink — tar
+        // is the one format of ours that stores links, so an earlier entry can
+        // have planted one right in our path.
+        let out_path = guard.join(&name)?;
 
-        if entry.header().entry_type().is_dir() {
+        let kind = entry.header().entry_type();
+        if kind.is_dir() {
             std::fs::create_dir_all(&out_path)?;
             report.dirs_created += 1;
             continue;
         }
         ensure_parent(&out_path)?;
-        if out_path.exists() && !opts.overwrite {
-            return Err(Error::other(format!(
-                "{} already exists (use overwrite)",
-                out_path.display()
-            )));
+
+        if kind.is_symlink() || kind.is_hard_link() {
+            let target = entry
+                .link_name()?
+                .ok_or_else(|| Error::corrupt(format!("{name}: link entry with no target")))?
+                .to_string_lossy()
+                .to_string();
+            unpack_link(&mut guard, kind.is_symlink(), &target, &out_path, opts.overwrite)?;
+            report.files_written += 1;
+            progress(Progress {
+                current_path: name,
+                entries_done: idx,
+                entries_total: 0,
+                bytes_done: report.bytes_written,
+                bytes_total: 0,
+            });
+            continue;
         }
-        // entry.unpack handles regular files, symlinks and hardlinks; the path
-        // has already been validated by safe_join.
+
+        // Regular file. `unpack` writes it (and restores the mtime), but it
+        // would happily write *through* a symlink already sitting at this path,
+        // so clear the leaf first.
+        prepare_leaf(&out_path, opts.overwrite)?;
         entry.unpack(&out_path)?;
         report.files_written += 1;
         report.bytes_written += entry.size();
@@ -106,6 +125,64 @@ pub fn extract(
         });
     }
     Ok(report)
+}
+
+/// Restore a link entry.
+///
+/// A **hard** link's target names a file inside the archive, so it goes through
+/// the guard: a tar claiming `link -> /etc/shadow` must not get one.
+///
+/// A **symlink**'s target is just a string that the OS resolves whenever the
+/// link is used later. Absolute and `..` targets are legal and ordinary there —
+/// packaging tarballs are full of them — so it is stored verbatim, the same as
+/// GNU tar and bsdtar. That is safe because the link cannot be *used* to escape
+/// during extraction: every later entry re-checks its ancestors through
+/// `guard`, which is what closes the `evil -> /tmp` + `evil/owned.txt` attack.
+fn unpack_link(
+    guard: &mut DestGuard,
+    is_symlink: bool,
+    target: &str,
+    out_path: &Path,
+    overwrite: bool,
+) -> Result<()> {
+    if target.is_empty() {
+        return Err(Error::corrupt(format!(
+            "{}: link entry with an empty target",
+            out_path.display()
+        )));
+    }
+    prepare_leaf(out_path, overwrite)?;
+    // prepare_leaf only clears a symlink; neither symlink() nor hard_link() can
+    // replace an existing file, so with overwrite the leaf has to go entirely.
+    if overwrite {
+        let _ = std::fs::remove_file(out_path);
+    }
+
+    if is_symlink {
+        symlink(target, out_path)?;
+        // This path is a symlink now — it must never be remembered as a
+        // directory that is safe to descend through.
+        guard.forget(out_path);
+    } else {
+        let src = guard.join(target)?;
+        std::fs::hard_link(&src, out_path)?;
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn symlink(target: &str, link: &Path) -> Result<()> {
+    std::os::unix::fs::symlink(target, link)?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn symlink(target: &str, link: &Path) -> Result<()> {
+    // Windows has separate file and directory symlinks and needs Developer Mode
+    // (or SeCreateSymbolicLinkPrivilege) for either. We always create a file
+    // link, which is what the tar crate did for us before.
+    std::os::windows::fs::symlink_file(target, link)?;
+    Ok(())
 }
 
 pub fn test(path: &Path, fmt: Format, _opts: &ListOptions, progress: ProgressFn) -> Result<TestReport> {
