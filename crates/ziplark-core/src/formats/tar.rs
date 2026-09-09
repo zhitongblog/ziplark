@@ -1,6 +1,8 @@
 use crate::encoding::NameDecoder;
 use crate::error::{Error, Result};
-use crate::formats::{collect_inputs, ensure_parent, prepare_leaf, DestGuard};
+use crate::formats::{
+    collect_inputs, create_symlink, ensure_parent, prepare_leaf, DestGuard, Input, InputKind,
+};
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
 use std::fs::File;
@@ -166,7 +168,7 @@ fn unpack_link(
     }
 
     if is_symlink {
-        symlink(target, out_path)?;
+        create_symlink(target, out_path)?;
         // This path is a symlink now — it must never be remembered as a
         // directory that is safe to descend through.
         guard.forget(out_path);
@@ -174,21 +176,6 @@ fn unpack_link(
         let src = guard.join(target)?;
         std::fs::hard_link(&src, out_path)?;
     }
-    Ok(())
-}
-
-#[cfg(unix)]
-fn symlink(target: &str, link: &Path) -> Result<()> {
-    std::os::unix::fs::symlink(target, link)?;
-    Ok(())
-}
-
-#[cfg(windows)]
-fn symlink(target: &str, link: &Path) -> Result<()> {
-    // Windows has separate file and directory symlinks and needs Developer Mode
-    // (or SeCreateSymbolicLinkPrivilege) for either. We always create a file
-    // link, which is what the tar crate did for us before.
-    std::os::windows::fs::symlink_file(target, link)?;
     Ok(())
 }
 
@@ -298,23 +285,37 @@ pub fn create(
 
 fn add_all<W: Write>(
     builder: &mut tar::Builder<W>,
-    files: &[(PathBuf, String)],
+    files: &[Input],
     progress: ProgressFn,
 ) -> Result<(u64, u64)> {
     let total = files.len() as u64;
     let mut entries_added = 0u64;
     let mut bytes_in = 0u64;
-    for (idx, (src, rel)) in files.iter().enumerate() {
-        if rel.ends_with('/') {
-            builder.append_dir(rel.trim_end_matches('/'), src)?;
-        } else {
-            let mut f = File::open(src)?;
-            bytes_in += f.metadata()?.len();
-            builder.append_file(rel, &mut f)?;
+    for (idx, input) in files.iter().enumerate() {
+        match input.kind {
+            InputKind::EmptyDir => {
+                builder.append_dir(input.rel.trim_end_matches('/'), &input.path)?;
+            }
+            InputKind::Symlink => {
+                // Store the link itself. `append_file` would have followed it
+                // and archived a second copy of whatever it points at.
+                let target = std::fs::read_link(&input.path)?;
+                let meta = std::fs::symlink_metadata(&input.path)?;
+                let mut header = tar::Header::new_gnu();
+                header.set_metadata(&meta);
+                header.set_entry_type(tar::EntryType::Symlink);
+                header.set_size(0);
+                builder.append_link(&mut header, &input.rel, &target)?;
+            }
+            InputKind::File => {
+                let mut f = File::open(&input.path)?;
+                bytes_in += f.metadata()?.len();
+                builder.append_file(&input.rel, &mut f)?;
+            }
         }
         entries_added += 1;
         progress(Progress {
-            current_path: rel.clone(),
+            current_path: input.rel.clone(),
             entries_done: idx as u64 + 1,
             entries_total: total,
             bytes_done: bytes_in,

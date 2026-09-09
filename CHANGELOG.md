@@ -25,6 +25,22 @@ This project adheres to [Semantic Versioning](https://semver.org).
   password.
 
 ### Fixed
+- **Permissions, timestamps and symlinks survive a round trip.** Creating an
+  archive hardcoded mode 0644 and stamped every entry with the current time;
+  extraction restored neither. A zipped executable came out unable to run, and
+  every extracted file looked brand new to `make`, rsync and backup tools.
+  ZIP, 7z and tar now carry the real mode and mtime in both directions. ZIP also
+  writes the 0x5455 extended timestamp: the base ZIP header holds an MS-DOS
+  time with no time zone, which every UTC-writing tool shifts by the local
+  offset, and the extra field pins the exact instant.
+- **Symlinks are stored as symlinks.** Archiving followed them and wrote a full
+  copy of the target, which inflates a tree of links and breaks macOS `.app`
+  bundles, and a link pointing back up its own tree made the directory walk
+  recurse forever. Links are now recorded as links by ZIP, 7z (the unix-mode
+  attribute p7zip uses) and tar, and restored as links on extraction.
+- **ZIP entries of 4 GiB or more can be created.** The writer was left on its
+  32-bit default, so a single large file failed with "Large file option has not
+  been set". Zip64 is enabled per entry when the file needs it.
 - **Security: a crafted tar could write outside the destination directory.**
   `tar`/`tar.gz`/… restore symlinks, and the guard only ever checked entry
   *names*. An archive storing `evil -> /somewhere` followed by an entry named

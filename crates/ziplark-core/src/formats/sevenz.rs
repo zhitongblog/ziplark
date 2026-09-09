@@ -1,5 +1,7 @@
 use crate::error::{Error, Result};
-use crate::formats::{collect_inputs, create_file, ensure_parent, DestGuard};
+use crate::formats::{
+    collect_inputs, create_file, create_symlink, ensure_parent, prepare_leaf, DestGuard, InputKind,
+};
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
 use sevenz_rust2::encoder_options::{AesEncoderOptions, Lzma2Options};
@@ -30,6 +32,13 @@ const SOLID_BLOCK_BYTES: u64 = 256 * 1024 * 1024;
 /// the dictionary at each boundary, so this trades a little ratio for cores.
 /// It is clamped up to the dictionary size by the encoder.
 const MT_CHUNK_BYTES: u64 = 32 * 1024 * 1024;
+
+/// 7z carries unix permissions in the Windows attribute word: bit 15 says
+/// "unix mode in the high half", which is how p7zip and 7-Zip store a mode —
+/// and how they mark a symlink.
+const ATTR_UNIX_EXTENSION: u32 = 0x8000;
+const S_IFMT: u32 = 0o170000;
+const S_IFLNK: u32 = 0o120000;
 
 fn map_err(e: sevenz_rust2::Error) -> Error {
     use sevenz_rust2::Error as E;
@@ -63,6 +72,32 @@ fn is_encrypted(archive: &Archive) -> bool {
             .iter()
             .any(|c| c.encoder_method_id() == EncoderMethod::AES256_SHA256.id())
     })
+}
+
+/// The unix mode an entry carries, if it was written by a tool that stores one.
+fn unix_mode(entry: &SevenZEntry) -> Option<u32> {
+    if !entry.has_windows_attributes {
+        return None;
+    }
+    let attrs = entry.windows_attributes;
+    (attrs & ATTR_UNIX_EXTENSION != 0).then_some(attrs >> 16)
+}
+
+/// Restore what the archive recorded. Best effort — a mode we cannot apply is
+/// not a reason to fail the extraction.
+fn restore_metadata(path: &Path, mode: Option<u32>, mtime: Option<i64>) {
+    #[cfg(unix)]
+    if let Some(mode) = mode {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode & 0o7777));
+    }
+    #[cfg(not(unix))]
+    let _ = mode;
+
+    if let Some(secs) = mtime {
+        let t = filetime::FileTime::from_unix_time(secs, 0);
+        let _ = filetime::set_file_times(path, t, t);
+    }
 }
 
 /// 7z stores Windows FILETIME; the model wants unix seconds.
@@ -147,6 +182,31 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                 return Ok(false);
             }
 
+            let mode = unix_mode(entry);
+            let mtime = modified(entry);
+
+            // A symlink's content is its target path; the mode is what says so.
+            if mode.is_some_and(|m| m & S_IFMT == S_IFLNK) {
+                let mut target = String::new();
+                if let Err(e) = rd.read_to_string(&mut target) {
+                    first_error = Some(Error::Io(e));
+                    return Ok(false);
+                }
+                let made = prepare_leaf(&out_path, opts.overwrite).and_then(|()| {
+                    if opts.overwrite {
+                        let _ = std::fs::remove_file(&out_path);
+                    }
+                    create_symlink(&target, &out_path)
+                });
+                if let Err(e) = made {
+                    first_error = Some(e);
+                    return Ok(false);
+                }
+                guard.forget(&out_path);
+                report.files_written += 1;
+                return Ok(true);
+            }
+
             let mut out = match create_file(&out_path, opts.overwrite) {
                 Ok(f) => f,
                 Err(e) => {
@@ -156,6 +216,8 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
             };
             match io::copy(rd, &mut out) {
                 Ok(n) => {
+                    drop(out);
+                    restore_metadata(&out_path, mode, mtime);
                     report.files_written += 1;
                     report.bytes_written += n;
                 }
@@ -259,13 +321,14 @@ pub fn create(
     let mut entries_added = 0u64;
     let mut bytes_in = 0u64;
     // Files accumulate here until they add up to a solid block.
-    let mut block: Vec<(SevenZEntry, LazyFile)> = Vec::new();
+    let mut block: Vec<(SevenZEntry, EntrySource)> = Vec::new();
     let mut block_bytes = 0u64;
 
-    for (idx, (src, rel)) in files.iter().enumerate() {
+    for (idx, input) in files.iter().enumerate() {
         let done = idx as u64 + 1;
+        let (src, rel) = (&input.path, &input.rel);
 
-        if rel.ends_with('/') {
+        if input.kind == InputKind::EmptyDir {
             let entry = SevenZEntry::new_directory(rel.trim_end_matches('/'));
             writer
                 .push_archive_entry::<&[u8]>(entry, None)
@@ -273,13 +336,28 @@ pub fn create(
             continue;
         }
 
-        // `from_path` fills in the name and timestamps but leaves `size` to the
-        // writer, so ask the filesystem — block accounting needs it.
-        let size = std::fs::metadata(src)?.len();
-        let mut entry = SevenZEntry::from_path(src, rel.clone());
+        let (mut entry, source, size) = if input.kind == InputKind::Symlink {
+            // Same representation 7-Zip and p7zip use: the target path as the
+            // entry's content, with the link marked in the unix mode.
+            let target = std::fs::read_link(src)?.to_string_lossy().into_owned();
+            let size = target.len() as u64;
+            let mut entry = SevenZEntry::from_path(src, rel.clone());
+            entry.has_stream = true;
+            entry.is_directory = false;
+            entry.has_windows_attributes = true;
+            entry.windows_attributes = ATTR_UNIX_EXTENSION | ((S_IFLNK | 0o777) << 16);
+            (entry, EntrySource::Bytes(io::Cursor::new(target.into_bytes())), size)
+        } else {
+            // `from_path` fills in the name and timestamps but leaves `size` to
+            // the writer, so ask the filesystem — block accounting needs it.
+            let meta = std::fs::metadata(src)?;
+            let mut entry = SevenZEntry::from_path(src, rel.clone());
+            set_unix_mode(&mut entry, &meta);
+            (entry, EntrySource::File(LazyFile::new(src.clone())), meta.len())
+        };
         entry.size = size;
 
-        block.push((entry, LazyFile::new(src.clone())));
+        block.push((entry, source));
         block_bytes += size;
         bytes_in += size;
         entries_added += 1;
@@ -314,17 +392,46 @@ pub fn create(
 /// Compress everything accumulated so far as one solid block.
 fn write_block<W: Write + std::io::Seek>(
     writer: &mut ArchiveWriter<W>,
-    block: &mut Vec<(SevenZEntry, LazyFile)>,
+    block: &mut Vec<(SevenZEntry, EntrySource)>,
 ) -> Result<()> {
     if block.is_empty() {
         return Ok(());
     }
     let (entries, sources): (Vec<_>, Vec<_>) = block.drain(..).unzip();
-    let readers: Vec<SourceReader<LazyFile>> = sources.into_iter().map(SourceReader::from).collect();
+    let readers: Vec<SourceReader<EntrySource>> =
+        sources.into_iter().map(SourceReader::from).collect();
     writer
         .push_archive_entries(entries, readers)
         .map_err(map_err)?;
     Ok(())
+}
+
+/// Record this file's permissions the way 7-Zip does, so the executable bit
+/// survives a round trip.
+#[cfg(unix)]
+fn set_unix_mode(entry: &mut SevenZEntry, meta: &std::fs::Metadata) {
+    use std::os::unix::fs::PermissionsExt;
+    entry.has_windows_attributes = true;
+    entry.windows_attributes = ATTR_UNIX_EXTENSION | ((meta.permissions().mode() & 0o7777) << 16);
+}
+
+#[cfg(not(unix))]
+fn set_unix_mode(_entry: &mut SevenZEntry, _meta: &std::fs::Metadata) {}
+
+/// What an entry's bytes come from: a file on disk, or a symlink target held in
+/// memory.
+enum EntrySource {
+    File(LazyFile),
+    Bytes(io::Cursor<Vec<u8>>),
+}
+
+impl Read for EntrySource {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match self {
+            EntrySource::File(f) => f.read(buf),
+            EntrySource::Bytes(c) => c.read(buf),
+        }
+    }
 }
 
 /// A file that opens on first read and closes itself at EOF.

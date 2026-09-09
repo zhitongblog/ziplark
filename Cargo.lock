@@ -5309,6 +5309,7 @@ dependencies = [
  "bzip2 0.4.4",
  "chardetng",
  "encoding_rs",
+ "filetime",
  "flate2",
  "lz4_flex 0.11.6",
  "serde",

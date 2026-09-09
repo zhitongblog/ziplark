@@ -52,6 +52,9 @@ Or grab a build for any platform from the [releases page](https://github.com/zhi
 ## Why Ziplark
 - **Small.** Size-optimized release profile (`opt-level=z`, LTO, stripped,
   `panic=abort`). The desktop app uses the OS webview (no bundled Chromium).
+- **Faithful.** Permissions, modification times and symlinks survive the round
+  trip, so an extracted binary still runs and an extracted tree still looks like
+  the one you archived.
 - **Safe.** Every extraction path is funneled through a single guard, and it
   checks both ways out: the entry name (`../`, absolute paths) *and* what is
   actually on disk, so a symlink — planted by an earlier entry of the same

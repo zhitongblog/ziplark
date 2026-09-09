@@ -145,50 +145,101 @@ pub fn safe_join(dest: &Path, entry_path: &str) -> Result<PathBuf> {
     Ok(out)
 }
 
-/// Recursively collect (absolute_path, archive_relative_path) pairs for a set
-/// of input files/dirs, used by every create() implementation. A directory
-/// `foo` becomes entries `foo/...`; a file `bar.txt` becomes `bar.txt`.
-pub fn collect_inputs(inputs: &[PathBuf]) -> Result<Vec<(PathBuf, String)>> {
+/// What an input is, as far as archiving is concerned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputKind {
+    File,
+    /// A directory with no children, kept so extraction can recreate it.
+    EmptyDir,
+    /// A symlink, stored as a link rather than as a copy of what it points at.
+    Symlink,
+}
+
+/// One thing to put into an archive.
+pub struct Input {
+    /// Where it lives on disk.
+    pub path: PathBuf,
+    /// The name it gets inside the archive (forward slashes; a trailing slash
+    /// marks an empty directory).
+    pub rel: String,
+    pub kind: InputKind,
+}
+
+/// Walk a set of input files/dirs into the entries an archive should contain.
+/// A directory `foo` becomes `foo/...`; a file `bar.txt` becomes `bar.txt`.
+///
+/// Symlinks are reported as symlinks and never followed. Following them would
+/// store a second copy of whatever they point at — turning a tree of links into
+/// a much larger archive, and quietly breaking macOS `.app` bundles, which are
+/// held together by links — and a link that points back up its own tree would
+/// send the walk round forever.
+pub fn collect_inputs(inputs: &[PathBuf]) -> Result<Vec<Input>> {
     let mut out = Vec::new();
     for input in inputs {
         let input = input.as_path();
-        if !input.exists() {
-            return Err(Error::other(format!("input does not exist: {}", input.display())));
-        }
-        let base_name = input
+        let meta = std::fs::symlink_metadata(input)
+            .map_err(|_| Error::other(format!("input does not exist: {}", input.display())))?;
+        let rel = input
             .file_name()
             .and_then(|n| n.to_str())
             .ok_or_else(|| Error::other(format!("invalid input name: {}", input.display())))?
             .to_string();
 
-        if input.is_dir() {
-            walk_dir(input, &base_name, &mut out)?;
+        let ty = meta.file_type();
+        if ty.is_symlink() {
+            out.push(Input { path: input.to_path_buf(), rel, kind: InputKind::Symlink });
+        } else if ty.is_dir() {
+            walk_dir(input, &rel, &mut out)?;
         } else {
-            out.push((input.to_path_buf(), base_name));
+            out.push(Input { path: input.to_path_buf(), rel, kind: InputKind::File });
         }
     }
     Ok(out)
 }
 
-fn walk_dir(dir: &Path, prefix: &str, out: &mut Vec<(PathBuf, String)>) -> Result<()> {
+fn walk_dir(dir: &Path, prefix: &str, out: &mut Vec<Input>) -> Result<()> {
     let mut entries: Vec<_> = std::fs::read_dir(dir)?.collect::<std::result::Result<_, _>>()?;
     entries.sort_by_key(|e| e.file_name());
     if entries.is_empty() {
-        // Preserve empty directories with a trailing slash marker.
-        out.push((dir.to_path_buf(), format!("{prefix}/")));
+        out.push(Input {
+            path: dir.to_path_buf(),
+            rel: format!("{prefix}/"),
+            kind: InputKind::EmptyDir,
+        });
         return Ok(());
     }
     for entry in entries {
         let name = entry.file_name();
         let name = name.to_string_lossy();
-        let child_rel = format!("{prefix}/{name}");
+        let rel = format!("{prefix}/{name}");
         let child = entry.path();
-        if child.is_dir() {
-            walk_dir(&child, &child_rel, out)?;
+        // A DirEntry's file_type does not follow symlinks, which is what stops
+        // a link pointing back up the tree from recursing forever.
+        let ty = entry.file_type()?;
+        if ty.is_symlink() {
+            out.push(Input { path: child, rel, kind: InputKind::Symlink });
+        } else if ty.is_dir() {
+            walk_dir(&child, &rel, out)?;
         } else {
-            out.push((child, child_rel));
+            out.push(Input { path: child, rel, kind: InputKind::File });
         }
     }
+    Ok(())
+}
+
+/// Create a symlink at `link` pointing to `target`.
+#[cfg(unix)]
+pub fn create_symlink(target: &str, link: &Path) -> Result<()> {
+    std::os::unix::fs::symlink(target, link)?;
+    Ok(())
+}
+
+#[cfg(windows)]
+pub fn create_symlink(target: &str, link: &Path) -> Result<()> {
+    // Windows has separate file and directory symlinks and needs Developer Mode
+    // (or SeCreateSymbolicLinkPrivilege) for either. We always create a file
+    // link, matching what the tar crate does.
+    std::os::windows::fs::symlink_file(target, link)?;
     Ok(())
 }
 
