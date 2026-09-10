@@ -45,7 +45,31 @@
         "type": "embedBootstrapper",
         "silent": true
       }
-    }
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "zip",
+          "7z",
+          "rar",
+          "tar",
+          "gz",
+          "tgz",
+          "bz2",
+          "tbz2",
+          "xz",
+          "txz",
+          "zst",
+          "tzst",
+          "lz4",
+          "tlz4",
+          "iso"
+        ],
+        "name": "Archive",
+        "description": "Archive",
+        "role": "Viewer"
+      }
+    ]
   },
   "plugins": {}
 }

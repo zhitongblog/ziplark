@@ -5,12 +5,35 @@ This project adheres to [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Added
+- **The desktop app shows progress and can be stopped.** Long operations used to
+  put up an indeterminate spinner with no way out. There is now a real progress
+  bar — a percentage wherever the total is known — the current entry, running
+  counts, and a Cancel button. Cancelling is honoured within a fraction of a
+  second even in the middle of a multi-gigabyte file, and says plainly that the
+  files already written were kept.
+- **Archives open with a folder tree instead of a flat list**, and only the rows
+  on screen are in the DOM, so a disc image with 200 000 entries opens as fast
+  as a small ZIP.
+- **"Open with Ziplark" works.** The bundle now declares the archive file types,
+  and an archive handed over by the OS — as a command-line argument, or by
+  macOS after launch — is opened in the window.
+- Extract and Create finish with a **Show** button that reveals the result in
+  the file manager.
+
 ### Changed
 - **The engine can be asked to stop.** The progress callback returns a bool now;
   answering `false` aborts the operation with `Error::Cancelled`. Progress is
   also reported *during* a large entry rather than only between entries, so a
   single big file no longer looks frozen and can be interrupted. ZIP extraction
   reports a real byte total, taken from the central directory.
+- **The app asks before replacing files.** It used to pass "overwrite" on every
+  extraction, silently clobbering whatever was in the destination.
+- **A new archive's password has to be typed twice.** A typo in a password that
+  is never shown again makes the archive unopenable.
+- The desktop commands run off the main thread. A plain Tauri command runs on
+  it, so extracting a large archive froze the entire window — spinner included —
+  until it finished.
 - **7z archives are now solid, and compression uses every core.** We were
   writing one compression block per file, so LZMA2 restarted — new dictionary,
   new encoder — for every entry, and nothing was ever compressed against

@@ -30,13 +30,13 @@
             <p><strong>Drop an archive here</strong></p>
             <p class="muted">or</p>
             <button id="btn-open" class="primary">Choose archive…</button>
-            <p class="muted small">ZIP · RAR · 7z · tar · gz · bz2 · xz · zst</p>
+            <p class="muted small">ZIP · RAR · 7z · tar · gz · bz2 · xz · zst · lz4 · ISO</p>
           </div>
         </div>
 
         <div id="archive-panel" class="panel hidden">
           <div class="panel-head">
-            <div>
+            <div class="panel-title">
               <h2 id="arc-name">archive</h2>
               <p id="arc-meta" class="muted small"></p>
             </div>
@@ -46,13 +46,15 @@
               <button id="btn-close" class="ghost">Close</button>
             </div>
           </div>
-          <div class="table-wrap">
-            <table id="entries">
-              <thead>
-                <tr><th>Name</th><th class="num">Size</th><th>Type</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+
+          <div class="tree-head">
+            <span class="col-name">Name</span>
+            <span class="col-size">Size</span>
+          </div>
+          <!-- Rows are windowed: only what fits on screen is in the DOM, so a
+               200 000-entry archive scrolls as smoothly as a small one. -->
+          <div id="tree" class="tree" tabindex="0">
+            <div id="tree-sizer"><div id="tree-rows"></div></div>
           </div>
         </div>
       </section>
@@ -93,7 +95,11 @@
           <label>Password <span class="muted small">(ZIP / 7z · optional)</span>
             <input id="pw-create" type="password" placeholder="leave empty for none" autocomplete="off" />
           </label>
+          <label>Repeat password
+            <input id="pw-create2" type="password" placeholder="type it again" autocomplete="off" />
+          </label>
         </div>
+        <p id="pw-mismatch" class="pw-warn hidden">The two passwords don't match.</p>
 
         <div class="create-foot">
           <button id="btn-clear" class="ghost">Clear</button>
@@ -112,9 +118,12 @@
       <span>MIT © 2026 doaipm</span>
     </footer>
 
-    <div id="toast" class="toast hidden"></div>
+    <div id="toast" class="toast hidden">
+      <span id="toast-msg"></span>
+      <button id="toast-action" class="toast-action hidden"></button>
+    </div>
 
-    <!-- password modal -->
+    <!-- password prompt -->
     <div id="pw-modal" class="modal hidden">
       <div class="modal-card">
         <h3>Password required</h3>
@@ -127,7 +136,27 @@
       </div>
     </div>
 
-    <div id="busy" class="busy hidden"><div class="spinner"></div><span id="busy-msg">Working…</span></div>
+    <!-- confirm prompt (overwrite, …) -->
+    <div id="confirm-modal" class="modal hidden">
+      <div class="modal-card">
+        <h3 id="confirm-title">Are you sure?</h3>
+        <p class="muted small" id="confirm-msg"></p>
+        <div class="modal-actions">
+          <button id="confirm-no" class="ghost">Cancel</button>
+          <button id="confirm-yes" class="primary">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- progress, with a way out -->
+    <div id="busy" class="busy hidden">
+      <div class="busy-card">
+        <p id="busy-msg" class="busy-msg">Working…</p>
+        <div class="bar"><div id="bar-fill" class="bar-fill"></div></div>
+        <p id="busy-detail" class="muted small busy-detail"></p>
+        <button id="btn-cancel" class="ghost">Cancel</button>
+      </div>
+    </div>
 
     <script src="main.js"></script>
   </body>
