@@ -1,6 +1,7 @@
 use crate::error::{Error, Result};
 use crate::formats::{
-    collect_inputs, create_file, create_symlink, ensure_parent, prepare_leaf, DestGuard, InputKind,
+    collect_inputs, copy_watched, create_file, create_symlink, ensure_parent, prepare_leaf, report,
+    DestGuard, InputKind,
 };
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
@@ -214,7 +215,17 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                     return Ok(false);
                 }
             };
-            match io::copy(rd, &mut out) {
+            let done_before = report.bytes_written;
+            let copied = copy_watched(rd, &mut out, |so_far| {
+                progress(Progress {
+                    current_path: name.clone(),
+                    entries_done: idx,
+                    entries_total: 0,
+                    bytes_done: done_before + so_far,
+                    bytes_total: 0,
+                })
+            });
+            match copied {
                 Ok(n) => {
                     drop(out);
                     restore_metadata(&out_path, mode, mtime);
@@ -222,17 +233,10 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                     report.bytes_written += n;
                 }
                 Err(e) => {
-                    first_error = Some(Error::Io(e));
+                    first_error = Some(e);
                     return Ok(false);
                 }
             }
-            progress(Progress {
-                current_path: name,
-                entries_done: idx,
-                entries_total: 0,
-                bytes_done: report.bytes_written,
-                bytes_total: 0,
-            });
             Ok(true)
         })
         .map_err(map_err)?;
@@ -247,6 +251,7 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
     let mut reader = ArchiveReader::open(path, password(&opts.password)).map_err(map_err)?;
     let mut tested = 0u64;
     let mut bad = Vec::new();
+    let mut cancelled = false;
     reader
         .for_each_entries(|entry, rd| {
             if entry.is_directory() {
@@ -255,19 +260,27 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
             tested += 1;
             let name = entry.name().to_string();
             let mut sink = io::sink();
-            if let Err(e) = io::copy(rd, &mut sink) {
+            if let Err(e) = copy_watched(rd, &mut sink, |so_far| {
+                progress(Progress {
+                    current_path: name.clone(),
+                    entries_done: tested,
+                    entries_total: 0,
+                    bytes_done: so_far,
+                    bytes_total: 0,
+                })
+            }) {
+                if matches!(e, Error::Cancelled) {
+                    cancelled = true;
+                    return Ok(false);
+                }
                 bad.push(format!("{name}: {e}"));
             }
-            progress(Progress {
-                current_path: name,
-                entries_done: tested,
-                entries_total: 0,
-                bytes_done: 0,
-                bytes_total: 0,
-            });
             Ok(true)
         })
         .map_err(map_err)?;
+    if cancelled {
+        return Err(Error::Cancelled);
+    }
     Ok(TestReport {
         ok: bad.is_empty(),
         entries_tested: tested,
@@ -362,13 +375,16 @@ pub fn create(
         bytes_in += size;
         entries_added += 1;
 
-        progress(Progress {
-            current_path: rel.clone(),
-            entries_done: done,
-            entries_total: total,
-            bytes_done: bytes_in,
-            bytes_total: 0,
-        });
+        report(
+            progress,
+            Progress {
+                current_path: rel.clone(),
+                entries_done: done,
+                entries_total: total,
+                bytes_done: bytes_in,
+                bytes_total: 0,
+            },
+        )?;
 
         if block_bytes >= SOLID_BLOCK_BYTES {
             write_block(&mut writer, &mut block)?;

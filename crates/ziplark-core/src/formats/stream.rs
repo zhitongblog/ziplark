@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::formats::{create_file, ensure_parent};
+use crate::formats::{copy_watched, create_file, ensure_parent, report};
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
 use std::fs::File;
@@ -64,14 +64,28 @@ pub fn extract(
     ensure_parent(&out_path)?;
     let mut dec = decoder(path, fmt)?;
     let mut out = create_file(&out_path, opts.overwrite)?;
-    let n = io::copy(&mut dec, &mut out).map_err(map_stream_err)?;
-    progress(Progress {
-        current_path: name,
-        entries_done: 1,
-        entries_total: 1,
-        bytes_done: n,
-        bytes_total: n,
-    });
+    // A single stream has no entry boundaries to report at, so the byte count
+    // as it goes is the only progress there is — and the only chance to cancel.
+    let n = copy_watched(&mut dec, &mut out, |so_far| {
+        progress(Progress {
+            current_path: name.clone(),
+            entries_done: 0,
+            entries_total: 1,
+            bytes_done: so_far,
+            bytes_total: 0,
+        })
+    })
+    .map_err(map_stream_err)?;
+    report(
+        progress,
+        Progress {
+            current_path: name,
+            entries_done: 1,
+            entries_total: 1,
+            bytes_done: n,
+            bytes_total: n,
+        },
+    )?;
     Ok(ExtractReport {
         files_written: 1,
         dirs_created: 0,
@@ -84,16 +98,31 @@ pub fn test(path: &Path, fmt: Format, _opts: &ListOptions, progress: ProgressFn)
     let mut dec = decoder(path, fmt)?;
     let mut sink = io::sink();
     let mut bad = Vec::new();
-    if let Err(e) = io::copy(&mut dec, &mut sink) {
+    let name = inner_name(path);
+    if let Err(e) = copy_watched(&mut dec, &mut sink, |so_far| {
+        progress(Progress {
+            current_path: name.clone(),
+            entries_done: 0,
+            entries_total: 1,
+            bytes_done: so_far,
+            bytes_total: 0,
+        })
+    }) {
+        if matches!(e, Error::Cancelled) {
+            return Err(e);
+        }
         bad.push(format!("{}: {e}", path.display()));
     }
-    progress(Progress {
-        current_path: inner_name(path),
-        entries_done: 1,
-        entries_total: 1,
-        bytes_done: 0,
-        bytes_total: 0,
-    });
+    report(
+        progress,
+        Progress {
+            current_path: name,
+            entries_done: 1,
+            entries_total: 1,
+            bytes_done: 0,
+            bytes_total: 0,
+        },
+    )?;
     Ok(TestReport {
         ok: bad.is_empty(),
         entries_tested: 1,
@@ -152,13 +181,16 @@ pub fn create(
     let mut sink_out = File::open(output)?;
     let _ = sink_out.flush();
     let bytes_out = std::fs::metadata(output)?.len();
-    progress(Progress {
-        current_path: src.display().to_string(),
-        entries_done: 1,
-        entries_total: 1,
-        bytes_done: bytes_in,
-        bytes_total: bytes_in,
-    });
+    report(
+        progress,
+        Progress {
+            current_path: src.display().to_string(),
+            entries_done: 1,
+            entries_total: 1,
+            bytes_done: bytes_in,
+            bytes_total: bytes_in,
+        },
+    )?;
     Ok(CreateReport {
         output: output.to_path_buf(),
         format: opts.format,
@@ -168,8 +200,13 @@ pub fn create(
     })
 }
 
-fn map_stream_err(e: io::Error) -> Error {
-    Error::corrupt(e.to_string())
+/// A failure while decompressing a stream means the stream is damaged, not that
+/// the disk misbehaved — except for cancellation, which is the caller's doing.
+fn map_stream_err(e: Error) -> Error {
+    match e {
+        Error::Cancelled => e,
+        other => Error::corrupt(other.to_string()),
+    }
 }
 
 fn gz_level(l: Level) -> flate2::Compression {

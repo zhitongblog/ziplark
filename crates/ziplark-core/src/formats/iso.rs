@@ -12,7 +12,7 @@
 //! `create` (`Format::Iso.can_create()` is false).
 
 use crate::error::{Error, Result};
-use crate::formats::{create_file, ensure_parent, DestGuard};
+use crate::formats::{copy_watched, create_file, ensure_parent, report, DestGuard};
 use crate::model::*;
 use crate::{ExtractOptions, ListOptions, ProgressFn};
 use std::fs::File;
@@ -281,17 +281,20 @@ fn extract_dir(
         ensure_parent(&out)?;
         let mut w = create_file(&out, opts.overwrite)?;
         f.seek(SeekFrom::Start(rec.lba as u64 * SECTOR))?;
-        let n = io::copy(&mut f.take(rec.size as u64), &mut w).map_err(corrupt)?;
+        *idx += 1;
+        let done_before = report.bytes_written;
+        let entries_done = *idx;
+        let n = copy_watched(&mut f.take(rec.size as u64), &mut w, |so_far| {
+            progress(Progress {
+                current_path: rel.clone(),
+                entries_done,
+                entries_total: 0,
+                bytes_done: done_before + so_far,
+                bytes_total: 0,
+            })
+        })?;
         report.files_written += 1;
         report.bytes_written += n;
-        *idx += 1;
-        progress(Progress {
-            current_path: rel,
-            entries_done: *idx,
-            entries_total: 0,
-            bytes_done: report.bytes_written,
-            bytes_total: 0,
-        });
     }
     Ok(())
 }
@@ -340,13 +343,16 @@ fn test_dir(
         if let Err(e) = io::copy(&mut f.take(rec.size as u64), &mut io::sink()) {
             bad.push(format!("{rel}: {e}"));
         }
-        progress(Progress {
-            current_path: rel,
-            entries_done: *tested,
-            entries_total: 0,
-            bytes_done: 0,
-            bytes_total: 0,
-        });
+        report(
+            progress,
+            Progress {
+                current_path: rel,
+                entries_done: *tested,
+                entries_total: 0,
+                bytes_done: 0,
+                bytes_total: 0,
+            },
+        )?;
     }
     Ok(())
 }

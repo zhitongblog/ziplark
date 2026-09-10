@@ -1,7 +1,8 @@
 use crate::encoding::NameDecoder;
 use crate::error::{Error, Result};
 use crate::formats::{
-    collect_inputs, create_file, create_symlink, ensure_parent, DestGuard, InputKind,
+    collect_inputs, copy_watched, create_file, create_symlink, ensure_parent, report, DestGuard,
+    InputKind,
 };
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
@@ -48,15 +49,25 @@ fn ts(dt: Option<zip::DateTime>) -> Option<i64> {
 /// so every name is sampled before any is decoded: more bytes make the encoding
 /// guess markedly better than judging one short filename at a time.
 fn decode_names<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<Vec<String>> {
+    Ok(read_directory(archive)?.0)
+}
+
+/// Decoded entry names plus the archive's total uncompressed size, both read
+/// from the central directory in one pass. The size lets extraction report a
+/// real percentage instead of an endless spinner.
+fn read_directory<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<(Vec<String>, u64)> {
     let mut raw = Vec::with_capacity(archive.len());
+    let mut total_size = 0u64;
     for i in 0..archive.len() {
-        raw.push(archive.by_index_raw(i).map_err(map_zip_err)?.name_raw().to_vec());
+        let e = archive.by_index_raw(i).map_err(map_zip_err)?;
+        total_size += e.size();
+        raw.push(e.name_raw().to_vec());
     }
     let mut decoder = NameDecoder::new();
     for name in &raw {
         decoder.sample(name);
     }
-    Ok(raw.iter().map(|n| decoder.decode(n)).collect())
+    Ok((raw.iter().map(|n| decoder.decode(n)).collect(), total_size))
 }
 
 pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo> {
@@ -99,7 +110,7 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
 pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Result<ExtractReport> {
     let file = File::open(path)?;
     let mut archive = ZipArchive::new(file).map_err(map_zip_err)?;
-    let names = decode_names(&mut archive)?;
+    let (names, bytes_total) = read_directory(&mut archive)?;
     std::fs::create_dir_all(&opts.dest)?;
 
     let total = archive.len() as u64;
@@ -146,29 +157,34 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
             create_symlink(&target, &out_path)?;
             guard.forget(&out_path);
             report.files_written += 1;
-            progress(Progress {
-                current_path: name.clone(),
-                entries_done: i as u64 + 1,
-                entries_total: total,
-                bytes_done: report.bytes_written,
-                bytes_total: 0,
-            });
+            crate::formats::report(
+                progress,
+                Progress {
+                    current_path: name.clone(),
+                    entries_done: i as u64 + 1,
+                    entries_total: total,
+                    bytes_done: report.bytes_written,
+                    bytes_total,
+                },
+            )?;
             continue;
         }
 
         let mut out = create_file(&out_path, opts.overwrite)?;
-        let n = io::copy(&mut entry, &mut out)?;
+        let done_before = report.bytes_written;
+        let n = copy_watched(&mut entry, &mut out, |so_far| {
+            progress(Progress {
+                current_path: name.clone(),
+                entries_done: i as u64 + 1,
+                entries_total: total,
+                bytes_done: done_before + so_far,
+                bytes_total,
+            })
+        })?;
         drop(out);
         restore_metadata(&out_path, mode, mtime);
         report.files_written += 1;
         report.bytes_written += n;
-        progress(Progress {
-            current_path: name.clone(),
-            entries_done: i as u64 + 1,
-            entries_total: total,
-            bytes_done: report.bytes_written,
-            bytes_total: 0,
-        });
     }
     Ok(report)
 }
@@ -203,13 +219,16 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
         if let Err(e) = io::copy(&mut entry, &mut sink) {
             bad.push(format!("{name}: {e}"));
         }
-        progress(Progress {
-            current_path: name.clone(),
-            entries_done: i as u64 + 1,
-            entries_total: total,
-            bytes_done: 0,
-            bytes_total: 0,
-        });
+        report(
+            progress,
+            Progress {
+                current_path: name.clone(),
+                entries_done: i as u64 + 1,
+                entries_total: total,
+                bytes_done: 0,
+                bytes_total: 0,
+            },
+        )?;
     }
     Ok(TestReport {
         ok: bad.is_empty(),
@@ -374,13 +393,16 @@ pub fn create(
                 report.bytes_in += n;
             }
         }
-        progress(Progress {
-            current_path: input.rel.clone(),
-            entries_done: idx as u64 + 1,
-            entries_total: total,
-            bytes_done: report.bytes_in,
-            bytes_total: 0,
-        });
+        crate::formats::report(
+            progress,
+            Progress {
+                current_path: input.rel.clone(),
+                entries_done: idx as u64 + 1,
+                entries_total: total,
+                bytes_done: report.bytes_in,
+                bytes_total: 0,
+            },
+        )?;
     }
 
     let mut finished = zipw.finish().map_err(map_zip_err)?;

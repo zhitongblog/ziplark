@@ -111,13 +111,16 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         report.files_written += 1;
         report.bytes_written += size;
         idx += 1;
-        progress(Progress {
-            current_path: name,
-            entries_done: idx,
-            entries_total: 0,
-            bytes_done: report.bytes_written,
-            bytes_total: 0,
-        });
+        crate::formats::report(
+            progress,
+            Progress {
+                current_path: name,
+                entries_done: idx,
+                entries_total: 0,
+                bytes_done: report.bytes_written,
+                bytes_total: 0,
+            },
+        )?;
     }
     Ok(report)
 }
@@ -137,6 +140,7 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
     let _ = std::fs::remove_dir_all(&tmp);
 
     match result {
+        Err(Error::Cancelled) => Err(Error::Cancelled),
         Ok(report) => Ok(TestReport {
             ok: true,
             entries_tested: report.files_written,

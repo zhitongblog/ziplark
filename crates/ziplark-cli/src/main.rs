@@ -145,13 +145,15 @@ fn parse_level(s: &Option<String>) -> anyhow::Result<Level> {
     })
 }
 
-fn progress_printer() -> impl FnMut(Progress) {
+fn progress_printer() -> impl FnMut(Progress) -> bool {
     let mut last = String::new();
     move |p: Progress| {
         if p.current_path != last {
             eprintln!("  {}", p.current_path);
             last = p.current_path;
         }
+        // Nothing here ever asks the engine to stop; Ctrl-C is the CLI's cancel.
+        true
     }
 }
 

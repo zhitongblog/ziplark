@@ -93,11 +93,18 @@ impl CreateOptions {
     }
 }
 
-/// A progress callback. The engine calls it as work proceeds; return value is
-/// ignored. Use `|_| {}` if you don't care.
-pub type ProgressFn<'a> = &'a mut dyn FnMut(Progress);
+/// A progress callback. The engine calls it as work proceeds — between entries,
+/// and part-way through large ones — and **returning `false` asks it to stop**,
+/// which surfaces to the caller as [`Error::Cancelled`]. Use `|_| true` if you
+/// only want the reports, or pass `None` if you want neither.
+///
+/// A cancelled operation leaves whatever it had already written on disk; it is
+/// the caller's job to clean up if that matters.
+pub type ProgressFn<'a> = &'a mut dyn FnMut(Progress) -> bool;
 
-fn noop_progress(_: Progress) {}
+fn noop_progress(_: Progress) -> bool {
+    true
+}
 
 /// List the contents of an archive without extracting.
 pub fn list(path: impl AsRef<Path>, opts: &ListOptions) -> Result<ArchiveInfo> {

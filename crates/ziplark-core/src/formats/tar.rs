@@ -1,7 +1,8 @@
 use crate::encoding::NameDecoder;
 use crate::error::{Error, Result};
 use crate::formats::{
-    collect_inputs, create_symlink, ensure_parent, prepare_leaf, DestGuard, Input, InputKind,
+    collect_inputs, create_symlink, ensure_parent, prepare_leaf, report, DestGuard, Input,
+    InputKind,
 };
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
@@ -108,13 +109,16 @@ pub fn extract(
             let target = names.decode(&target_raw);
             unpack_link(&mut guard, kind.is_symlink(), &target, &out_path, opts.overwrite)?;
             report.files_written += 1;
-            progress(Progress {
-                current_path: name,
-                entries_done: idx,
-                entries_total: 0,
-                bytes_done: report.bytes_written,
-                bytes_total: 0,
-            });
+            crate::formats::report(
+                progress,
+                Progress {
+                    current_path: name,
+                    entries_done: idx,
+                    entries_total: 0,
+                    bytes_done: report.bytes_written,
+                    bytes_total: 0,
+                },
+            )?;
             continue;
         }
 
@@ -125,13 +129,16 @@ pub fn extract(
         entry.unpack(&out_path)?;
         report.files_written += 1;
         report.bytes_written += entry.size();
-        progress(Progress {
-            current_path: name,
-            entries_done: idx,
-            entries_total: 0,
-            bytes_done: report.bytes_written,
-            bytes_total: 0,
-        });
+        crate::formats::report(
+            progress,
+            Progress {
+                current_path: name,
+                entries_done: idx,
+                entries_total: 0,
+                bytes_done: report.bytes_written,
+                bytes_total: 0,
+            },
+        )?;
     }
     Ok(report)
 }
@@ -202,13 +209,16 @@ pub fn test(path: &Path, fmt: Format, _opts: &ListOptions, progress: ProgressFn)
         if let Err(e) = io::copy(&mut entry, &mut sink) {
             bad.push(format!("{name}: {e}"));
         }
-        progress(Progress {
-            current_path: name,
-            entries_done: tested,
-            entries_total: 0,
-            bytes_done: 0,
-            bytes_total: 0,
-        });
+        report(
+            progress,
+            Progress {
+                current_path: name,
+                entries_done: tested,
+                entries_total: 0,
+                bytes_done: 0,
+                bytes_total: 0,
+            },
+        )?;
     }
     Ok(TestReport {
         ok: bad.is_empty(),
@@ -314,13 +324,16 @@ fn add_all<W: Write>(
             }
         }
         entries_added += 1;
-        progress(Progress {
-            current_path: input.rel.clone(),
-            entries_done: idx as u64 + 1,
-            entries_total: total,
-            bytes_done: bytes_in,
-            bytes_total: 0,
-        });
+        report(
+            progress,
+            Progress {
+                current_path: input.rel.clone(),
+                entries_done: idx as u64 + 1,
+                entries_total: total,
+                bytes_done: bytes_in,
+                bytes_total: 0,
+            },
+        )?;
     }
     Ok((entries_added, bytes_in))
 }

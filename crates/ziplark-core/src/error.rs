@@ -29,6 +29,9 @@ pub enum Error {
     #[error("creating this format is not supported (it is proprietary or read-only): {0}")]
     CreateUnsupported(String),
 
+    #[error("cancelled")]
+    Cancelled,
+
     #[error("{0}")]
     Other(String),
 }

@@ -6,9 +6,50 @@ pub mod tar;
 pub mod zip;
 
 use crate::error::{Error, Result};
+use crate::model::Progress;
 use std::collections::HashSet;
 use std::fs::File;
+use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
+
+/// How much we move per read/write when copying an entry. Small enough that a
+/// cancel is acted on promptly even inside a multi-gigabyte file.
+const COPY_CHUNK: usize = 128 * 1024;
+
+/// Hand a progress report to the caller, turning a "stop" answer into the
+/// cancellation error so call sites can just use `?`.
+pub fn report(progress: &mut dyn FnMut(Progress) -> bool, p: Progress) -> Result<()> {
+    if progress(p) {
+        Ok(())
+    } else {
+        Err(Error::Cancelled)
+    }
+}
+
+/// Copy an entry, reporting progress as it goes and stopping when asked.
+///
+/// `io::copy` would be a single uninterruptible call: on a large file that
+/// means no progress until it finishes and no way to cancel until then. `tick`
+/// is called with the running byte count and returns false to abort.
+pub fn copy_watched<R: Read + ?Sized, W: Write + ?Sized>(
+    reader: &mut R,
+    writer: &mut W,
+    mut tick: impl FnMut(u64) -> bool,
+) -> Result<u64> {
+    let mut buf = vec![0u8; COPY_CHUNK];
+    let mut total = 0u64;
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            return Ok(total);
+        }
+        writer.write_all(&buf[..n])?;
+        total += n as u64;
+        if !tick(total) {
+            return Err(Error::Cancelled);
+        }
+    }
+}
 
 /// Guards every write an extraction makes against escaping the destination.
 ///

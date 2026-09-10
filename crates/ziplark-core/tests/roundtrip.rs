@@ -247,3 +247,55 @@ fn iso_create_is_unsupported() {
     let r = create(&root.join("x.iso"), &[src], &CreateOptions::new(Format::Iso), None);
     assert!(matches!(r, Err(Error::CreateUnsupported(_))));
 }
+
+/// A caller can stop a running operation by answering `false` from the progress
+/// callback, and the engine reports that as cancellation rather than success.
+#[test]
+fn extraction_stops_when_the_caller_asks_it_to() {
+    let root = tmp("cancel");
+    let src = make_src(&root);
+    let archive = root.join("out.zip");
+    create(&archive, &[src], &CreateOptions::new(Format::Zip), None).unwrap();
+
+    let mut seen = 0;
+    let mut stop_after_first = |_: Progress| {
+        seen += 1;
+        false
+    };
+    let dest = root.join("ex");
+    let r = extract(&archive, &ExtractOptions::new(&dest), Some(&mut stop_after_first));
+
+    assert!(matches!(r, Err(Error::Cancelled)), "got {r:?}");
+    assert_eq!(seen, 1, "the engine kept going after being told to stop");
+}
+
+/// Progress has to arrive *during* a large entry, not only when it finishes —
+/// otherwise a long extraction shows nothing and cannot be interrupted.
+#[test]
+fn progress_arrives_part_way_through_a_large_entry() {
+    let root = tmp("midfile");
+    let src = root.join("big.bin");
+    // Comfortably more than the engine's copy chunk, and compressible so the
+    // archive stays small.
+    fs::write(&src, vec![b'z'; 4 * 1024 * 1024]).unwrap();
+    let archive = root.join("big.zip");
+    create(&archive, &[src], &CreateOptions::new(Format::Zip), None).unwrap();
+
+    let mut ticks = Vec::new();
+    let mut record = |p: Progress| {
+        ticks.push(p.bytes_done);
+        true
+    };
+    extract(
+        &archive,
+        &ExtractOptions::new(root.join("ex")),
+        Some(&mut record),
+    )
+    .unwrap();
+
+    assert!(ticks.len() > 1, "only {} progress report(s)", ticks.len());
+    assert!(
+        ticks.iter().any(|&b| b > 0 && b < 4 * 1024 * 1024),
+        "no report landed mid-entry: {ticks:?}"
+    );
+}
