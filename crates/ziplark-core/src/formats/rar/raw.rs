@@ -107,6 +107,13 @@ struct HeaderData {
 const _: () = assert!(std::mem::size_of::<OpenData>() == 176);
 const _: () = assert!(std::mem::size_of::<HeaderData>() == 14_340);
 
+/// `UCM_LARGEDICT`, the callback libunrar uses to ask whether it may allocate a
+/// dictionary bigger than its own 4 GiB default limit. `unrar_sys` predates it.
+const UCM_LARGEDICT: sys::UINT = 5;
+
+/// `ERAR_LARGE_DICT`: the caller said no to that question.
+const ERAR_LARGE_DICT: i32 = 25;
+
 /// libunrar's redirection kinds, from `dll.hpp`.
 const FSREDIR_UNIXSYMLINK: u32 = 1;
 const FSREDIR_WINSYMLINK: u32 = 2;
@@ -194,6 +201,8 @@ struct State {
     password: Option<Vec<sys::WCHAR>>,
     /// The volume libunrar asked for and could not find.
     missing_volume: Option<String>,
+    /// A dictionary libunrar asked to allocate and we refused, in KiB.
+    refused_dictionary_kib: Option<u64>,
 }
 
 /// An open RAR archive.
@@ -234,6 +243,7 @@ impl Archive {
                 wide
             }),
             missing_volume: None,
+            refused_dictionary_kib: None,
         });
 
         // 64 KiB of characters, the ceiling RAR itself puts on a comment.
@@ -378,6 +388,14 @@ impl Archive {
         if let Some(missing) = &self.state.missing_volume {
             return Error::MissingVolume(PathBuf::from(missing));
         }
+        if code == ERAR_LARGE_DICT {
+            let wanted = self.state.refused_dictionary_kib.unwrap_or(0);
+            return Error::other(format!(
+                "this entry was packed with a {} dictionary, and unpacking it needs that much \
+memory at once — more than half of what this machine has",
+                human_bytes(wanted * 1024)
+            ));
+        }
         match code {
             sys::ERAR_MISSING_PASSWORD => Error::PasswordRequired,
             sys::ERAR_BAD_PASSWORD => Error::BadPassword,
@@ -490,6 +508,20 @@ extern "C" fn callback(
                 _ => 0,
             }
         }
+        // RAR 7 archives can be packed with a dictionary of up to 64 GiB, and
+        // unpacking one needs that much memory. libunrar refuses anything over
+        // 4 GiB unless asked, and WinRAR puts the question to the user; there is
+        // nobody to ask inside an engine, so it is answered against what this
+        // machine can actually stand.
+        UCM_LARGEDICT => {
+            let wanted_kib = p1 as u64;
+            if dictionary_allowed(wanted_kib, physical_memory()) {
+                1
+            } else {
+                state.refused_dictionary_kib = Some(wanted_kib);
+                0
+            }
+        }
         sys::UCM_NEEDPASSWORDW => {
             let Some(password) = &state.password else {
                 // Nothing to give: cancel rather than let libunrar retry with
@@ -539,6 +571,94 @@ fn wide_at(ptr: *const sys::WCHAR, max: usize) -> String {
         }
     }
     out
+}
+
+/// Whether to let libunrar allocate a dictionary of `wanted_kib`.
+///
+/// The rule is "half of this machine's memory, and never more than 32 GiB":
+/// unpacking holds the whole dictionary at once, so agreeing to more than that
+/// trades a failed extraction for an unusable machine. When the amount of
+/// memory is unknown we keep libunrar's own 4 GiB default, which is what the
+/// callback was asked about in the first place.
+fn dictionary_allowed(wanted_kib: u64, physical_bytes: Option<u64>) -> bool {
+    const CEILING: u64 = 32 * 1024 * 1024; // KiB
+    let wanted = wanted_kib.min(u64::MAX / 1024);
+    let allowance = match physical_bytes {
+        Some(bytes) => (bytes / 2 / 1024).min(CEILING),
+        None => 4 * 1024 * 1024, // 4 GiB in KiB
+    };
+    wanted <= allowance
+}
+
+/// Bytes, rounded for a human: the number lands in an error message.
+fn human_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if value < 10.0 && unit > 0 {
+        format!("{value:.1} {}", UNITS[unit])
+    } else {
+        format!("{} {}", value.round() as u64, UNITS[unit])
+    }
+}
+
+/// This machine's physical memory, when it can be had cheaply.
+#[cfg(target_os = "linux")]
+fn physical_memory() -> Option<u64> {
+    let meminfo = std::fs::read_to_string("/proc/meminfo").ok()?;
+    let line = meminfo.lines().find(|l| l.starts_with("MemTotal:"))?;
+    let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+    Some(kib * 1024)
+}
+
+#[cfg(any(target_os = "macos", target_os = "ios", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
+fn physical_memory() -> Option<u64> {
+    let mut size = 0u64;
+    let mut len = std::mem::size_of::<u64>();
+    let name = c"hw.memsize";
+    // SAFETY: sysctlbyname writes at most `len` bytes into `size`, and the name
+    // is a NUL-terminated C string.
+    let rc = unsafe {
+        libc::sysctlbyname(
+            name.as_ptr(),
+            &mut size as *mut u64 as *mut libc::c_void,
+            &mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    (rc == 0 && size > 0).then_some(size)
+}
+
+#[cfg(windows)]
+fn physical_memory() -> Option<u64> {
+    use windows_sys::Win32::System::SystemInformation::{
+        GlobalMemoryStatusEx, MEMORYSTATUSEX,
+    };
+    let mut status = MEMORYSTATUSEX {
+        dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+        ..unsafe { std::mem::zeroed() }
+    };
+    // SAFETY: `status` is a correctly-sized MEMORYSTATUSEX, as its dwLength says.
+    let ok = unsafe { GlobalMemoryStatusEx(&mut status) };
+    (ok != 0).then_some(status.ullTotalPhys)
+}
+
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    windows
+)))]
+fn physical_memory() -> Option<u64> {
+    None
 }
 
 /// libunrar splits 64-bit sizes over two 32-bit fields.
@@ -689,6 +809,37 @@ mod tests {
         assert_eq!((dt.year(), dt.month() as u8, dt.day()), (2026, 9, 15));
         assert_eq!((dt.hour(), dt.minute(), dt.second()), (20, 36, 10));
         assert_eq!(dos_to_unix(0), None);
+    }
+
+    #[test]
+    fn a_dictionary_is_allowed_up_to_half_of_memory() {
+        let gib = 1024 * 1024; // KiB in a GiB
+        // 16 GB machine: an 8 GiB dictionary is the most it should attempt.
+        let mem = Some(16 * 1024 * 1024 * 1024);
+        assert!(dictionary_allowed(4 * gib, mem));
+        assert!(dictionary_allowed(8 * gib, mem));
+        assert!(!dictionary_allowed(9 * gib, mem));
+        // Never more than 32 GiB, however much memory there is.
+        let huge = Some(1024u64 * 1024 * 1024 * 1024);
+        assert!(dictionary_allowed(32 * gib, huge));
+        assert!(!dictionary_allowed(33 * gib, huge));
+        // Unknown memory keeps libunrar's own 4 GiB limit.
+        assert!(dictionary_allowed(4 * gib, None));
+        assert!(!dictionary_allowed(5 * gib, None));
+    }
+
+    #[test]
+    fn this_machine_reports_its_memory() {
+        // The policy above is only meaningful if the number is real.
+        let mem = physical_memory().expect("physical memory should be readable here");
+        assert!(mem > 512 * 1024 * 1024, "implausible: {mem}");
+    }
+
+    #[test]
+    fn byte_counts_read_like_byte_counts() {
+        assert_eq!(human_bytes(0), "0 B");
+        assert_eq!(human_bytes(4 * 1024 * 1024 * 1024), "4.0 GiB");
+        assert_eq!(human_bytes(64 * 1024 * 1024 * 1024), "64 GiB");
     }
 
     #[test]

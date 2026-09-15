@@ -104,6 +104,23 @@ ln -s plain.txt perms/link.txt
 rar a -ma5 -ol -ep1 perms.rar perms
 mv perms.rar "$out/"
 
+# 6d. Reference and hard-link entries: RAR5 stores a second copy of identical
+#     content as a *reference* to the first (`-oi`), and hard links as links
+#     (`-oh`). Both carry a target rather than data, and both have to be
+#     restored through the extraction guard — an archive claiming a link to
+#     /etc/shadow must not get one. `-oi` only kicks in above 64 KB, hence the
+#     size; the content is repetitive so the archive itself stays small.
+mkdir -p refs/tree
+python3 -c "
+import pathlib
+data = (b'ziplark reference fixture, repeated. ' * 2000)[:70_000]
+pathlib.Path('refs/tree/original.txt').write_bytes(data)
+pathlib.Path('refs/tree/duplicate.txt').write_bytes(data)
+"
+ln refs/tree/original.txt refs/tree/hardlink.txt
+( cd refs && rar a -ma5 -oi -oh -ep1 ../refs.rar tree )
+mv refs.rar "$out/"
+
 # 7. Damaged archive: valid headers, corrupt file data. Testing must name the
 #    entries that fail instead of giving up on the whole archive.
 rar a -ma5 -ep1 damaged.rar tree
@@ -133,4 +150,4 @@ PYSFX
 
 cd "$out"
 echo "wrote:"
-ls -l multi.part*.rar legacy.rar legacy.r0* salvage.part*.rar perms.rar hdrenc.rar solid.rar cjk.rar linkescape.rar damaged.rar sfx.exe
+ls -l multi.part*.rar legacy.rar legacy.r0* salvage.part*.rar perms.rar hdrenc.rar solid.rar cjk.rar linkescape.rar refs.rar damaged.rar sfx.exe

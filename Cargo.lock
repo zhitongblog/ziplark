@@ -5299,6 +5299,7 @@ dependencies = [
  "encoding_rs",
  "filetime",
  "flate2",
+ "libc",
  "lz4_flex 0.11.6",
  "serde",
  "sevenz-rust2",

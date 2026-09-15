@@ -54,10 +54,19 @@ lz4_flex = "0.11"
 chardetng = "0.1"
 encoding_rs = "0.8"
 
+# sysctl hw.memsize: a RAR 7 entry can need tens of gigabytes of dictionary to
+# unpack, and how much this machine has decides whether we let it try.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 # GetACP(), so a legacy ZIP opened on the localized Windows that made it decodes
-# with that machine's code page when the name is too short to detect.
+# with that machine's code page when the name is too short to detect; and
+# GlobalMemoryStatusEx, for the same dictionary decision as above.
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Globalization"] }
+windows-sys = { version = "0.59", features = [
+    "Win32_Globalization",
+    "Win32_System_SystemInformation",
+] }
 
 [features]
 default = []

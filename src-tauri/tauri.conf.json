@@ -63,7 +63,17 @@
           "tzst",
           "lz4",
           "tlz4",
-          "iso"
+          "iso",
+          "r00",
+          "r01",
+          "r02",
+          "r03",
+          "r04",
+          "r05",
+          "r06",
+          "r07",
+          "r08",
+          "r09"
         ],
         "name": "Archive",
         "description": "Archive",

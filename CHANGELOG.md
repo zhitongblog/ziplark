@@ -25,6 +25,19 @@ This project adheres to [Semantic Versioning](https://semver.org).
   out of a listing needs; the desktop app grew tick boxes per row and an
   "Extract N selected…" button on top of it. `--include` also takes globs now
   (`*/docs/*.txt`), with one matcher shared by every format, the CLI and MCP.
+- **RAR 7 archives with very large dictionaries extract.** RAR 7 can pack with
+  a dictionary of up to 64 GiB, and libunrar refuses anything over 4 GiB unless
+  the caller confirms it — a question nobody was answering, so those entries
+  failed with an opaque error. Ziplark now allows up to half of the machine's
+  memory (capped at 32 GiB) and, above that, says exactly how much the archive
+  wants instead of reporting an error code.
+- **Reference and hard-link entries are restored.** RAR5 stores a second copy of
+  identical content as a reference to the first (`-oi`) and hard links as links
+  (`-oh`); both are now materialised, with their targets checked by the same
+  guard every other link goes through.
+- **Double-clicking `movie.r01` opens Ziplark.** The legacy volume extensions
+  `.r00`–`.r09` are registered by the desktop app and the Windows right-click
+  menu, alongside `.rar`.
 - **The archive itself is described, not just its entries.** Volumes, a missing
   volume, solid, recovery record, encrypted headers, locked, and the archive
   comment (RAR and ZIP) are reported by `ziplark info`, the MCP tools and the

@@ -207,9 +207,14 @@ mod imp {
     use std::process::Command;
 
     // Archive extensions that get an "Extract here" verb.
+    //
+    // `.r00` … `.r09` are the second and later volumes of a legacy RAR set.
+    // The scheme runs all the way to `.z99`, which is 900 extensions nobody
+    // wants in a registry; the first ten cover the sets people actually have,
+    // and any part of a set opens the whole thing anyway.
     const EXTS: &[&str] = &[
         ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz", ".zst", ".tgz", ".tbz2", ".txz",
-        ".tzst",
+        ".tzst", ".r00", ".r01", ".r02", ".r03", ".r04", ".r05", ".r06", ".r07", ".r08", ".r09",
     ];
     const EXTRACT_VERB: &str = "Ziplark.Extract";
     const COMPRESS_VERB: &str = "Ziplark.Compress";

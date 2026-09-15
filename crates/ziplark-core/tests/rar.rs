@@ -465,3 +465,38 @@ fn a_self_extracting_archive_opens_like_any_other() {
     assert_eq!(report.files_written, 2);
     assert!(dest.join("cjk/中文文件.txt").exists());
 }
+
+#[test]
+fn reference_and_hard_link_entries_are_restored() {
+    // RAR5 stores a second copy of identical content as a reference to the
+    // first, and hard links as links. Both carry a target instead of data, and
+    // both have to come out as real files with the right content. Their targets
+    // go through the same guard tar's links do — a link claiming
+    // `../../etc/shadow` is refused there (see `extraction_safety.rs`).
+    let info = plain(&fixture("refs.rar"));
+    assert_eq!(
+        names(&info),
+        vec!["tree", "tree/duplicate.txt", "tree/hardlink.txt", "tree/original.txt"]
+    );
+
+    let dest = tmp("refs");
+    let report = extract(&fixture("refs.rar"), &ExtractOptions::new(&dest), None).unwrap();
+    assert_eq!(report.files_written, 3);
+    assert!(report.failed.is_empty(), "{:?}", report.failed);
+
+    let original = fs::read(dest.join("tree/duplicate.txt")).unwrap();
+    assert_eq!(original.len(), 70_000);
+    // The reference entry has to hold the same bytes as what it points at.
+    assert_eq!(fs::read(dest.join("tree/original.txt")).unwrap(), original);
+    // The hard link has to be a link: same inode, not a second copy.
+    assert_eq!(fs::read(dest.join("tree/hardlink.txt")).unwrap(), original);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        assert_eq!(
+            fs::metadata(dest.join("tree/hardlink.txt")).unwrap().ino(),
+            fs::metadata(dest.join("tree/original.txt")).unwrap().ino(),
+            "a hard link should share its target's inode"
+        );
+    }
+}
