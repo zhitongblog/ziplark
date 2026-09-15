@@ -12,7 +12,7 @@
 //! `create` (`Format::Iso.can_create()` is false).
 
 use crate::error::{Error, Result};
-use crate::formats::{copy_watched, create_file, ensure_parent, report, DestGuard};
+use crate::formats::{copy_watched, create_file, ensure_parent, prepare_dir, report, DestGuard};
 use crate::model::*;
 use crate::{ExtractOptions, ListOptions, ProgressFn};
 use std::fs::File;
@@ -166,9 +166,6 @@ fn child_rel(prefix: &str, name: &str) -> String {
     }
 }
 
-fn matches_filter(name: &str, include: &[String]) -> bool {
-    include.is_empty() || include.iter().any(|p| name.contains(p.as_str()))
-}
 
 // ───────────────────────────── list ─────────────────────────────
 
@@ -186,6 +183,10 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
         encrypted: false,
         total_size: total,
         total_compressed,
+        volumes: Vec::new(),
+        missing_volume: None,
+        comment: None,
+        attributes: ArchiveAttributes::default(),
     })
 }
 
@@ -225,6 +226,7 @@ fn entry(path: String, is_dir: bool, size: u64) -> ArchiveEntry {
         encrypted: false,
         modified: None,
         crc32: None,
+        split: false,
     }
 }
 
@@ -239,6 +241,8 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         dirs_created: 0,
         bytes_written: 0,
         dest: opts.dest.clone(),
+        failed: Vec::new(),
+        partial: Vec::new(),
     };
     let mut idx = 0u64;
     let mut guard = DestGuard::new(&opts.dest);
@@ -267,14 +271,14 @@ fn extract_dir(
         let rel = child_rel(prefix, &rec.name);
         if rec.is_dir {
             let out = guard.join(&rel)?;
-            std::fs::create_dir_all(&out)?;
+            prepare_dir(&out, &rel)?;
             report.dirs_created += 1;
             extract_dir(
                 f, rec.lba, rec.size, joliet, &rel, opts, report, idx, progress, depth + 1, guard,
             )?;
             continue;
         }
-        if !matches_filter(&rel, &opts.include) {
+        if !opts.selector().matches(&rel) {
             continue;
         }
         let out = guard.join(&rel)?;

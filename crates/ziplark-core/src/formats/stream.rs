@@ -41,6 +41,7 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
         encrypted: false,
         modified: None,
         crc32: None,
+        split: false,
     };
     Ok(ArchiveInfo {
         format: fmt,
@@ -49,6 +50,10 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
         encrypted: false,
         total_size: 0,
         total_compressed: compressed,
+        volumes: Vec::new(),
+        missing_volume: None,
+        comment: None,
+        attributes: ArchiveAttributes::default(),
     })
 }
 
@@ -91,6 +96,8 @@ pub fn extract(
         dirs_created: 0,
         bytes_written: n,
         dest: opts.dest.clone(),
+        failed: Vec::new(),
+        partial: Vec::new(),
     })
 }
 

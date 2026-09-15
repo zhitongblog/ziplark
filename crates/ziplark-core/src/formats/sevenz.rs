@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
 use crate::formats::{
-    collect_inputs, copy_watched, create_file, create_symlink, ensure_parent, prepare_leaf, report,
-    DestGuard, InputKind,
+    collect_inputs, copy_watched, create_file, create_symlink, ensure_parent, prepare_dir,
+    prepare_leaf, report, DestGuard, InputKind,
 };
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
@@ -128,6 +128,7 @@ pub fn list(path: &Path, fmt: Format, opts: &ListOptions) -> Result<ArchiveInfo>
             encrypted,
             modified: modified(f),
             crc32: f.has_crc.then_some(f.crc as u32),
+            split: false,
         });
     }
     let total_compressed = std::fs::metadata(path)?.len();
@@ -138,18 +139,30 @@ pub fn list(path: &Path, fmt: Format, opts: &ListOptions) -> Result<ArchiveInfo>
         encrypted,
         total_size,
         total_compressed,
+        volumes: Vec::new(),
+        missing_volume: None,
+        comment: None,
+        attributes: ArchiveAttributes {
+            // 7z records this, and it is worth surfacing: pulling one file out
+            // of a solid archive means decompressing everything before it.
+            solid: archive.is_solid,
+            ..ArchiveAttributes::default()
+        },
     })
 }
 
 pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Result<ExtractReport> {
     let mut reader = ArchiveReader::open(path, password(&opts.password)).map_err(map_err)?;
     std::fs::create_dir_all(&opts.dest)?;
+    let selector = opts.selector();
 
     let mut report = ExtractReport {
         files_written: 0,
         dirs_created: 0,
         bytes_written: 0,
         dest: opts.dest.clone(),
+        failed: Vec::new(),
+        partial: Vec::new(),
     };
     let mut first_error: Option<Error> = None;
     let mut idx = 0u64;
@@ -159,7 +172,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         .for_each_entries(|entry, rd| {
             idx += 1;
             let name = entry.name().to_string();
-            if !matches_filter(&name, &opts.include) {
+            if !selector.matches(&name) {
                 return Ok(true);
             }
             // Funnel through the shared extraction guard.
@@ -171,8 +184,8 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                 }
             };
             if entry.is_directory() {
-                if let Err(e) = std::fs::create_dir_all(&out_path) {
-                    first_error = Some(Error::Io(e));
+                if let Err(e) = prepare_dir(&out_path, &name) {
+                    first_error = Some(e);
                     return Ok(false);
                 }
                 report.dirs_created += 1;
@@ -489,6 +502,3 @@ impl Read for LazyFile {
     }
 }
 
-fn matches_filter(name: &str, include: &[String]) -> bool {
-    include.is_empty() || include.iter().any(|p| name.contains(p.as_str()))
-}

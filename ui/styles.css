@@ -10,6 +10,9 @@
   --err: #dc2626;
   --radius: 12px;
   --shadow: 0 1px 3px rgba(20, 22, 40, 0.08), 0 8px 24px rgba(20, 22, 40, 0.06);
+  --warn-bg: #fef3c7;
+  --warn-fg: #7c4a03;
+  --inset: #f1f2f7;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -21,6 +24,9 @@
     --accent: #6366f1;
     --accent-press: #818cf8;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+    --warn-bg: #46340d;
+    --warn-fg: #ffe9a8;
+    --inset: #24262f;
   }
 }
 
@@ -184,3 +190,50 @@ select, input[type=password] {
 .appfoot a.ext { color: var(--accent); cursor: pointer; }
 .appfoot a.ext:hover { text-decoration: underline; }
 .appfoot .sep { opacity: .45; }
+
+/* An archive can carry facts that change what to do next: a missing volume, a
+   comment from whoever packed it. */
+.notice {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notice button {
+  margin-left: auto;
+}
+.arc-comment {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  max-height: 6.5em;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--inset);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+}
+
+/* Row selection: ticking rows and extracting only those. */
+.col-check,
+.rcheck {
+  flex: 0 0 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rcheck::before {
+  content: "";
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.rcheck.on::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}

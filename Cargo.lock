@@ -4168,18 +4168,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
-name = "unrar"
-version = "0.5.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ec61343a630d2b50d13216dea5125e157d3fc180a7d3f447d22fe146b648fc"
-dependencies = [
- "bitflags 2.13.0",
- "regex",
- "unrar_sys",
- "widestring",
-]
-
-[[package]]
 name = "unrar_sys"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5317,7 +5305,8 @@ dependencies = [
  "tar",
  "thiserror 2.0.18",
  "time",
- "unrar",
+ "unrar_sys",
+ "widestring",
  "windows-sys 0.59.0",
  "xz2",
  "zip",

@@ -1,8 +1,8 @@
 use crate::encoding::NameDecoder;
 use crate::error::{Error, Result};
 use crate::formats::{
-    collect_inputs, create_symlink, ensure_parent, prepare_leaf, report, DestGuard, Input,
-    InputKind,
+    collect_inputs, ensure_parent, prepare_dir, prepare_leaf, report, unpack_link, DestGuard,
+    Input, InputKind,
 };
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
@@ -47,6 +47,7 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
             encrypted: false,
             modified: entry.header().mtime().ok().map(|m| m as i64),
             crc32: None,
+            split: false,
         });
     }
 
@@ -58,6 +59,10 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
         encrypted: false,
         total_size,
         total_compressed,
+        volumes: Vec::new(),
+        missing_volume: None,
+        comment: None,
+        attributes: ArchiveAttributes::default(),
     })
 }
 
@@ -70,11 +75,14 @@ pub fn extract(
     let reader = open_reader(path, fmt)?;
     let mut archive = tar::Archive::new(reader);
     std::fs::create_dir_all(&opts.dest)?;
+    let selector = opts.selector();
     let mut report = ExtractReport {
         files_written: 0,
         dirs_created: 0,
         bytes_written: 0,
         dest: opts.dest.clone(),
+        failed: Vec::new(),
+        partial: Vec::new(),
     };
 
     let mut guard = DestGuard::new(&opts.dest);
@@ -85,7 +93,7 @@ pub fn extract(
         let raw = entry.path_bytes().into_owned();
         names.sample(&raw);
         let name = names.decode(&raw);
-        if !matches_filter(&name, &opts.include) {
+        if !selector.matches(&name) {
             continue;
         }
         // Validates the name *and* refuses to descend through a symlink — tar
@@ -95,7 +103,7 @@ pub fn extract(
 
         let kind = entry.header().entry_type();
         if kind.is_dir() {
-            std::fs::create_dir_all(&out_path)?;
+            prepare_dir(&out_path, &name)?;
             report.dirs_created += 1;
             continue;
         }
@@ -141,49 +149,6 @@ pub fn extract(
         )?;
     }
     Ok(report)
-}
-
-/// Restore a link entry.
-///
-/// A **hard** link's target names a file inside the archive, so it goes through
-/// the guard: a tar claiming `link -> /etc/shadow` must not get one.
-///
-/// A **symlink**'s target is just a string that the OS resolves whenever the
-/// link is used later. Absolute and `..` targets are legal and ordinary there —
-/// packaging tarballs are full of them — so it is stored verbatim, the same as
-/// GNU tar and bsdtar. That is safe because the link cannot be *used* to escape
-/// during extraction: every later entry re-checks its ancestors through
-/// `guard`, which is what closes the `evil -> /tmp` + `evil/owned.txt` attack.
-fn unpack_link(
-    guard: &mut DestGuard,
-    is_symlink: bool,
-    target: &str,
-    out_path: &Path,
-    overwrite: bool,
-) -> Result<()> {
-    if target.is_empty() {
-        return Err(Error::corrupt(format!(
-            "{}: link entry with an empty target",
-            out_path.display()
-        )));
-    }
-    prepare_leaf(out_path, overwrite)?;
-    // prepare_leaf only clears a symlink; neither symlink() nor hard_link() can
-    // replace an existing file, so with overwrite the leaf has to go entirely.
-    if overwrite {
-        let _ = std::fs::remove_file(out_path);
-    }
-
-    if is_symlink {
-        create_symlink(target, out_path)?;
-        // This path is a symlink now — it must never be remembered as a
-        // directory that is safe to descend through.
-        guard.forget(out_path);
-    } else {
-        let src = guard.join(target)?;
-        std::fs::hard_link(&src, out_path)?;
-    }
-    Ok(())
 }
 
 pub fn test(path: &Path, fmt: Format, _opts: &ListOptions, progress: ProgressFn) -> Result<TestReport> {
@@ -370,6 +335,3 @@ fn zst_level(l: Level) -> i32 {
     }
 }
 
-fn matches_filter(name: &str, include: &[String]) -> bool {
-    include.is_empty() || include.iter().any(|p| name.contains(p.as_str()))
-}

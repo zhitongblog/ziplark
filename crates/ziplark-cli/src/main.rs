@@ -4,8 +4,8 @@
 //! Designed to be the self-test driver and a scriptable tool (`--json`).
 
 use ziplark_core::{
-    create, detect, extract, list, test, CreateOptions, ExtractOptions, Format, Level, ListOptions,
-    Progress,
+    create, detect, extract, list, test, ArchiveInfo, CreateOptions, ExtractOptions, Format, Level,
+    ListOptions, MatchMode, Progress,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -33,7 +33,14 @@ COMMON OPTIONS:
     -p, --password <PW>   Password for encrypted archives
     -o, --output <DIR>    Destination directory (extract)
         --overwrite       Overwrite existing files when extracting
-        --include <PAT>   Only entries whose path contains PAT (repeatable)
+        --include <PAT>   Only entries matching PAT (repeatable). A pattern with
+                          * or ? is a glob over the whole path; otherwise it is
+                          matched as a substring
+        --exact           Treat --include patterns as exact entry paths (a
+                          directory takes everything under it)
+        --keep-broken     Carry on past entries that fail, and list them. For
+                          damaged or incomplete archives — without it, the first
+                          bad entry stops the extraction
         --level <L>       store | fast | default | best (create)
         --json            Machine-readable JSON output
     -h, --help            Show this help
@@ -43,7 +50,10 @@ EXAMPLES:
     ziplark x photos.zip -o ./out
     ziplark c backup.tar.zst ./src ./README.md --level best
     ziplark c secret.zip ./private --password hunter2
-    ziplark l movie.rar --json
+    ziplark l movie.part01.rar --json
+    ziplark x movie.r03 -o ./out          # any volume opens the whole set
+    ziplark x half-downloaded.part1.rar --keep-broken
+    ziplark x big.rar --include docs/notes.txt --exact
 ";
 
 fn main() -> ExitCode {
@@ -98,8 +108,20 @@ struct Parsed {
     output: Option<String>,
     overwrite: bool,
     include: Vec<String>,
+    exact: bool,
+    keep_broken: bool,
     level: Option<String>,
     json: bool,
+}
+
+impl Parsed {
+    fn match_mode(&self) -> MatchMode {
+        if self.exact {
+            MatchMode::Exact
+        } else {
+            MatchMode::Auto
+        }
+    }
 }
 
 fn parse(args: &[String]) -> anyhow::Result<Parsed> {
@@ -116,6 +138,8 @@ fn parse(args: &[String]) -> anyhow::Result<Parsed> {
             }
             "--overwrite" | "-f" => p.overwrite = true,
             "--include" => p.include.push(next(args, &mut i, "--include")?),
+            "--exact" => p.exact = true,
+            "--keep-broken" | "--keep" => p.keep_broken = true,
             "--level" => p.level = Some(next(args, &mut i, "--level")?),
             "--json" => p.json = true,
             s if s.starts_with('-') && s.len() > 1 => {
@@ -182,14 +206,16 @@ fn cmd_list(args: &[String]) -> anyhow::Result<ExitCode> {
         info.entries.len(),
         if info.encrypted { ", encrypted" } else { "" }
     );
+    print_archive_facts(&info);
     println!("{:>12}  {:>5}  {}", "SIZE", "TYPE", "NAME");
     for e in &info.entries {
         println!(
-            "{:>12}  {:>5}  {}{}",
+            "{:>12}  {:>5}  {}{}{}",
             e.size,
             if e.is_dir { "dir" } else { "file" },
             e.path,
-            if e.encrypted { "  *" } else { "" }
+            if e.encrypted { "  *" } else { "" },
+            if e.split { "  (spans volumes)" } else { "" }
         );
     }
     println!(
@@ -209,6 +235,8 @@ fn cmd_extract(args: &[String]) -> anyhow::Result<ExitCode> {
     let dest = p.output.clone().unwrap_or_else(|| ".".to_string());
     let json = p.json;
     let opts = ExtractOptions {
+        match_mode: p.match_mode(),
+        keep_broken: p.keep_broken,
         password: p.password,
         dest: PathBuf::from(dest),
         overwrite: p.overwrite,
@@ -226,8 +254,67 @@ fn cmd_extract(args: &[String]) -> anyhow::Result<ExitCode> {
             report.bytes_written,
             report.dest.display()
         );
+        if !report.failed.is_empty() {
+            println!("{} entries could not be extracted:", report.failed.len());
+            for f in &report.failed {
+                println!("  {f}");
+            }
+        }
+        if !report.partial.is_empty() {
+            println!(
+                "{} files were written incomplete — as much as the archive held:",
+                report.partial.len()
+            );
+            for f in &report.partial {
+                println!("  {f}");
+            }
+        }
     }
     Ok(ExitCode::SUCCESS)
+}
+
+/// The things that are true of the archive rather than of one entry. Most
+/// formats have none of them; RAR has all of them.
+fn print_archive_facts(info: &ArchiveInfo) {
+    if !info.volumes.is_empty() {
+        println!("volumes: {} present", info.volumes.len());
+        for v in &info.volumes {
+            println!(
+                "  {}",
+                v.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()
+            );
+        }
+    }
+    if let Some(missing) = &info.missing_volume {
+        println!(
+            "INCOMPLETE: the next volume is missing — {}",
+            missing.display()
+        );
+        println!("  (--keep-broken extracts what the volumes on hand contain)");
+    }
+    let a = &info.attributes;
+    let mut flags = Vec::new();
+    if a.solid {
+        flags.push("solid");
+    }
+    if a.recovery_record {
+        flags.push("recovery record");
+    }
+    if a.encrypted_headers {
+        flags.push("encrypted headers");
+    }
+    if a.locked {
+        flags.push("locked");
+    }
+    if !flags.is_empty() {
+        println!("flags: {}", flags.join(", "));
+    }
+    if let Some(comment) = &info.comment {
+        println!("comment:");
+        for line in comment.lines() {
+            println!("  {line}");
+        }
+    }
 }
 
 fn cmd_create(args: &[String]) -> anyhow::Result<ExitCode> {
@@ -311,30 +398,58 @@ fn cmd_info(args: &[String]) -> anyhow::Result<ExitCode> {
         .positionals
         .first()
         .ok_or_else(|| anyhow::anyhow!("info requires a path"))?;
-    match detect(std::path::Path::new(path)) {
-        Some(fmt) => {
-            if p.json {
-                println!(
-                    "{{\"path\":{:?},\"format\":\"{}\",\"can_create\":{}}}",
-                    path,
-                    fmt.extension(),
-                    fmt.can_create()
-                );
-            } else {
-                println!(
-                    "{}: {} (create supported: {})",
-                    path,
-                    fmt.label(),
-                    fmt.can_create()
-                );
-            }
-            Ok(ExitCode::SUCCESS)
+    let Some(fmt) = detect(std::path::Path::new(path)) else {
+        eprintln!("{path}: unrecognized archive format");
+        return Ok(ExitCode::FAILURE);
+    };
+
+    // Reading the headers is what turns "it's a RAR" into something worth
+    // printing: how many volumes, whether one is missing, solid, comment. If
+    // that fails — an encrypted-header archive with no password, say — the
+    // format is still worth reporting.
+    let info = list(
+        path,
+        &ListOptions {
+            password: p.password,
+        },
+    );
+
+    if p.json {
+        match &info {
+            Ok(info) => println!("{}", serde_json::to_string_pretty(info)?),
+            Err(e) => println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "path": path,
+                    "format": fmt.extension(),
+                    "can_create": fmt.can_create(),
+                    "error": e.to_string(),
+                }))?
+            ),
         }
-        None => {
-            eprintln!("{path}: unrecognized archive format");
-            Ok(ExitCode::FAILURE)
-        }
+        return Ok(ExitCode::SUCCESS);
     }
+
+    println!(
+        "{}: {} (create supported: {})",
+        path,
+        fmt.label(),
+        fmt.can_create()
+    );
+    match info {
+        Ok(info) => {
+            println!(
+                "{} entries, {} bytes uncompressed, {} bytes on disk{}",
+                info.entries.len(),
+                info.total_size,
+                info.total_compressed,
+                if info.encrypted { ", encrypted" } else { "" }
+            );
+            print_archive_facts(&info);
+        }
+        Err(e) => println!("could not read the contents: {e}"),
+    }
+    Ok(ExitCode::SUCCESS)
 }
 
 /// Strip the archive extension(s) from a file name, handling double extensions
@@ -408,6 +523,8 @@ fn cmd_extract_here(args: &[String]) -> anyhow::Result<ExitCode> {
             dest: dest.clone(),
             overwrite: true,
             include: Vec::new(),
+            match_mode: MatchMode::Auto,
+            keep_broken: p.keep_broken,
         };
         match extract(a, &opts, None) {
             Ok(r) => {

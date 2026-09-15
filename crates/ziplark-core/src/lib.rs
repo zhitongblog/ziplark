@@ -19,12 +19,15 @@ mod detect;
 mod encoding;
 mod error;
 mod formats;
+mod matcher;
 mod model;
 
 pub use detect::detect;
 pub use error::{Error, Result};
+pub use matcher::{MatchMode, Selector};
 pub use model::{
-    ArchiveEntry, ArchiveInfo, CreateReport, ExtractReport, Format, Progress, TestReport,
+    ArchiveAttributes, ArchiveEntry, ArchiveInfo, CreateReport, ExtractReport, Format, Progress,
+    TestReport,
 };
 
 use std::path::{Path, PathBuf};
@@ -58,9 +61,19 @@ pub struct ExtractOptions {
     pub dest: PathBuf,
     /// Overwrite existing files instead of erroring.
     pub overwrite: bool,
-    /// Only extract entries whose path contains one of these substrings
-    /// (empty = everything).
+    /// Only extract entries matching one of these patterns
+    /// (empty = everything). How a pattern is compared is `match_mode`.
     pub include: Vec<String>,
+    /// How `include` patterns are matched. [`MatchMode::Auto`] is the
+    /// forgiving substring/glob behaviour; [`MatchMode::Exact`] extracts
+    /// exactly the entries named, which is what a caller that already has a
+    /// listing — a GUI with ticked rows, an agent picking one file — wants.
+    pub match_mode: MatchMode,
+    /// Keep going when an entry cannot be extracted, listing the casualties in
+    /// [`ExtractReport::failed`] instead of failing the whole operation. This
+    /// is how you get the readable files out of a damaged or incomplete
+    /// archive; without it the first bad entry stops everything.
+    pub keep_broken: bool,
 }
 
 impl ExtractOptions {
@@ -70,7 +83,14 @@ impl ExtractOptions {
             dest: dest.into(),
             overwrite: false,
             include: Vec::new(),
+            match_mode: MatchMode::Auto,
+            keep_broken: false,
         }
+    }
+
+    /// The entry selector these options describe.
+    pub fn selector(&self) -> Selector {
+        Selector::new(&self.include, self.match_mode)
     }
 }
 

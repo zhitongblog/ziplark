@@ -32,6 +32,9 @@ pub enum Error {
     #[error("cancelled")]
     Cancelled,
 
+    #[error("this multi-volume archive is incomplete — {} is missing", .0.display())]
+    MissingVolume(PathBuf),
+
     #[error("{0}")]
     Other(String),
 }

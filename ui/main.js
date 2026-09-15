@@ -174,9 +174,49 @@ function renderArchive(info) {
   $("archive-panel").classList.remove("hidden");
   const name = info.path.split(/[\\/]/).pop();
   $("arc-name").textContent = name;
-  $("arc-meta").textContent =
-    `${info.format} · ${info.entries.length} entries · ${fmtBytes(info.total_size)} uncompressed` +
-    (info.encrypted ? " · 🔒 encrypted" : "");
+
+  // Facts about the archive as a whole. Most formats have none of these; a RAR
+  // set can have all of them, and "3 volumes" or "solid" changes what the user
+  // should expect.
+  const bits = [
+    info.format,
+    `${info.entries.length} entries`,
+    `${fmtBytes(info.total_size)} uncompressed`,
+  ];
+  if (info.volumes?.length > 1) bits.push(`${info.volumes.length} volumes`);
+  if (info.encrypted) bits.push("🔒 encrypted");
+  const a = info.attributes || {};
+  if (a.solid) bits.push("solid");
+  if (a.recovery_record) bits.push("recovery record");
+  if (a.locked) bits.push("locked");
+  $("arc-meta").textContent = bits.join(" · ");
+
+  const notice = $("arc-notice");
+  if (info.missing_volume) {
+    // The listing is real but partial: say so, and offer the one action that
+    // actually helps rather than letting Extract fail later.
+    const missing = info.missing_volume.split(/[\\/]/).pop();
+    notice.textContent = `Incomplete: this set continues into ${missing}, which isn't in the folder.`;
+    const salvage = document.createElement("button");
+    salvage.className = "ghost";
+    salvage.textContent = "Extract what's readable…";
+    salvage.onclick = () => extractArchive({ keepBroken: true });
+    notice.appendChild(salvage);
+    notice.classList.remove("hidden");
+  } else {
+    notice.textContent = "";
+    notice.classList.add("hidden");
+  }
+
+  const comment = $("arc-comment");
+  if (info.comment) {
+    comment.textContent = info.comment;
+    comment.classList.remove("hidden");
+  } else {
+    comment.textContent = "";
+    comment.classList.add("hidden");
+  }
+
   buildTree(info.entries);
 }
 
@@ -194,7 +234,7 @@ function closeArchive() {
    disc image dumps 200 000 rows into the DOM at once; folding them into a tree
    and only rendering the visible slice keeps it instant either way. */
 const ROW_H = 26;
-const tree = { nodes: [], rows: [], expanded: new Set() };
+const tree = { nodes: [], rows: [], expanded: new Set(), selected: new Set() };
 
 function buildTree(entries) {
   const root = { name: "", path: "", dir: true, size: 0, children: new Map(), depth: -1 };
@@ -228,6 +268,8 @@ function buildTree(entries) {
   }
 
   tree.expanded = new Set();
+  tree.selected = new Set();
+  updateSelectionUi();
   // Open the first level so the archive doesn't look empty on arrival.
   for (const child of root.children.values()) {
     if (child.dir) tree.expanded.add(child.path);
@@ -259,6 +301,13 @@ function flatten() {
   $("tree-sizer").style.height = `${rows.length * ROW_H}px`;
 }
 
+function updateSelectionUi() {
+  const btn = $("btn-extract-sel");
+  const n = tree.selected.size;
+  btn.classList.toggle("hidden", n === 0);
+  btn.textContent = n === 1 ? "Extract 1 selected…" : `Extract ${n} selected…`;
+}
+
 function escapeHtml(s) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
@@ -278,8 +327,10 @@ function renderRows() {
         : `<span class="twisty empty"></span>`;
       const icon = n.dir ? "📁" : "📄";
       const lock = n.encrypted ? ' <span class="lock" title="encrypted">🔒</span>' : "";
+      const checked = tree.selected.has(n.path) ? " on" : "";
       return (
         `<div class="row" data-path="${escapeHtml(n.path)}" data-dir="${n.dir}" style="padding-left:${8 + n.depth * 16}px">` +
+        `<span class="rcheck${checked}" title="select"></span>` +
         `${twisty}<span class="ricon">${icon}</span>` +
         `<span class="rname">${escapeHtml(n.name)}${lock}</span>` +
         `<span class="rsize">${n.dir ? "" : fmtBytes(n.size)}</span>` +
@@ -292,8 +343,21 @@ function renderRows() {
 $("tree").addEventListener("scroll", renderRows);
 $("tree").addEventListener("click", (e) => {
   const row = e.target.closest(".row");
-  if (!row || row.dataset.dir !== "true") return;
+  if (!row) return;
   const path = row.dataset.path;
+
+  // Ticking a row selects it for extraction. Ticking a folder takes everything
+  // under it, which is what the engine's exact matching already means by a
+  // directory path — so there is no subtree bookkeeping to get wrong here.
+  if (e.target.closest(".rcheck")) {
+    if (tree.selected.has(path)) tree.selected.delete(path);
+    else tree.selected.add(path);
+    updateSelectionUi();
+    renderRows();
+    return;
+  }
+
+  if (row.dataset.dir !== "true") return;
   if (tree.expanded.has(path)) tree.expanded.delete(path);
   else tree.expanded.add(path);
   flatten();
@@ -301,28 +365,62 @@ $("tree").addEventListener("click", (e) => {
 });
 window.addEventListener("resize", renderRows);
 
-async function extractArchive() {
+async function extractArchive(opts = {}) {
   if (!currentArchive) return;
   const dest = await dialog.open({ directory: true, multiple: false, title: "Extract to…" });
   if (!dest) return;
-  await runExtract(dest, false);
+  await runExtract(dest, { overwrite: false, ...opts });
 }
 
-async function runExtract(dest, overwrite) {
-  busy(true, "Extracting…");
+/// Extract only the rows the user ticked. Their paths are exactly what the
+/// listing reported, so they are sent as exact paths rather than patterns —
+/// `docs/a.txt` must not also drag in `backup/docs/a.txt.bak`.
+async function extractSelected() {
+  if (!currentArchive || tree.selected.size === 0) return;
+  const dest = await dialog.open({ directory: true, multiple: false, title: "Extract selected to…" });
+  if (!dest) return;
+  await runExtract(dest, { overwrite: false, include: [...tree.selected], exact: true });
+}
+
+async function runExtract(dest, opts = {}) {
+  const { overwrite = false, include = null, exact = false, keepBroken = false } = opts;
+  busy(true, keepBroken ? "Extracting what's readable…" : "Extracting…");
   try {
     const r = await invoke("extract_archive", {
       path: currentArchive.path,
       dest,
       password: currentArchive.password,
       overwrite,
-      include: null,
+      include,
+      exact,
+      keepBroken,
     });
-    toast(
-      `Extracted ${r.files_written} files (${fmtBytes(r.bytes_written)}) → ${dest}`,
-      "ok",
-      { label: "Show", run: () => invoke("reveal_in_file_manager", { path: dest }).catch(() => {}) }
-    );
+    const failed = r.failed?.length ?? 0;
+    const show = {
+      label: "Show",
+      run: () => invoke("reveal_in_file_manager", { path: dest }).catch(() => {}),
+    };
+    // A partial result has to read as partial; the file count alone would look
+    // like a clean run.
+    if (failed > 0) {
+      const partial = r.partial?.length ?? 0;
+      toast(
+        `Recovered ${r.files_written} ${r.files_written === 1 ? "file" : "files"} ` +
+          `(${fmtBytes(r.bytes_written)}) → ${dest}. ` +
+          `${failed} could not be extracted` +
+          (partial > 0 ? `; ${partial} left incomplete (${r.partial.join(", ")})` : "") +
+          `: ${r.failed[0]}`,
+        "",
+        show
+      );
+    } else {
+      toast(
+        `Extracted ${r.files_written} ${r.files_written === 1 ? "file" : "files"} ` +
+          `(${fmtBytes(r.bytes_written)}) → ${dest}`,
+        "ok",
+        show
+      );
+    }
   } catch (err) {
     if (wasCancelled(err)) {
       toast("Extraction stopped. Files written so far were kept.", "");
@@ -336,7 +434,20 @@ async function runExtract(dest, overwrite) {
         `${String(err).replace(/ \(use overwrite\)$/, "")}\n\nReplace existing files in this folder?`,
         "Replace"
       );
-      if (ok) await runExtract(dest, true);
+      if (ok) await runExtract(dest, { ...opts, overwrite: true });
+      return;
+    }
+    // Damage and a missing volume are both recoverable-in-part, and the user
+    // cannot know that unless offered: RAR sets arrive short a volume, and
+    // downloads arrive bit-rotted.
+    if (!keepBroken && isSalvageable(err)) {
+      busy(false);
+      const ok = await confirmAction(
+        "This archive is damaged or incomplete",
+        `${String(err)}\n\nExtract the files that are readable and list the rest?`,
+        "Extract what's readable"
+      );
+      if (ok) await runExtract(dest, { ...opts, keepBroken: true });
       return;
     }
     toast(String(err), "err");
@@ -345,13 +456,35 @@ async function runExtract(dest, overwrite) {
   }
 }
 
+function isSalvageable(err) {
+  const s = String(err).toLowerCase();
+  return (
+    s.includes("corrupt") ||
+    s.includes("damaged") ||
+    s.includes("checksum") ||
+    s.includes("truncated") ||
+    s.includes("incomplete") ||
+    s.includes("missing")
+  );
+}
+
 async function testArchive() {
   if (!currentArchive) return;
   busy(true, "Verifying…");
   try {
     const r = await invoke("test_archive", { path: currentArchive.path, password: currentArchive.password });
-    if (r.ok) toast(`Integrity OK — ${r.entries_tested} entries verified`, "ok");
-    else toast(`FAILED — ${r.bad_entries.length} bad entries`, "err");
+    if (r.ok) {
+      toast(`Integrity OK — ${r.entries_tested} entries verified`, "ok");
+    } else {
+      // Naming the first bad entry is the difference between "it's broken" and
+      // knowing which file to re-download.
+      toast(
+        `${r.bad_entries.length} bad ${r.bad_entries.length === 1 ? "entry" : "entries"}, ` +
+          `${r.entries_tested} verified — ${r.bad_entries[0]}`,
+        "err",
+        { label: "Extract readable…", run: () => extractArchive({ keepBroken: true }) }
+      );
+    }
   } catch (err) {
     if (wasCancelled(err)) toast("Verification stopped.", "");
     else toast(String(err), "err");
@@ -364,7 +497,8 @@ $("btn-open").onclick = async () => {
   const sel = await dialog.open({ multiple: false, title: "Open archive" });
   if (sel) openArchive(sel);
 };
-$("btn-extract").onclick = extractArchive;
+$("btn-extract").onclick = () => extractArchive();
+$("btn-extract-sel").onclick = extractSelected;
 $("btn-test").onclick = testArchive;
 $("btn-close").onclick = closeArchive;
 
@@ -490,8 +624,8 @@ if (T) {
       }
       if (action === "extract-overwrite") {
         const dest = p.replace(/[^/\\]+$/, "selftest-out");
-        await runExtract(dest, false);
-        const second = runExtract(dest, false);
+        await runExtract(dest, { overwrite: false });
+        const second = runExtract(dest, { overwrite: false });
         await new Promise((r) => setTimeout(r, 900));
         const asked = !$("confirm-modal").classList.contains("hidden");
         if (asked) $("confirm-yes").click();
@@ -502,11 +636,46 @@ if (T) {
       }
       if (action === "extract-cancel") {
         const dest = p.replace(/[^/\\]+$/, "selftest-out");
-        const done = runExtract(dest, true);
+        const done = runExtract(dest, { overwrite: true });
         setTimeout(() => $("btn-cancel").click(), 1500);
         await done;
         await invoke("selftest_log", {
           line: `extract-cancel finished; events=${window.__progressCount || 0}; toast="${$("toast-msg").textContent}"`,
+        });
+      }
+      // What the window shows for a multi-volume RAR set, and whether the
+      // "extract what's readable" route out of an incomplete one works.
+      if (action === "rar-volumes") {
+        await invoke("selftest_log", {
+          line: `rar-volumes; name="${$("arc-name").textContent}"; meta="${$("arc-meta").textContent}"` +
+            `; notice-hidden=${$("arc-notice").classList.contains("hidden")}` +
+            `; comment="${$("arc-comment").textContent.replace(/\n/g, "\\n")}"` +
+            `; rows=${tree.rows.length}`,
+        });
+      }
+      if (action === "rar-salvage") {
+        const shown = !$("arc-notice").classList.contains("hidden");
+        const dest = p.replace(/[^/\\]+$/, "selftest-salvage");
+        await runExtract(dest, { overwrite: true, keepBroken: true });
+        await invoke("selftest_log", {
+          line: `rar-salvage; notice-shown=${shown}; notice="${$("arc-notice").textContent}"` +
+            `; toast="${$("toast-msg").textContent}"`,
+        });
+      }
+      // Ticking rows and extracting only those, which is what the exact
+      // matcher exists for.
+      if (action === "extract-selected") {
+        const files = tree.rows.filter((n) => !n.dir).slice(0, 1);
+        files.forEach((n) => tree.selected.add(n.path));
+        updateSelectionUi();
+        renderRows();
+        const dest = p.replace(/[^/\\]+$/, "selftest-selected");
+        await runExtract(dest, { overwrite: true, include: [...tree.selected], exact: true });
+        await invoke("selftest_log", {
+          line: `extract-selected; picked=${JSON.stringify([...tree.selected])}` +
+            `; button="${$("btn-extract-sel").textContent}"` +
+            `; button-hidden=${$("btn-extract-sel").classList.contains("hidden")}` +
+            `; toast="${$("toast-msg").textContent}"`,
         });
       }
     })

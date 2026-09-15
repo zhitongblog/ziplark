@@ -89,6 +89,30 @@ pub struct ArchiveEntry {
     pub modified: Option<i64>,
     /// CRC32 if the format records one.
     pub crc32: Option<u32>,
+    /// The entry's data is split across volumes of a multi-volume archive, so
+    /// reading it needs more than the volume it starts in.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub split: bool,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+/// Properties of the archive as a whole, as opposed to its entries. Formats
+/// that cannot express one of these leave it `false`.
+#[derive(Debug, Clone, Copy, Default, Serialize)]
+pub struct ArchiveAttributes {
+    /// Entries share one compression stream. Reading the last file means
+    /// decompressing everything before it, which is why picking one file out
+    /// of a solid archive is slow.
+    pub solid: bool,
+    /// Carries a recovery record: enough redundancy to repair damage.
+    pub recovery_record: bool,
+    /// The entry *names* are encrypted too, so even listing needs the password.
+    pub encrypted_headers: bool,
+    /// Locked against modification by the tool that wrote it (RAR `-k`).
+    pub locked: bool,
 }
 
 /// Summary of an archive's contents.
@@ -101,6 +125,18 @@ pub struct ArchiveInfo {
     pub encrypted: bool,
     pub total_size: u64,
     pub total_compressed: u64,
+    /// Every file that makes up this archive, in order, when it is split into
+    /// volumes (`part1.rar`, `part2.rar`, …). Empty for a single-file archive.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub volumes: Vec<PathBuf>,
+    /// The volume that should come next but is not on disk. `Some` means the
+    /// set is incomplete and the tail of the archive cannot be read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missing_volume: Option<PathBuf>,
+    /// The archive's comment, if it has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+    pub attributes: ArchiveAttributes,
 }
 
 /// Per-entry progress during extract/create/test.
@@ -120,6 +156,16 @@ pub struct ExtractReport {
     pub dirs_created: u64,
     pub bytes_written: u64,
     pub dest: PathBuf,
+    /// Entries that could not be extracted, each as `path: reason`. Only ever
+    /// non-empty when the caller asked to keep going past failures
+    /// (`ExtractOptions::keep_broken`); otherwise the first failure is an error.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub failed: Vec<String>,
+    /// Entries that were written but are **incomplete** — as much of the file
+    /// as the archive actually contained. Salvaging leaves these on disk on
+    /// purpose; they are listed so nobody mistakes one for the whole file.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub partial: Vec<String>,
 }
 
 /// Result of a create operation.

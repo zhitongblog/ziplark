@@ -42,12 +42,20 @@
             </div>
             <div class="panel-actions">
               <button id="btn-test" class="ghost">Verify</button>
+              <button id="btn-extract-sel" class="ghost hidden">Extract selected…</button>
               <button id="btn-extract" class="primary">Extract all…</button>
               <button id="btn-close" class="ghost">Close</button>
             </div>
           </div>
 
+          <!-- Shown only when the archive says something about itself that
+               changes what the user should do: a volume of a multi-volume set
+               is missing, or it carries a comment. -->
+          <div id="arc-notice" class="notice hidden"></div>
+          <pre id="arc-comment" class="arc-comment hidden"></pre>
+
           <div class="tree-head">
+            <span class="col-check"></span>
             <span class="col-name">Name</span>
             <span class="col-size">Size</span>
           </div>

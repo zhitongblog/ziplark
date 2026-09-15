@@ -55,8 +55,56 @@ pub fn detect(path: &Path) -> Option<Format> {
         return Some(Format::Iso);
     }
 
-    // Last resort: trust the extension.
-    detect_by_extension(&lname)
+    // Then the name: `.tar.gz` against `.gz`, and volume names like `.r00`.
+    if let Some(fmt) = detect_by_extension(&lname) {
+        return Some(fmt);
+    }
+
+    // Last: a self-extracting archive, which is an executable with the archive
+    // appended — so its magic is a long way in. libunrar reads a RAR payload at
+    // any offset, so finding the signature is enough to open one, which is how
+    // a `movie.exe` from 2008 opens here.
+    if is_sfx_rar(path) {
+        return Some(Format::Rar);
+    }
+    None
+}
+
+/// Scan for a RAR signature past the start of the file.
+///
+/// WinRAR's own limit for how far into a file an SFX payload may begin is 1 MB,
+/// so that is where the search stops; beyond it, a file that merely mentions
+/// "Rar!" somewhere would start being mistaken for an archive.
+fn is_sfx_rar(path: &Path) -> bool {
+    const LIMIT: usize = 1024 * 1024;
+    const CHUNK: usize = 64 * 1024;
+    const SIGNATURE: &[u8] = b"Rar!\x1A\x07";
+
+    let Ok(mut f) = std::fs::File::open(path) else {
+        return false;
+    };
+    let mut buf = vec![0u8; CHUNK + SIGNATURE.len() - 1];
+    let mut carry = 0usize; // bytes kept from the previous chunk
+    let mut scanned = 0usize;
+
+    while scanned < LIMIT {
+        let Ok(n) = f.read(&mut buf[carry..]) else {
+            return false;
+        };
+        if n == 0 {
+            return false;
+        }
+        let filled = carry + n;
+        if buf[..filled].windows(SIGNATURE.len()).any(|w| w == SIGNATURE) {
+            return true;
+        }
+        // A signature could straddle the boundary, so keep the tail.
+        carry = SIGNATURE.len() - 1;
+        let keep_from = filled - carry;
+        buf.copy_within(keep_from..filled, 0);
+        scanned += n;
+    }
+    false
 }
 
 /// ISO 9660 images carry "CD001" at byte offset 32769 (sector 16, +1).
@@ -83,6 +131,18 @@ fn is_tar_name(lname: &str, comp_ext: &str) -> bool {
 }
 
 fn detect_by_extension(lname: &str) -> Option<Format> {
+    // A RAR volume can be named `.r00` … `.z99`, which says "RAR" as clearly as
+    // `.rar` does and is how every old download is still named.
+    if let Some((_, ext)) = lname.rsplit_once('.') {
+        let mut chars = ext.chars();
+        if ext.len() == 3
+            && matches!(chars.next(), Some(c) if ('r'..='z').contains(&c))
+            && ext[1..].chars().all(|c| c.is_ascii_digit())
+        {
+            return Some(Format::Rar);
+        }
+    }
+
     let table = [
         (".tar.gz", Format::TarGz),
         (".tgz", Format::TarGz),
@@ -122,4 +182,40 @@ fn read_magic(path: &Path, buf: &mut [u8]) -> std::io::Result<usize> {
         filled += n;
     }
     Ok(filled)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture(name: &str) -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(name)
+    }
+
+    #[test]
+    fn rar_volume_names_are_recognised_by_extension() {
+        assert_eq!(detect_by_extension("movie.r00"), Some(Format::Rar));
+        assert_eq!(detect_by_extension("movie.s07"), Some(Format::Rar));
+        assert_eq!(detect_by_extension("movie.part02.rar"), Some(Format::Rar));
+        // Not a volume: three characters, but not letter-digit-digit.
+        assert_eq!(detect_by_extension("notes.rtf"), None);
+        assert_eq!(detect_by_extension("photo.raw"), None);
+    }
+
+    #[test]
+    fn a_self_extracting_archive_is_still_an_archive() {
+        // `sfx.exe` is a stub followed by a RAR, the shape every SFX has.
+        assert_eq!(detect(&fixture("sfx.exe")), Some(Format::Rar));
+        assert!(is_sfx_rar(&fixture("cjk.rar")), "signature at offset 0 counts too");
+    }
+
+    #[test]
+    fn a_file_that_is_not_an_archive_is_not_detected() {
+        let scratch = std::env::temp_dir().join(format!("ziplark-detect-{}", std::process::id()));
+        std::fs::write(&scratch, b"just some text, mentioning RAR but not Rar!\x1a").unwrap();
+        assert_eq!(detect(&scratch), None);
+        let _ = std::fs::remove_file(&scratch);
+    }
 }

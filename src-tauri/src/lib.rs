@@ -16,7 +16,7 @@
 use ziplark_core::{
     create as core_create, detect, extract as core_extract, list as core_list, test as core_test,
     ArchiveInfo, CreateOptions, CreateReport, Error, ExtractOptions, ExtractReport, Format, Level,
-    ListOptions, Progress, TestReport,
+    ListOptions, MatchMode, Progress, TestReport,
 };
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -198,6 +198,12 @@ async fn extract_archive(
     password: Option<String>,
     overwrite: bool,
     include: Option<Vec<String>>,
+    // `exact` treats `include` as complete entry paths rather than patterns —
+    // what the window sends when the user has ticked specific rows.
+    // `keep_broken` carries on past entries that cannot be extracted, listing
+    // them in the report, instead of stopping at the first one.
+    exact: Option<bool>,
+    keep_broken: Option<bool>,
 ) -> Result<ExtractReport, String> {
     let running = running.inner().clone();
     in_background(app, running, move |progress| {
@@ -206,6 +212,12 @@ async fn extract_archive(
             dest: PathBuf::from(dest),
             overwrite,
             include: include.unwrap_or_default(),
+            match_mode: if exact.unwrap_or(false) {
+                MatchMode::Exact
+            } else {
+                MatchMode::Auto
+            },
+            keep_broken: keep_broken.unwrap_or(false),
         };
         core_extract(&path, &opts, Some(progress))
     })

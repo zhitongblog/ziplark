@@ -1,8 +1,8 @@
 use crate::encoding::NameDecoder;
 use crate::error::{Error, Result};
 use crate::formats::{
-    collect_inputs, copy_watched, create_file, create_symlink, ensure_parent, report, DestGuard,
-    InputKind,
+    collect_inputs, copy_watched, create_file, create_symlink, ensure_parent, prepare_dir, report,
+    DestGuard, InputKind,
 };
 use crate::model::*;
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
@@ -73,6 +73,11 @@ fn read_directory<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<(Vec<St
 pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo> {
     let file = File::open(path)?;
     let mut archive = ZipArchive::new(file).map_err(map_zip_err)?;
+    // ZIP keeps a comment at the end of the central directory — usually absent,
+    // free to read when it is there. Its bytes carry no declared encoding, so
+    // anything that is not UTF-8 is read leniently rather than dropped.
+    let comment = Some(String::from_utf8_lossy(archive.comment()).trim().to_string())
+        .filter(|c| !c.is_empty());
     let names = decode_names(&mut archive)?;
     let mut entries = Vec::with_capacity(archive.len());
     let mut total_size = 0u64;
@@ -94,6 +99,7 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
             encrypted,
             modified: ts(e.last_modified()),
             crc32: Some(e.crc32()),
+            split: false,
         });
     }
 
@@ -104,6 +110,10 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
         encrypted: any_encrypted,
         total_size,
         total_compressed,
+        volumes: Vec::new(),
+        missing_volume: None,
+        comment,
+        attributes: ArchiveAttributes::default(),
     })
 }
 
@@ -112,6 +122,7 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
     let mut archive = ZipArchive::new(file).map_err(map_zip_err)?;
     let (names, bytes_total) = read_directory(&mut archive)?;
     std::fs::create_dir_all(&opts.dest)?;
+    let selector = opts.selector();
 
     let total = archive.len() as u64;
     let mut guard = DestGuard::new(&opts.dest);
@@ -120,6 +131,8 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         dirs_created: 0,
         bytes_written: 0,
         dest: opts.dest.clone(),
+        failed: Vec::new(),
+        partial: Vec::new(),
     };
 
     for (i, name) in names.iter().enumerate() {
@@ -129,13 +142,13 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
         }
         .map_err(map_zip_err)?;
 
-        if !matches_filter(name, &opts.include) {
+        if !selector.matches(name) {
             continue;
         }
         let out_path = guard.join(name)?;
 
         if entry.is_dir() {
-            std::fs::create_dir_all(&out_path)?;
+            prepare_dir(&out_path, name)?;
             report.dirs_created += 1;
             continue;
         }
@@ -411,6 +424,3 @@ pub fn create(
     Ok(report)
 }
 
-fn matches_filter(name: &str, include: &[String]) -> bool {
-    include.is_empty() || include.iter().any(|p| name.contains(p.as_str()))
-}

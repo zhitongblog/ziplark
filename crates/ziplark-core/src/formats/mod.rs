@@ -152,6 +152,27 @@ pub fn prepare_leaf(path: &Path, overwrite: bool) -> Result<()> {
     }
 }
 
+/// Create the directory a directory entry asks for, refusing to follow a
+/// symlink standing where that directory should be.
+///
+/// `create_dir_all` follows symlinks: if an earlier entry planted `evil ->
+/// /tmp`, a later directory entry named `evil` would make a directory in
+/// `/tmp` instead — a write outside the destination, from an entry name
+/// containing no `..` at all. A link already sitting in the destination does
+/// the same thing, so what is on disk is what gets checked.
+pub fn prepare_dir(path: &Path, entry_path: &str) -> Result<()> {
+    match std::fs::symlink_metadata(path) {
+        Ok(md) if md.file_type().is_symlink() => Err(Error::PathTraversal(entry_path.to_string())),
+        // Already a real directory (or a file, in which case the create below
+        // fails on its own terms).
+        Ok(_) => Ok(()),
+        Err(_) => {
+            std::fs::create_dir_all(path)?;
+            Ok(())
+        }
+    }
+}
+
 /// `prepare_leaf` + `File::create`, which is what every format's file-writing
 /// path wants.
 pub fn create_file(path: &Path, overwrite: bool) -> Result<File> {
@@ -281,6 +302,49 @@ pub fn create_symlink(target: &str, link: &Path) -> Result<()> {
     // (or SeCreateSymbolicLinkPrivilege) for either. We always create a file
     // link, matching what the tar crate does.
     std::os::windows::fs::symlink_file(target, link)?;
+    Ok(())
+}
+
+/// Restore a link entry.
+///
+/// A **hard** link's target names a file inside the archive, so it goes through
+/// the guard: an archive claiming `link -> /etc/shadow` must not get one.
+///
+/// A **symlink**'s target is just a string that the OS resolves whenever the
+/// link is used later. Absolute and `..` targets are legal and ordinary there —
+/// packaging tarballs are full of them — so it is stored verbatim, the same as
+/// GNU tar, bsdtar and WinRAR. That is safe because the link cannot be *used* to escape
+/// during extraction: every later entry re-checks its ancestors through
+/// `guard`, which is what closes the `evil -> /tmp` + `evil/owned.txt` attack.
+pub fn unpack_link(
+    guard: &mut DestGuard,
+    is_symlink: bool,
+    target: &str,
+    out_path: &Path,
+    overwrite: bool,
+) -> Result<()> {
+    if target.is_empty() {
+        return Err(Error::corrupt(format!(
+            "{}: link entry with an empty target",
+            out_path.display()
+        )));
+    }
+    prepare_leaf(out_path, overwrite)?;
+    // prepare_leaf only clears a symlink; neither symlink() nor hard_link() can
+    // replace an existing file, so with overwrite the leaf has to go entirely.
+    if overwrite {
+        let _ = std::fs::remove_file(out_path);
+    }
+
+    if is_symlink {
+        create_symlink(target, out_path)?;
+        // This path is a symlink now — it must never be remembered as a
+        // directory that is safe to descend through.
+        guard.forget(out_path);
+    } else {
+        let src = guard.join(target)?;
+        std::fs::hard_link(&src, out_path)?;
+    }
     Ok(())
 }
 
