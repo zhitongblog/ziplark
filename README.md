@@ -39,7 +39,7 @@ Or grab a build for any platform from the [releases page](https://github.com/zhi
 |---|:---:|:---:|---|
 | ZIP | ✅ | ✅ | AES-256 (read ZipCrypto) |
 | 7z | ✅ | ✅ | AES-256 |
-| RAR / RAR5 | ✅ | — | reads encrypted |
+| RAR / RAR5 (incl. multi-volume, SFX) | ✅ | — | reads encrypted, incl. encrypted headers |
 | tar | ✅ | ✅ | — |
 | tar.gz / .bz2 / .xz / .zst / .lz4 | ✅ | ✅ | — |
 | gz / bz2 / xz / zst / lz4 (single stream) | ✅ | ✅ | — |
@@ -48,6 +48,44 @@ Or grab a build for any platform from the [releases page](https://github.com/zhi
 > RAR and ISO are extract-only: RAR's compression format is proprietary, and ISO
 > is a disc-image container (we read ISO 9660 + Joliet with our own dependency-free
 > parser). Everything else can be created as well as read.
+
+## RAR, properly
+
+RAR is the format people *arrive* with — a download split into volumes, packed
+solid, sometimes one volume short — so it gets first-class treatment rather than
+a checkbox:
+
+- **A volume set is one archive.** `movie.part03.rar`, or the older
+  `movie.r01`, opens the whole set: any file of the set resolves to the first
+  volume, the parts are listed, and an entry that spans volumes comes out whole.
+  Both naming schemes are handled, including the legacy one whose first volume
+  is `movie.rar` rather than `movie.r01`.
+- **A missing volume is named.** Ziplark says *which* file it needs next
+  instead of failing with a generic error, and refuses to start writing rather
+  than stopping half-way.
+- **Damage is survivable.** `--keep-broken` (in the app: "Extract what's
+  readable") gets every intact file out of a damaged or incomplete archive and
+  reports exactly which entries failed and which were written incomplete.
+  Verifying reports *every* bad entry, so you know which file to re-download.
+- **Verifying writes nothing.** Integrity is checked by decompressing each entry
+  and discarding the bytes — not, as a surprising number of tools do, by
+  extracting the whole archive to a temporary directory.
+- **Metadata survives.** Permissions (an executable stays executable),
+  100-nanosecond RAR5 timestamps, symlinks as symlinks, per-entry compressed
+  sizes, solid/recovery-record/lock flags, and the archive comment.
+- **Encrypted headers work.** An archive whose *file names* are encrypted
+  (`rar -hp`) lists and extracts with a password like any other.
+- **Self-extracting archives open.** A `.exe` with a RAR payload behind the stub
+  is read as the archive it is.
+- **Pick single files out of it.** `--exact` (and ticking rows in the app)
+  extracts exactly the entries you name, rather than everything whose path
+  happens to contain the text.
+
+Ziplark drives libunrar's C API directly — see
+[`formats/rar/raw.rs`](crates/ziplark-core/src/formats/rar/raw.rs) for why the
+wrapper crates were not enough (multi-volume reads out of bounds there, a failed
+entry throws away the archive handle, and the struct layouts do not match the
+library's packed headers, which silently mis-reads every field past `file_attr`).
 
 ## Why Ziplark
 - **Small.** Size-optimized release profile (`opt-level=z`, LTO, stripped,
@@ -143,6 +181,30 @@ Register it with an MCP client:
     }
   }
 }
+```
+
+### Big archives don't flood the context
+
+`ziplark_list` is paged. It returns at most `limit` entries (default 200) starting
+at `offset`, always alongside the archive's true `total_entries`, so listing a
+200 000-entry disc image costs the same as listing a small ZIP:
+
+```jsonc
+{ "name": "ziplark_list", "arguments": { "path": "disc.iso", "limit": 200 } }
+// -> { "total_entries": 203411, "returned": 200, "next_offset": 200,
+//      "truncated": true, "top_level": [ { "prefix": "usr/share", "entries": 88120 }, … ] }
+```
+
+When the result is truncated it also carries `top_level` — entry counts grouped by
+directory, descending past a single root — so a client can see the *shape* of a huge
+archive without paging through it. To go straight to what you want, filter instead of
+paging: `include` takes path patterns, matched as globs when they contain `*` or `?`
+and as substrings otherwise, and applies before paging. `dirs` selects only files or
+only directories.
+
+```jsonc
+{ "name": "ziplark_list",
+  "arguments": { "path": "disc.iso", "include": ["*/etc/*.conf"], "dirs": false } }
 ```
 
 ## Building & testing

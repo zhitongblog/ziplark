@@ -6,6 +6,30 @@ This project adheres to [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- **RAR volume sets are one archive.** `movie.part03.rar` — or the older
+  `movie.r01`, whose first volume is `movie.rar` and not `movie.r01` — now opens
+  the whole set: any part resolves to the first volume, the parts on disk are
+  listed, and a file that spans volumes comes out whole. A set with a hole in it
+  names the volume it needs next instead of failing obscurely, and refuses to
+  start writing rather than stopping half-way through.
+- **Damaged and incomplete archives can be salvaged.** `ziplark x --keep-broken`
+  (in the app: "Extract what's readable", offered automatically when an
+  extraction hits damage) writes every intact file and reports which entries
+  failed and which were left incomplete. Verifying now reports *every* bad
+  entry rather than stopping at the first, so you know which file to replace.
+- **Self-extracting archives open.** A `.exe` with a RAR payload behind the
+  executable stub is detected and read as the archive it is, and `.r00`-style
+  volume names are recognised by name as well as by content.
+- **Extract exactly the entries you name.** `--exact` treats `--include` as
+  complete entry paths instead of substrings, which is what picking three files
+  out of a listing needs; the desktop app grew tick boxes per row and an
+  "Extract N selected…" button on top of it. `--include` also takes globs now
+  (`*/docs/*.txt`), with one matcher shared by every format, the CLI and MCP.
+- **The archive itself is described, not just its entries.** Volumes, a missing
+  volume, solid, recovery record, encrypted headers, locked, and the archive
+  comment (RAR and ZIP) are reported by `ziplark info`, the MCP tools and the
+  app's header.
+
 - **The desktop app shows progress and can be stopped.** Long operations used to
   put up an indeterminate spinner with no way out. There is now a real progress
   bar — a percentage wherever the total is known — the current entry, running
@@ -53,6 +77,24 @@ This project adheres to [Semantic Versioning](https://semver.org).
   password.
 
 ### Fixed
+- **RAR metadata was being dropped or read from the wrong place.** Permissions
+  (an executable now stays executable), RAR5's 100-nanosecond timestamps,
+  symlinks as symlinks rather than copies, and per-entry compressed sizes all
+  survive extraction. The library's headers are `#pragma pack(1)`, and the
+  bindings we were using declare them unpacked — so every field past
+  `file_attr`, timestamps and link targets among them, was read from the wrong
+  offset. Ziplark now drives libunrar's C API directly with layouts that match.
+- **Verifying a RAR no longer extracts it.** Integrity was checked by unpacking
+  the entire archive into a temporary directory and deleting it afterwards —
+  40 GB of writes to check a 40 GB archive. It now decompresses and discards.
+- **A multi-volume RAR could corrupt memory.** The wrapper crate's
+  volume-change callback copies a fixed 2048 wide characters out of a much
+  shorter string every time an archive crosses a volume boundary; rustc's
+  undefined-behaviour checks abort on it. Gone with the wrapper.
+- **A directory entry could be used to write outside the destination.** A
+  symlink standing where a directory entry wants to be was followed by
+  `create_dir_all`, so `mkdir` landed outside the destination; directory
+  entries now go through the same on-disk check as files, in every format.
 - **Permissions, timestamps and symlinks survive a round trip.** Creating an
   archive hardcoded mode 0644 and stamped every entry with the current time;
   extraction restored neither. A zipped executable came out unable to run, and
