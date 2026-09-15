@@ -4,6 +4,12 @@ description = "Ziplark command-line archiver — list/extract/create/test any ar
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+keywords = ["archive", "zip", "rar", "cli", "compression"]
+categories = ["compression", "command-line-utilities"]
 
 [[bin]]
 name = "ziplark"
