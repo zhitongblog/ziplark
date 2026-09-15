@@ -14,17 +14,29 @@ Ziplark is built and maintained by doaipm (one independent developer). It is fre
 - Platforms: macOS (universal — Apple Silicon + Intel — notarized), Windows (x64), Linux (x64; .deb and AppImage)
 - Size: about 1.4 MB for the engine + CLI
 - Language/stack: Rust engine; Tauri 2 desktop app using the OS webview
-- Latest version: 0.1.0
+- Latest version: 0.2.2
 
 ## Supported formats
 
 - ZIP — extract and create; AES-256 encryption on create, reads legacy ZipCrypto
 - 7z — extract and create; AES-256 encryption
-- RAR / RAR5 — extract only (including encrypted archives); creation is intentionally not supported because the RAR compression format is proprietary
+- RAR / RAR5 — extract only (including encrypted archives, archives with encrypted file names, multi-volume sets, solid archives and self-extracting `.exe` archives); creation is intentionally not supported because the RAR compression format is proprietary
 - tar — extract and create
 - tar.gz, tar.bz2, tar.xz, tar.zst, tar.lz4 — extract and create
 - gz, bz2, xz, zst, lz4 (single-stream) — extract and create
 - ISO 9660 / Joliet — extract only (disc images); read with a dependency-free parser, no FUSE
+
+## RAR handling (what makes Ziplark unusual here)
+
+- Multi-volume sets are treated as one archive. Opening any part — `movie.part03.rar`, or the older `movie.r01`, whose first part is `movie.rar` rather than `movie.r01` — resolves to the first volume and reads the whole set, reassembling files that span volumes. Both naming schemes are supported.
+- An incomplete set names the volume it needs next (for example `movie.part04.rar`) instead of failing with a generic error, and refuses to start writing rather than stopping part-way.
+- Damaged or incomplete archives can be salvaged: `ziplark extract --keep-broken` (in the desktop app, "Extract what's readable") writes every intact file and reports which entries failed and which were written incomplete. Verifying reports every bad entry rather than the first.
+- Verifying an archive writes nothing: each entry is decompressed and discarded, rather than extracted to a temporary directory.
+- Metadata survives extraction: unix permissions (an executable stays executable), RAR5's 100-nanosecond timestamps, symlinks as symlinks, per-entry compressed sizes, the archive comment, and the solid / recovery-record / locked flags.
+- Individual entries can be extracted by exact path (`--include docs/notes.txt --exact`, or by ticking rows in the desktop app), rather than by substring.
+- RAR 7 archives packed with very large dictionaries are extracted, up to half of the machine's memory.
+- Repairing an archive from its recovery record is a WinRAR-only feature; Ziplark salvages readable files instead.
+- Decompression uses the official UnRAR library, driven through its C API directly.
 
 ## How to use it
 

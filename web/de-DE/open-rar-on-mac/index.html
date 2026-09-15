@@ -73,7 +73,10 @@
         { "@type": "Question", "name": "Funktioniert es auf Macs mit Apple Silicon?",
           "acceptedAnswer": { "@type": "Answer", "text": "Ja. Ziplark liefert einen universellen, notarisierten macOS-Build für Macs mit Apple Silicon (M-Serie) und Intel aus." } },
         { "@type": "Question", "name": "Kann es passwortgeschützte RAR-Dateien auf dem Mac öffnen?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Ja. Ziplark liest verschlüsselte RAR- und RAR5-Archive auf macOS — gib das Passwort ein, wenn du dazu aufgefordert wirst." } }
+          "acceptedAnswer": { "@type": "Answer", "text": "Ja. Ziplark liest verschlüsselte RAR- und RAR5-Archive auf macOS — gib das Passwort ein, wenn du dazu aufgefordert wirst." } },
+        {"@type": "Question", "name": "Wie öffne ich ein mehrteiliges RAR (part1.rar)?", "acceptedAnswer": {"@type": "Answer", "text": "Öffnen Sie irgendeinen Teil des Satzes, nicht zwingend part01.rar. Ziplark findet den ersten Teil selbst und setzt Dateien zusammen, die über Teile hinweg gespeichert sind — vorher zusammenfügen ist nicht nötig."}},
+        {"@type": "Question", "name": "Was ist eine .r00-Datei?", "acceptedAnswer": {"@type": "Answer", "text": "Der zweite Teil eines älteren RAR-Satzes, dessen erster Teil die einfache .rar-Datei daneben ist; danach folgen .r01, .r02 und so weiter. Öffnen Sie einen beliebigen Teil, den Rest erledigt Ziplark."}},
+        {"@type": "Question", "name": "Lässt sich ein beschädigtes oder unvollständiges RAR entpacken?", "acceptedAnswer": {"@type": "Answer", "text": "Ja. „Lesbares entpacken“ schreibt jede unbeschädigte Datei und listet die gescheiterten und unvollständigen auf. Fehlt ein Teil des Satzes, nennt Ziplark die benötigte Datei."}}
       ]}
     ]
   }
@@ -154,6 +157,17 @@
         liefert eine CLI + MCP-Server und ist vollständig quelloffen.</p>
     </section>
 
+    <section class="section" id="multipart">
+      <h2>Mehrteilige Sätze (<code>part1.rar</code>, <code>.r00</code>) und beschädigte Archive</h2>
+      <p class="lede">Das sind die zwei RAR-Probleme, an denen Leute wirklich hängenbleiben — und um beide müssen Sie sich nicht kümmern.</p>
+      <div class="steps">
+        <div class="step"><p><b>Ein Satz in mehreren Teilen.</b> Öffnen Sie <em>irgendeinen</em> Teil — <code>movie.part03.rar</code> oder das alte <code>movie.r01</code> — und Ziplark findet den ersten Teil selbst und entpackt den ganzen Satz. Dateien, die über Teile hinweg gespeichert sind, werden zusammengesetzt; vorher zusammenfügen müssen Sie nichts.</p></div>
+        <div class="step"><p><b>Ein Teil fehlt.</b> Ziplark nennt die Datei, die es als nächste braucht — etwa <code>movie.part04.rar</code> — statt „unerwartetes Archivende“ zu melden, und bietet an, alles zu entpacken, was in den vorhandenen Teilen steckt.</p></div>
+        <div class="step"><p><b>Der Download ist beschädigt.</b> Wählen Sie „Lesbares entpacken“: jede unbeschädigte Datei kommt heraus, und Ziplark listet auf, welche Dateien gescheitert und welche unvollständig sind — Sie wissen also genau, was neu geladen werden muss. Wer nur den Schadensbericht will, prüft das Archiv vorher.</p></div>
+      </div>
+      <p class="fineprint">Ebenfalls unterstützt: selbstentpackende <code>.exe</code>-Archive, Archive mit verschlüsselten Dateinamen (nicht nur verschlüsseltem Inhalt) und Solid-Archive. Rechte, Zeitstempel und symbolische Links überleben das Entpacken, sodass eine entpackte App oder ein Quellbaum weiterhin funktioniert.</p>
+    </section>
+
     <section class="section" id="faq">
       <h2>RAR auf dem Mac öffnen — FAQ</h2>
       <div class="faq">
@@ -166,6 +180,12 @@
           <p>Ja. Der macOS-Build ist universal und notarisiert, läuft also nativ auf Apple Silicon und Intel.</p></details>
         <details><summary>Kann es mehrteilige RAR-Archive (.part1.rar) öffnen?</summary>
           <p>Ja — verweise Ziplark auf den ersten Teil, und es setzt den Satz zum Entpacken wieder zusammen.</p></details>
+        <details><summary>Wie öffne ich ein mehrteiliges RAR (part1.rar)?</summary>
+          <p>Öffnen Sie <em>irgendeinen</em> Teil des Satzes, nicht zwingend <code>part01.rar</code>. Ziplark findet den ersten Teil selbst und setzt Dateien zusammen, die über Teile hinweg gespeichert sind — vorher zusammenfügen ist nicht nötig.</p></details>
+        <details><summary>Was ist eine <code>.r00</code>-Datei?</summary>
+          <p>Der zweite Teil eines älteren RAR-Satzes, dessen erster Teil die einfache <code>.rar</code>-Datei daneben ist; danach folgen <code>.r01</code>, <code>.r02</code> und so weiter. Öffnen Sie einen beliebigen Teil, den Rest erledigt Ziplark.</p></details>
+        <details><summary>Lässt sich ein beschädigtes oder unvollständiges RAR entpacken?</summary>
+          <p>Ja. „Lesbares entpacken“ schreibt jede unbeschädigte Datei und listet die gescheiterten und unvollständigen auf. Fehlt ein Teil des Satzes, nennt Ziplark die benötigte Datei.</p></details>
       </div>
       <p class="fineprint" style="margin-top:22px">Verwandt: <a href="/de-DE/winrar-alternative/">Kostenlose WinRAR-Alternative</a> ·
         <a href="/de-DE/7zip-for-mac/">7-Zip für Mac</a> · <a href="/de-DE/">Ziplark-Startseite</a></p>

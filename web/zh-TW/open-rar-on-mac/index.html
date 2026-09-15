@@ -73,7 +73,10 @@
         { "@type": "Question", "name": "它能在 Apple Silicon 的 Mac 上運作嗎？",
           "acceptedAnswer": { "@type": "Answer", "text": "可以。Ziplark 提供通用版、已公證的 macOS 版本，同時支援 Apple Silicon（M 系列）與 Intel Mac。" } },
         { "@type": "Question", "name": "它能在 Mac 上開啟有密碼保護的 RAR 檔案嗎？",
-          "acceptedAnswer": { "@type": "Answer", "text": "可以。Ziplark 能在 macOS 上讀取加密的 RAR 與 RAR5 封存檔 — 只要在提示時輸入密碼即可。" } }
+          "acceptedAnswer": { "@type": "Answer", "text": "可以。Ziplark 能在 macOS 上讀取加密的 RAR 與 RAR5 封存檔 — 只要在提示時輸入密碼即可。" } },
+        {"@type": "Question", "name": "怎麼打開分卷 RAR（part1.rar）？", "acceptedAnswer": {"@type": "Answer", "text": "打開這套分卷裡的任何一個檔案即可，不一定是第一個 part01.rar。Ziplark 會自己找到第一卷，並把跨分卷的檔案拼回完整檔案，不需要事先合併。"}},
+        {"@type": "Question", "name": ".r00 是什麼檔案，怎麼打開？", "acceptedAnswer": {"@type": "Answer", "text": "它是舊式 RAR 分卷的第二卷，第一卷就是旁邊那個普通的 .rar 檔案；後面依序是 .r01、.r02。打開其中任何一個，Ziplark 會處理好其餘部分。"}},
+        {"@type": "Question", "name": "損壞或不完整的 RAR 能解開嗎？", "acceptedAnswer": {"@type": "Answer", "text": "可以。「解開還能讀的部分」會寫出所有完整的檔案，並列出失敗或只解出一部分的檔案。若缺少分卷，Ziplark 會告訴你缺的是哪個檔案。"}}
       ]}
     ]
   }
@@ -154,6 +157,17 @@
         還附帶 CLI + MCP 伺服器，而且完全開源。</p>
     </section>
 
+    <section class="section" id="multipart">
+      <h2>分卷壓縮檔（<code>part1.rar</code>、<code>.r00</code>）與損壞的壓縮檔</h2>
+      <p class="lede">這兩種 RAR 問題才是真正卡住人的地方，而兩者都不需要你自己想辦法。</p>
+      <div class="steps">
+        <div class="step"><p><b>分成好幾卷的壓縮檔。</b> 打開其中<em>任何一卷</em>——<code>movie.part03.rar</code>，或舊式命名的 <code>movie.r01</code>——Ziplark 會自己找到第一卷並解開整套。跨分卷的檔案會被拼回完整檔案，你不必先合併任何東西。</p></div>
+        <div class="step"><p><b>少了一卷。</b> Ziplark 會指名它接下來需要的檔案——例如 <code>movie.part04.rar</code>——而不是丟一句「壓縮檔意外結束」，並且會提議把現有分卷裡能解的內容全部解出來。</p></div>
+        <div class="step"><p><b>下載的檔案壞了。</b> 選擇「解開還能讀的部分」：所有完整的檔案都會解出來，同時 Ziplark 會列出哪些檔案失敗、哪些不完整，你會清楚該重新下載什麼。想先看損壞報告而不解開，可以先做一次驗證。</p></div>
+      </div>
+      <p class="fineprint">同樣支援：自解壓的 <code>.exe</code> 壓縮檔、連檔名（而不只是內容）都加密的壓縮檔，以及固實壓縮檔。權限、時間戳記與符號連結在解開後依然保留，所以解出來的 App 或原始碼目錄仍能正常使用。</p>
+    </section>
+
     <section class="section" id="faq">
       <h2>在 Mac 上開啟 RAR — 常見問題</h2>
       <div class="faq">
@@ -166,6 +180,12 @@
           <p>可以。macOS 版本為通用版且已公證，因此能在 Apple Silicon 與 Intel 上原生執行。</p></details>
         <details><summary>它能開啟多分割的 RAR 封存檔（.part1.rar）嗎？</summary>
           <p>可以 — 讓 Ziplark 指向第一個分割檔，它就會重新組合整組檔案來解壓。</p></details>
+        <details><summary>怎麼打開分卷 RAR（part1.rar）？</summary>
+          <p>打開這套分卷裡的<em>任何一個</em>檔案即可，不一定是第一個 <code>part01.rar</code>。Ziplark 會自己找到第一卷，並把跨分卷的檔案拼回完整檔案，不需要事先合併。</p></details>
+        <details><summary><code>.r00</code> 是什麼檔案，怎麼打開？</summary>
+          <p>它是舊式 RAR 分卷的第二卷，第一卷就是旁邊那個普通的 <code>.rar</code> 檔案；後面依序是 <code>.r01</code>、<code>.r02</code>。打開其中任何一個，Ziplark 會處理好其餘部分。</p></details>
+        <details><summary>損壞或不完整的 RAR 能解開嗎？</summary>
+          <p>可以。「解開還能讀的部分」會寫出所有完整的檔案，並列出失敗或只解出一部分的檔案。若缺少分卷，Ziplark 會告訴你缺的是哪個檔案。</p></details>
       </div>
       <p class="fineprint" style="margin-top:22px">相關：<a href="/zh-TW/winrar-alternative/">免費 WinRAR 替代方案</a> ·
         <a href="/zh-TW/7zip-for-mac/">Mac 版 7-Zip</a> · <a href="/zh-TW/">Ziplark 首頁</a></p>

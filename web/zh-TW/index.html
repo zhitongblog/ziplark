@@ -92,6 +92,7 @@
     <nav>
       <a href="#features">功能特色</a>
       <a href="#formats">支援格式</a>
+      <a href="#rar">RAR</a>
       <a href="#tools">CLI 與 MCP</a>
       <a href="#download">下載</a>
       <a href="#faq">常見問題</a>
@@ -187,6 +188,44 @@
         解壓（包含 RAR5 與加密封存檔）則完全支援。</p>
     </section>
 
+    <section id="rar" class="section">
+      <h2>認真對待 RAR</h2>
+      <p class="lede">RAR 是下載<em>到手</em>時的格式——被切成好幾個分卷、以固實方式壓縮，有時還少一個分卷。多數免費工具只把它當成一個勾選項。Ziplark 真的為它做了這些事。</p>
+      <div class="grid">
+        <article class="card">
+          <div class="ic">🧩</div>
+          <h3>分卷壓縮檔就是一個壓縮檔</h3>
+          <p>打開 <code>movie.part03.rar</code>，或舊式命名的 <code>movie.r01</code>，拿到的都是整套。Ziplark 會自己找到第一個分卷，列出找到的所有分卷，並把跨分卷的檔案重新拼回完整檔案。兩種命名方式都支援，包括第一個分卷其實叫 <code>movie.rar</code> 的那種。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🔎</div>
+          <h3>缺哪一卷，直接告訴你</h3>
+          <p>如果這套分卷不完整，Ziplark 會指名它接下來需要<em>哪個檔案</em>——例如 <code>movie.part04.rar</code>——而不是丟一句籠統的錯誤訊息。而且是在開始寫入之前就講清楚，不會解到一半才失敗。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🩹</div>
+          <h3>損壞的壓縮檔也能把救得回來的救回來</h3>
+          <p>選擇「解開還能讀的部分」，損壞或不完整壓縮檔裡每個完整的檔案都會被取出，並列出哪些項目失敗、哪些只解出一部分。驗證時會報告<em>所有</em>損壞的檔案，你會清楚該重新下載什麼。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🔐</div>
+          <h3>加密檔名與自解壓 .exe</h3>
+          <p>連<em>檔名</em>都被加密的壓縮檔，輸入密碼就能像一般壓縮檔一樣打開。自解壓的 <code>.exe</code> 會被辨識為藏在自解壓程式後面的那個壓縮檔。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🎯</div>
+          <h3>只挑出你要的檔案</h3>
+          <p>勾選需要的列，只解開這些——依精確項目，而不是把路徑裡剛好含有相同文字的一併拖出來。命令列同樣可以：<code>--include docs/notes.txt --exact</code>。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🧷</div>
+          <h3>不會悄悄遺失東西</h3>
+          <p>權限（可執行檔解開後仍可執行）、時間戳記、符號連結仍是符號連結、每個檔案的壓縮後大小、壓縮檔註解，以及固實／修復記錄標記，都會完整保留。</p>
+        </article>
+      </div>
+      <p class="fineprint">Ziplark 使用官方 UnRAR 函式庫解壓——和 WinRAR 用的是同一份程式碼——並直接驅動它，上面的分卷、搶救與中介資料處理正是由此而來。用修復記錄「修復」壓縮檔是 WinRAR 獨有的功能；Ziplark 的做法是搶救出能讀的部分。</p>
+    </section>
+
     <section id="tools" class="section">
       <h2>同樣為終端機與 AI 代理打造</h2>
       <div class="grid two">
@@ -229,6 +268,9 @@ ziplark test  download.7z</code></pre>
             <tr><td>命令列（--json）</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
             <tr><td>AI 代理（MCP）</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
             <tr><td>免費且開源</td><td class="win y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+            <tr><td>RAR 分卷壓縮檔（開任一卷即可）</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>搶救損壞壓縮檔並列出失敗項目</td><td class="win y">✓</td><td class="y">✓</td><td class="n">部分支援</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>指名不完整分卷缺少哪個檔案</td><td class="win y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
           </tbody>
         </table>
       </div>
@@ -309,6 +351,14 @@ ziplark test  download.7z</code></pre>
           <p>可以 — <code>ziplark</code> CLI 能做到 App 所有的功能，每個指令都支援
              <code>--json</code>，而 <code>ziplark-mcp</code> 則透過 Model Context Protocol
              將它開放給任何 LLM。</p>
+        </details>
+        <details>
+          <summary>怎麼打開分卷 RAR（part1.rar 或 .r00）？</summary>
+          <p>打開這套分卷裡的<em>任何一個</em>檔案即可，不一定要第一個。Ziplark 會自己找到第一個分卷，並把跨分卷的檔案拼回完整檔案。</p>
+        </details>
+        <details>
+          <summary>損壞或不完整的 RAR 還能解開嗎？</summary>
+          <p>可以。選擇「解開還能讀的部分」，所有完整的檔案都會被寫出，並列出失敗或只解出一部分的檔案；若缺少分卷，Ziplark 會告訴你缺的是哪個檔案。</p>
         </details>
       </div>
     </section>

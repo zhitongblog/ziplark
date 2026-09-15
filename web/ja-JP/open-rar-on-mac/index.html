@@ -73,7 +73,10 @@
         { "@type": "Question", "name": "Apple Silicon の Mac で動作しますか？",
           "acceptedAnswer": { "@type": "Answer", "text": "はい。Ziplark は、Apple Silicon（M シリーズ）と Intel の Mac の両方に対応する、ユニバーサルで公証済みの macOS ビルドを提供します。" } },
         { "@type": "Question", "name": "Mac でパスワード保護された RAR ファイルを開けますか？",
-          "acceptedAnswer": { "@type": "Answer", "text": "はい。Ziplark は macOS 上で暗号化された RAR と RAR5 アーカイブを読み込めます — 求められたらパスワードを入力してください。" } }
+          "acceptedAnswer": { "@type": "Answer", "text": "はい。Ziplark は macOS 上で暗号化された RAR と RAR5 アーカイブを読み込めます — 求められたらパスワードを入力してください。" } },
+        {"@type": "Question", "name": "分割 RAR（part1.rar）はどう開きますか？", "acceptedAnswer": {"@type": "Answer", "text": "セットのどのファイルからでも開けます。最初の part01.rar でなくても構いません。Ziplark が最初の分割を自分で見つけ、分割をまたぐファイルを元に戻すので、事前の結合は不要です。"}},
+        {"@type": "Question", "name": ".r00 とは何のファイルですか？", "acceptedAnswer": {"@type": "Answer", "text": "旧形式の分割 RAR の 2 番目の分割で、最初の分割はその隣にある普通の .rar ファイルです。以降 .r01、.r02 と続きます。どれを開いても、残りは Ziplark が判断します。"}},
+        {"@type": "Question", "name": "壊れた、または不完全な RAR も展開できますか？", "acceptedAnswer": {"@type": "Answer", "text": "できます。「読める分を展開」で無傷のファイルはすべて書き出され、失敗したものと不完全なものが一覧されます。分割が足りない場合は、必要なファイル名を教えます。"}}
       ]}
     ]
   }
@@ -154,6 +157,17 @@
         CLI と MCP サーバーを備え、完全にオープンソースです。</p>
     </section>
 
+    <section class="section" id="multipart">
+      <h2>分割書庫（<code>part1.rar</code>、<code>.r00</code>）と壊れた書庫</h2>
+      <p class="lede">RAR で実際に人が詰まるのはこの 2 つです。どちらも、こちらで考える必要はありません。</p>
+      <div class="steps">
+        <div class="step"><p><b>分割されたセット。</b> セットの<em>どのファイル</em>を開いても構いません——<code>movie.part03.rar</code>、あるいは旧形式の <code>movie.r01</code>。Ziplark が最初の分割を自分で探し、セット全体を展開します。分割をまたぐファイルは元に戻るので、事前に結合する必要はありません。</p></div>
+        <div class="step"><p><b>分割が 1 つ足りない。</b> Ziplark は次に必要なファイル名（たとえば <code>movie.part04.rar</code>）を示します。「予期しない書庫の終わり」で終わることはなく、手元の分割に入っている分をすべて展開するか尋ねます。</p></div>
+        <div class="step"><p><b>ダウンロードが壊れている。</b> 「読める分を展開」を選ぶと、無傷のファイルはすべて取り出され、どのファイルが失敗し、どれが不完全かが一覧されます。何を再ダウンロードすればよいか分かります。展開せずに被害だけ知りたいときは、先に検査してください。</p></div>
+      </div>
+      <p class="fineprint">自己展開形式の <code>.exe</code>、内容だけでなくファイル名まで暗号化された書庫、ソリッド書庫も同様に扱えます。パーミッション・タイムスタンプ・シンボリックリンクは展開後も保たれるので、取り出したアプリやソースツリーはそのまま動きます。</p>
+    </section>
+
     <section class="section" id="faq">
       <h2>Mac で RAR を開く — よくある質問</h2>
       <div class="faq">
@@ -166,6 +180,12 @@
           <p>はい。macOS ビルドはユニバーサルで公証済みのため、Apple Silicon と Intel の両方でネイティブに動作します。</p></details>
         <details><summary>分割された RAR アーカイブ（.part1.rar）を開けますか？</summary>
           <p>はい — 最初のパートを Ziplark で指定すれば、分割セットを結合して展開します。</p></details>
+        <details><summary>分割 RAR（part1.rar）はどう開きますか？</summary>
+          <p>セットの<em>どのファイル</em>からでも開けます。最初の <code>part01.rar</code> でなくても構いません。Ziplark が最初の分割を自分で見つけ、分割をまたぐファイルを元に戻すので、事前の結合は不要です。</p></details>
+        <details><summary><code>.r00</code> とは何のファイルですか？</summary>
+          <p>旧形式の分割 RAR の 2 番目の分割で、最初の分割はその隣にある普通の <code>.rar</code> ファイルです。以降 <code>.r01</code>、<code>.r02</code> と続きます。どれを開いても、残りは Ziplark が判断します。</p></details>
+        <details><summary>壊れた、または不完全な RAR も展開できますか？</summary>
+          <p>できます。「読める分を展開」で無傷のファイルはすべて書き出され、失敗したものと不完全なものが一覧されます。分割が足りない場合は、必要なファイル名を教えます。</p></details>
       </div>
       <p class="fineprint" style="margin-top:22px">関連： <a href="/ja-JP/winrar-alternative/">無料の WinRAR 代替</a> ·
         <a href="/ja-JP/7zip-for-mac/">Mac 版 7-Zip</a> · <a href="/ja-JP/">Ziplark ホーム</a></p>

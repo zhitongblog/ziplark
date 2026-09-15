@@ -92,6 +92,7 @@
     <nav>
       <a href="#features">特長</a>
       <a href="#formats">対応形式</a>
+      <a href="#rar">RAR</a>
       <a href="#tools">CLI と MCP</a>
       <a href="#download">ダウンロード</a>
       <a href="#faq">よくある質問</a>
@@ -188,6 +189,44 @@
         展開（RAR5 や暗号化アーカイブを含む）は完全に動作します。</p>
     </section>
 
+    <section id="rar" class="section">
+      <h2>RAR を本気で扱う</h2>
+      <p class="lede">RAR はダウンロードが<em>届く</em>ときの形式です。分割され、ソリッド圧縮され、ときには 1 つ足りない状態で。無料ツールの多くはこれを対応形式の一覧に並べるだけです。Ziplark が実際に何をするかを説明します。</p>
+      <div class="grid">
+        <article class="card">
+          <div class="ic">🧩</div>
+          <h3>分割された書庫はひとつの書庫</h3>
+          <p><code>movie.part03.rar</code>、あるいは旧形式の <code>movie.r01</code> を開けば、セット全体が手に入ります。Ziplark が最初の分割を自分で探し、見つかった分割を一覧し、分割をまたぐファイルを元の 1 ファイルに戻します。最初の分割が <code>movie.rar</code> になる旧命名も含め、両方式に対応します。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🔎</div>
+          <h3>足りない分割ファイルを名前で教える</h3>
+          <p>セットが揃っていない場合、Ziplark は次に必要な<em>ファイル名</em>（たとえば <code>movie.part04.rar</code>）を示します。曖昧なエラーで終わることはありません。しかも書き込みを始める前に分かるので、途中で止まることもありません。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🩹</div>
+          <h3>壊れた書庫からは読める分を取り出す</h3>
+          <p>「読める分を展開」を選ぶと、壊れた書庫や不完全な書庫から無傷のファイルをすべて取り出し、どのエントリが失敗し、どれが不完全だったかを一覧します。検査では<em>すべて</em>の不良ファイルを報告するので、何を再ダウンロードすべきか分かります。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🔐</div>
+          <h3>ヘッダー暗号化と自己展開 .exe</h3>
+          <p><em>ファイル名</em>まで暗号化された書庫も、パスワードを入れれば通常どおり開きます。自己展開形式の <code>.exe</code> は、スタブの後ろにある書庫として読み取ります。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🎯</div>
+          <h3>必要なファイルだけ取り出す</h3>
+          <p>必要な行にチェックを入れれば、その項目だけを展開します。パスに同じ文字が含まれるものまで巻き込むことはありません。コマンドラインでも同じです: <code>--include docs/notes.txt --exact</code>。</p>
+        </article>
+        <article class="card">
+          <div class="ic">🧷</div>
+          <h3>黙って失われるものはない</h3>
+          <p>パーミッション（実行ファイルは展開後も実行可能）、タイムスタンプ、シンボリックリンクはリンクのまま、ファイルごとの圧縮後サイズ、書庫コメント、ソリッド／リカバリレコードのフラグ——すべて残ります。</p>
+        </article>
+      </div>
+      <p class="fineprint">Ziplark は展開に公式の UnRAR ライブラリ（WinRAR と同じコード）を使い、その C API を直接呼び出しています。上記の分割・救出・メタデータの扱いはそこから来ています。リカバリレコードによる「修復」は WinRAR 固有の機能で、Ziplark は代わりに読める分を救い出します。</p>
+    </section>
+
     <section id="tools" class="section">
       <h2>ターミナルやエージェントのためにも</h2>
       <div class="grid two">
@@ -231,6 +270,9 @@ ziplark test  download.7z</code></pre>
             <tr><td>コマンドライン（--json）</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
             <tr><td>AI エージェント（MCP）</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
             <tr><td>無料・オープンソース</td><td class="win y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+            <tr><td>分割 RAR（どの分割からでも開ける）</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>壊れた書庫を救出し失敗を一覧</td><td class="win y">✓</td><td class="y">✓</td><td class="n">一部</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>不足している分割ファイルを名指し</td><td class="win y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
           </tbody>
         </table>
       </div>
@@ -314,6 +356,14 @@ ziplark test  download.7z</code></pre>
           <p>はい — <code>ziplark</code> CLI はアプリと同じことをすべて行え、すべてのコマンドに
              <code>--json</code> を備えています。さらに <code>ziplark-mcp</code> が、Model Context Protocol
              を通じてあらゆる LLM に機能を公開します。</p>
+        </details>
+        <details>
+          <summary>分割 RAR（part1.rar や .r00）はどう開きますか？</summary>
+          <p>セットの<em>どのファイル</em>からでも開けます。最初の分割でなくても構いません。Ziplark が最初の分割を自分で見つけ、分割をまたぐファイルを元に戻します。</p>
+        </details>
+        <details>
+          <summary>壊れた、または不完全な RAR も展開できますか？</summary>
+          <p>できます。「読める分を展開」を選ぶと無傷のファイルはすべて書き出され、失敗したものと不完全なものが一覧されます。分割が足りない場合は、必要なファイル名を教えます。</p>
         </details>
       </div>
     </section>

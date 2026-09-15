@@ -92,6 +92,7 @@
     <nav>
       <a href="#features">Funktionen</a>
       <a href="#formats">Formate</a>
+      <a href="#rar">RAR</a>
       <a href="#tools">CLI &amp; MCP</a>
       <a href="#download">Download</a>
       <a href="#faq">FAQ</a>
@@ -188,6 +189,44 @@
         proprietär. Das Entpacken (einschließlich RAR5 und verschlüsselter Archive) funktioniert vollständig.</p>
     </section>
 
+    <section id="rar" class="section">
+      <h2>RAR, richtig gemacht</h2>
+      <p class="lede">RAR ist das Format, in dem Downloads <em>ankommen</em> — in Teile zerlegt, solide gepackt, manchmal fehlt ein Teil. Die meisten kostenlosen Programme behandeln es als Häkchen in einer Liste. Das hier macht Ziplark damit.</p>
+      <div class="grid">
+        <article class="card">
+          <div class="ic">🧩</div>
+          <h3>Ein Satz Teildateien ist ein Archiv</h3>
+          <p>Öffnen Sie <code>movie.part03.rar</code> — oder das alte <code>movie.r01</code> — und Sie haben den ganzen Satz. Ziplark findet den ersten Teil selbst, listet die gefundenen Teile auf und setzt Dateien wieder zusammen, die über Teile hinweg gespeichert sind. Beide Namensschemata, auch das, dessen erster Teil <code>movie.rar</code> heißt.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🔎</div>
+          <h3>Ein fehlender Teil wird benannt</h3>
+          <p>Ist der Satz unvollständig, sagt Ziplark Ihnen, <em>welche Datei</em> als nächste fehlt — etwa <code>movie.part04.rar</code> — statt mit einer allgemeinen Fehlermeldung abzubrechen. Und zwar bevor etwas geschrieben wird, nicht auf halbem Weg.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🩹</div>
+          <h3>Beschädigte Archive geben her, was noch geht</h3>
+          <p>„Lesbares entpacken“ holt jede unbeschädigte Datei aus einem defekten oder unvollständigen Archiv und listet auf, welche Einträge gescheitert sind und welche unvollständig geblieben sind. Beim Prüfen werden <em>alle</em> defekten Dateien gemeldet — Sie wissen also, was neu geladen werden muss.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🔐</div>
+          <h3>Verschlüsselte Dateinamen und .exe-Archive</h3>
+          <p>Ein Archiv, in dem sogar die <em>Dateinamen</em> verschlüsselt sind, öffnet sich mit Passwort wie jedes andere. Ein selbstentpackendes <code>.exe</code> wird als das Archiv gelesen, das hinter dem Programmteil steckt.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🎯</div>
+          <h3>Einzelne Dateien herausziehen</h3>
+          <p>Zeilen anhaken und nur diese entpacken — genau diese Einträge, nicht alles, dessen Pfad zufällig denselben Text enthält. Auf der Kommandozeile genauso: <code>--include docs/notes.txt --exact</code>.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🧷</div>
+          <h3>Nichts geht stillschweigend verloren</h3>
+          <p>Rechte (eine ausführbare Datei bleibt ausführbar), Zeitstempel, symbolische Links als Links, komprimierte Größe pro Datei, der Archivkommentar sowie Solid- und Recovery-Record-Kennzeichen bleiben erhalten.</p>
+        </article>
+      </div>
+      <p class="fineprint">Ziplark entpackt mit der offiziellen UnRAR-Bibliothek — demselben Code, den WinRAR ausliefert — und spricht deren C-API direkt an; daher kommen die Teildatei-, Rettungs- und Metadaten-Fähigkeiten oben. Ein Archiv aus seinem Recovery-Record zu <em>reparieren</em> kann nur WinRAR; Ziplark rettet stattdessen, was lesbar ist.</p>
+    </section>
+
     <section id="tools" class="section">
       <h2>Auch für Terminals und Agenten gemacht</h2>
       <div class="grid two">
@@ -231,6 +270,9 @@ ziplark test  download.7z</code></pre>
             <tr><td>Kommandozeile (--json)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
             <tr><td>KI-Agent (MCP)</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
             <tr><td>Kostenlos & Open Source</td><td class="win y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+            <tr><td>Mehrteilige RAR-Sätze (jeder Teil genügt)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>Rettet beschädigte Sätze und listet Fehler</td><td class="win y">✓</td><td class="y">✓</td><td class="n">teilweise</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>Benennt den fehlenden Teil eines Satzes</td><td class="win y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
           </tbody>
         </table>
       </div>
@@ -314,6 +356,14 @@ ziplark test  download.7z</code></pre>
           <p>Ja — die <code>ziplark</code>-CLI kann alles, was die App kann, mit
              <code>--json</code> bei jedem Befehl, und <code>ziplark-mcp</code> stellt es
              jedem LLM über das Model Context Protocol bereit.</p>
+        </details>
+        <details>
+          <summary>Wie öffne ich ein mehrteiliges RAR (part1.rar oder .r00)?</summary>
+          <p>Öffnen Sie <em>irgendeinen</em> Teil des Satzes, nicht zwingend den ersten. Ziplark findet den ersten Teil selbst und setzt Dateien wieder zusammen, die über Teile hinweg gespeichert sind.</p>
+        </details>
+        <details>
+          <summary>Lässt sich ein beschädigtes oder unvollständiges RAR entpacken?</summary>
+          <p>Ja. „Lesbares entpacken“ schreibt jede unbeschädigte Datei und listet die gescheiterten und unvollständigen auf. Fehlt ein Teil des Satzes, nennt Ziplark die Datei, die es braucht.</p>
         </details>
       </div>
     </section>

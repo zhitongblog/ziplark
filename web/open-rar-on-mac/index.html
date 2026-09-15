@@ -73,7 +73,13 @@
         { "@type": "Question", "name": "Does it work on Apple Silicon Macs?",
           "acceptedAnswer": { "@type": "Answer", "text": "Yes. Ziplark ships a universal, notarized macOS build for both Apple Silicon (M-series) and Intel Macs." } },
         { "@type": "Question", "name": "Can it open password-protected RAR files on Mac?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Ziplark reads encrypted RAR and RAR5 archives on macOS — enter the password when prompted." } }
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Ziplark reads encrypted RAR and RAR5 archives on macOS — enter the password when prompted, including archives whose file names are encrypted." } },
+        { "@type": "Question", "name": "How do I open a multi-part RAR (part1.rar) on Mac?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Open any part of the set — part01.rar, part03.rar, or the older .r01 — and Ziplark finds the first part itself and extracts the whole set, reassembling files that span parts. Nothing has to be joined first." } },
+        { "@type": "Question", "name": "What is a .r00 file?",
+          "acceptedAnswer": { "@type": "Answer", "text": "It is the second part of an older multi-part RAR set whose first part is the plain .rar file beside it, continuing .r01, .r02 and so on. Opening any part in Ziplark extracts the whole set." } },
+        { "@type": "Question", "name": "Can I extract a damaged or incomplete RAR file?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Ziplark's \"extract what's readable\" writes every intact file from a corrupted archive and lists which entries failed or came out incomplete. If a part of a multi-part set is missing, it names the file it needs." } }
       ]}
     ]
   }
@@ -134,6 +140,28 @@
       </div>
     </section>
 
+    <section class="section" id="multipart">
+      <h2>Multi-part sets (<code>part1.rar</code>, <code>.r00</code>) and damaged archives</h2>
+      <p class="lede">These are the two RAR problems that actually stop people, and both are
+        handled without you having to work anything out.</p>
+      <div class="steps">
+        <div class="step"><p><b>A set split into parts.</b> Open <em>any</em> part —
+          <code>movie.part03.rar</code>, or the old-style <code>movie.r01</code> — and Ziplark
+          finds the first part itself and extracts the whole set. Files that span parts are
+          reassembled; you do not need to join anything first.</p></div>
+        <div class="step"><p><b>A part is missing.</b> Ziplark names the file it needs next —
+          <code>movie.part04.rar</code> — instead of failing with "unexpected end of archive",
+          and offers to extract everything the parts you do have contain.</p></div>
+        <div class="step"><p><b>The download is corrupt.</b> Choose "Extract what's readable":
+          every intact file comes out, and Ziplark lists which files failed and which are
+          incomplete, so you know exactly what to download again. Verify first if you want the
+          damage report without extracting.</p></div>
+      </div>
+      <p class="fineprint">Also handled: self-extracting <code>.exe</code> archives, archives whose
+        file names are encrypted (not just their contents), and solid archives. Permissions,
+        timestamps and symlinks survive extraction, so an extracted app or source tree still works.</p>
+    </section>
+
     <section class="section">
       <h2>Free RAR openers for Mac, compared</h2>
       <div class="table-wrap">
@@ -165,7 +193,17 @@
         <details><summary>Does it run on Apple Silicon (M1/M2/M3)?</summary>
           <p>Yes. The macOS build is universal and notarized, so it runs natively on Apple Silicon and Intel.</p></details>
         <details><summary>Can it open multi-part RAR archives (.part1.rar)?</summary>
-          <p>Yes — point Ziplark at the first part and it reassembles the set to extract.</p></details>
+          <p>Yes, and you can open <em>any</em> part of the set — <code>part03.rar</code> or the
+             older <code>.r01</code> — not just the first one. Ziplark finds the first part itself
+             and reassembles files that span parts.</p></details>
+        <details><summary>What is a <code>.r00</code> file and how do I open it?</summary>
+          <p>It is the second part of an older RAR set whose first part is the plain
+             <code>.rar</code> file next to it. Open either one; Ziplark works out the rest.
+             (The parts continue <code>.r01</code>, <code>.r02</code>, and so on.)</p></details>
+        <details><summary>Can it extract a damaged or incomplete RAR?</summary>
+          <p>Yes. "Extract what's readable" writes every intact file and lists the ones that
+             failed or came out incomplete. If a part of the set is missing, Ziplark tells you
+             which file it needs.</p></details>
       </div>
       <p class="fineprint" style="margin-top:22px">Related: <a href="/winrar-alternative/">Free WinRAR alternative</a> ·
         <a href="/7zip-for-mac/">7-Zip for Mac</a> · <a href="/">Ziplark home</a></p>

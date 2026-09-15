@@ -73,7 +73,10 @@
         { "@type": "Question", "name": "Fonctionne-t-il sur les Mac Apple Silicon ?",
           "acceptedAnswer": { "@type": "Answer", "text": "Oui. Ziplark propose une build macOS universelle et notarisée pour les Mac Apple Silicon (série M) comme Intel." } },
         { "@type": "Question", "name": "Peut-il ouvrir les fichiers RAR protégés par mot de passe sur Mac ?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Oui. Ziplark lit les archives RAR et RAR5 chiffrées sur macOS — saisissez le mot de passe lorsqu'il est demandé." } }
+          "acceptedAnswer": { "@type": "Answer", "text": "Oui. Ziplark lit les archives RAR et RAR5 chiffrées sur macOS — saisissez le mot de passe lorsqu'il est demandé." } },
+        {"@type": "Question", "name": "Comment ouvrir un RAR en plusieurs parties (part1.rar) ?", "acceptedAnswer": {"@type": "Answer", "text": "Ouvrez n'importe quelle partie du jeu, pas forcément part01.rar. Ziplark retrouve la première tout seul et recompose les fichiers répartis sur plusieurs parties — rien à assembler avant."}},
+        {"@type": "Question", "name": "Qu'est-ce qu'un fichier .r00 ?", "acceptedAnswer": {"@type": "Answer", "text": "C'est la deuxième partie d'un ancien jeu RAR dont la première partie est le fichier .rar ordinaire placé à côté ; viennent ensuite .r01, .r02, etc. Ouvrez la partie que vous voulez, Ziplark s'occupe du reste."}},
+        {"@type": "Question", "name": "Peut-on extraire un RAR endommagé ou incomplet ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui. « Extraire ce qui est lisible » écrit tous les fichiers intacts et liste ceux qui ont échoué ou sont partiels. S'il manque une partie du jeu, Ziplark nomme le fichier nécessaire."}}
       ]}
     ]
   }
@@ -154,6 +157,17 @@
         embarque une CLI et un serveur MCP, et est entièrement open source.</p>
     </section>
 
+    <section class="section" id="multipart">
+      <h2>Archives en plusieurs parties (<code>part1.rar</code>, <code>.r00</code>) et archives endommagées</h2>
+      <p class="lede">Voilà les deux problèmes RAR qui bloquent réellement les gens — et vous n'avez à vous occuper ni de l'un ni de l'autre.</p>
+      <div class="steps">
+        <div class="step"><p><b>Un jeu découpé en parties.</b> Ouvrez <em>n'importe quelle</em> partie — <code>movie.part03.rar</code>, ou l'ancien <code>movie.r01</code> — et Ziplark retrouve la première partie tout seul puis extrait le jeu entier. Les fichiers répartis sur plusieurs parties sont recomposés ; rien à assembler au préalable.</p></div>
+        <div class="step"><p><b>Une partie manque.</b> Ziplark nomme le fichier qu'il lui faut ensuite — par exemple <code>movie.part04.rar</code> — au lieu d'afficher « fin d'archive inattendue », et propose d'extraire tout ce que contiennent les parties dont vous disposez.</p></div>
+        <div class="step"><p><b>Le téléchargement est corrompu.</b> Choisissez « Extraire ce qui est lisible » : tous les fichiers intacts sortent, et Ziplark liste ceux qui ont échoué et ceux qui sont partiels — vous savez exactement quoi retélécharger. Pour n'avoir que le rapport, vérifiez l'archive d'abord.</p></div>
+      </div>
+      <p class="fineprint">Également pris en charge : les archives auto-extractibles <code>.exe</code>, celles dont les noms de fichiers (et pas seulement le contenu) sont chiffrés, et les archives solides. Permissions, dates et liens symboliques survivent à l'extraction, si bien qu'une app ou une arborescence de sources extraite fonctionne encore.</p>
+    </section>
+
     <section class="section" id="faq">
       <h2>Ouvrir un RAR sur Mac — FAQ</h2>
       <div class="faq">
@@ -166,6 +180,12 @@
           <p>Oui. La build macOS est universelle et notarisée, donc elle tourne nativement sur Apple Silicon et Intel.</p></details>
         <details><summary>Peut-il ouvrir les archives RAR en plusieurs parties (.part1.rar) ?</summary>
           <p>Oui — indiquez à Ziplark la première partie et il réassemble l'ensemble pour l'extraire.</p></details>
+        <details><summary>Comment ouvrir un RAR en plusieurs parties (part1.rar) ?</summary>
+          <p>Ouvrez <em>n'importe quelle</em> partie du jeu, pas forcément <code>part01.rar</code>. Ziplark retrouve la première tout seul et recompose les fichiers répartis sur plusieurs parties — rien à assembler avant.</p></details>
+        <details><summary>Qu'est-ce qu'un fichier <code>.r00</code> ?</summary>
+          <p>C'est la deuxième partie d'un ancien jeu RAR dont la première partie est le fichier <code>.rar</code> ordinaire placé à côté ; viennent ensuite <code>.r01</code>, <code>.r02</code>, etc. Ouvrez la partie que vous voulez, Ziplark s'occupe du reste.</p></details>
+        <details><summary>Peut-on extraire un RAR endommagé ou incomplet ?</summary>
+          <p>Oui. « Extraire ce qui est lisible » écrit tous les fichiers intacts et liste ceux qui ont échoué ou sont partiels. S'il manque une partie du jeu, Ziplark nomme le fichier nécessaire.</p></details>
       </div>
       <p class="fineprint" style="margin-top:22px">À voir aussi : <a href="/fr-FR/winrar-alternative/">Alternative gratuite à WinRAR</a> ·
         <a href="/fr-FR/7zip-for-mac/">7-Zip pour Mac</a> · <a href="/fr-FR/">Accueil Ziplark</a></p>

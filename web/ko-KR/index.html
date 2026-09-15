@@ -92,6 +92,7 @@
     <nav>
       <a href="#features">기능</a>
       <a href="#formats">형식</a>
+      <a href="#rar">RAR</a>
       <a href="#tools">CLI &amp; MCP</a>
       <a href="#download">다운로드</a>
       <a href="#faq">FAQ</a>
@@ -188,6 +189,44 @@
         독점 형식이기 때문입니다. 압축 풀기(RAR5 및 암호화된 압축 파일 포함)는 완전하게 동작합니다.</p>
     </section>
 
+    <section id="rar" class="section">
+      <h2>RAR을 제대로</h2>
+      <p class="lede">RAR은 다운로드가 <em>도착할</em> 때의 형식입니다. 여러 조각으로 나뉘고, 솔리드로 압축되고, 때로는 한 조각이 빠진 채로요. 대부분의 무료 도구는 이걸 지원 목록의 항목 하나로만 취급합니다. Ziplark가 실제로 무엇을 하는지 보세요.</p>
+      <div class="grid">
+        <article class="card">
+          <div class="ic">🧩</div>
+          <h3>분할된 압축 파일은 하나의 압축 파일</h3>
+          <p><code>movie.part03.rar</code>이나 예전 방식의 <code>movie.r01</code>을 열면 세트 전체가 열립니다. Ziplark가 첫 조각을 직접 찾아내고, 찾은 조각들을 보여주고, 조각을 넘나드는 파일을 하나로 되돌립니다. 첫 조각이 <code>movie.rar</code>인 옛 방식까지 두 명명 규칙 모두 지원합니다.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🔎</div>
+          <h3>빠진 조각의 이름을 알려줍니다</h3>
+          <p>세트가 완전하지 않으면 Ziplark는 다음에 필요한 <em>파일 이름</em>(예: <code>movie.part04.rar</code>)을 알려줍니다. 모호한 오류로 끝나지 않습니다. 게다가 쓰기를 시작하기 전에 알려주므로 중간에 멈추는 일도 없습니다.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🩹</div>
+          <h3>손상된 압축 파일에서 읽을 수 있는 것은 살립니다</h3>
+          <p>“읽을 수 있는 것만 추출”을 선택하면 손상되거나 불완전한 압축 파일에서 온전한 파일을 모두 꺼내고, 어떤 항목이 실패했고 어떤 것이 불완전한지 나열합니다. 검사는 <em>모든</em> 불량 파일을 보고하므로 무엇을 다시 받아야 할지 알 수 있습니다.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🔐</div>
+          <h3>헤더 암호화와 자동 압축 해제 .exe</h3>
+          <p><em>파일 이름</em>까지 암호화된 압축 파일도 비밀번호만 넣으면 평범하게 열립니다. 자동 압축 해제 <code>.exe</code>는 실행 스텁 뒤에 있는 압축 파일로 읽습니다.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🎯</div>
+          <h3>필요한 파일만 골라 추출</h3>
+          <p>원하는 행을 체크하면 그 항목만 정확히 추출합니다. 경로에 같은 글자가 들어간 것까지 딸려 나오지 않습니다. 명령줄에서도 같습니다: <code>--include docs/notes.txt --exact</code>.</p>
+        </article>
+        <article class="card">
+          <div class="ic">🧷</div>
+          <h3>조용히 사라지는 것은 없습니다</h3>
+          <p>권한(실행 파일은 추출 후에도 실행 가능), 타임스탬프, 심볼릭 링크는 링크 그대로, 파일별 압축 크기, 압축 파일 주석, 솔리드·복구 레코드 표시까지 모두 유지됩니다.</p>
+        </article>
+      </div>
+      <p class="fineprint">Ziplark는 공식 UnRAR 라이브러리(WinRAR과 같은 코드)로 압축을 풀고, 그 C API를 직접 호출합니다. 위의 분할·구조·메타데이터 처리가 거기서 나옵니다. 복구 레코드로 압축 파일을 “수리”하는 기능은 WinRAR 전용이며, Ziplark는 대신 읽을 수 있는 것을 살려냅니다.</p>
+    </section>
+
     <section id="tools" class="section">
       <h2>터미널과 에이전트를 위한 설계도</h2>
       <div class="grid two">
@@ -231,6 +270,9 @@ ziplark test  download.7z</code></pre>
             <tr><td>명령줄 (--json)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
             <tr><td>AI 에이전트 (MCP)</td><td class="win y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
             <tr><td>무료 및 오픈 소스</td><td class="win y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+            <tr><td>분할 RAR 세트(어느 조각으로든 열기)</td><td class="win y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+            <tr><td>손상된 세트 구조 및 실패 목록 제공</td><td class="win y">✓</td><td class="y">✓</td><td class="n">일부</td><td class="n">—</td><td class="n">—</td></tr>
+            <tr><td>불완전한 세트에서 빠진 조각 이름 제시</td><td class="win y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
           </tbody>
         </table>
       </div>
@@ -314,6 +356,14 @@ ziplark test  download.7z</code></pre>
           <p>네 — <code>ziplark</code> CLI는 앱이 하는 모든 것을 하며, 모든 명령에
              <code>--json</code>을 지원합니다. 그리고 <code>ziplark-mcp</code>는 Model Context Protocol을 통해
              어떤 LLM에도 이를 노출합니다.</p>
+        </details>
+        <details>
+          <summary>분할 RAR(part1.rar 또는 .r00)은 어떻게 여나요?</summary>
+          <p>세트의 <em>아무 파일</em>이나 열면 됩니다. 첫 조각이 아니어도 괜찮습니다. Ziplark가 첫 조각을 직접 찾아 조각을 넘나드는 파일을 하나로 되돌립니다.</p>
+        </details>
+        <details>
+          <summary>손상되거나 불완전한 RAR도 추출할 수 있나요?</summary>
+          <p>네. “읽을 수 있는 것만 추출”을 선택하면 온전한 파일은 모두 기록되고, 실패하거나 불완전한 파일은 목록으로 알려줍니다. 조각이 빠졌다면 필요한 파일 이름을 알려줍니다.</p>
         </details>
       </div>
     </section>

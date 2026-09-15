@@ -73,7 +73,10 @@
         { "@type": "Question", "name": "Apple Silicon Mac에서도 동작하나요?",
           "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 Apple Silicon(M 시리즈)과 Intel Mac 모두를 위한 유니버설 공증 macOS 빌드를 제공합니다." } },
         { "@type": "Question", "name": "Mac에서 암호로 보호된 RAR 파일도 열 수 있나요?",
-          "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 macOS에서 암호화된 RAR 및 RAR5 압축 파일을 읽습니다 — 메시지가 나오면 암호를 입력하세요." } }
+          "acceptedAnswer": { "@type": "Answer", "text": "네. Ziplark는 macOS에서 암호화된 RAR 및 RAR5 압축 파일을 읽습니다 — 메시지가 나오면 암호를 입력하세요." } },
+        {"@type": "Question", "name": "분할 RAR(part1.rar)은 어떻게 여나요?", "acceptedAnswer": {"@type": "Answer", "text": "세트의 아무 파일이나 열면 됩니다. 첫 조각인 part01.rar이 아니어도 괜찮습니다. Ziplark가 첫 조각을 찾아 조각을 넘나드는 파일을 되돌리므로 미리 합칠 필요가 없습니다."}},
+        {"@type": "Question", "name": ".r00 파일은 무엇인가요?", "acceptedAnswer": {"@type": "Answer", "text": "예전 방식 분할 RAR의 두 번째 조각이고, 첫 조각은 그 옆의 평범한 .rar 파일입니다. 이후 .r01, .r02로 이어집니다. 아무 조각이나 열면 나머지는 Ziplark가 알아서 처리합니다."}},
+        {"@type": "Question", "name": "손상되거나 불완전한 RAR도 추출할 수 있나요?", "acceptedAnswer": {"@type": "Answer", "text": "네. “읽을 수 있는 것만 추출”은 온전한 파일을 모두 기록하고 실패하거나 불완전한 파일을 나열합니다. 조각이 빠졌다면 필요한 파일 이름을 알려줍니다."}}
       ]}
     ]
   }
@@ -154,6 +157,17 @@
         CLI + MCP 서버를 제공하고, 완전한 오픈소스입니다.</p>
     </section>
 
+    <section class="section" id="multipart">
+      <h2>분할 압축(<code>part1.rar</code>, <code>.r00</code>)과 손상된 압축 파일</h2>
+      <p class="lede">RAR에서 실제로 사람들이 막히는 건 이 두 가지이고, 둘 다 직접 방법을 찾을 필요가 없습니다.</p>
+      <div class="steps">
+        <div class="step"><p><b>여러 조각으로 나뉜 세트.</b> 세트의 <em>아무 파일</em>이나 열면 됩니다 — <code>movie.part03.rar</code>이나 예전 방식의 <code>movie.r01</code>. Ziplark가 첫 조각을 직접 찾아 세트 전체를 풉니다. 조각을 넘나드는 파일은 하나로 되돌아가므로 미리 합칠 필요가 없습니다.</p></div>
+        <div class="step"><p><b>조각 하나가 빠졌을 때.</b> Ziplark는 다음에 필요한 파일 이름(예: <code>movie.part04.rar</code>)을 알려줍니다. “예기치 않은 압축 파일의 끝” 같은 메시지로 끝나지 않고, 지금 가진 조각에 담긴 내용을 모두 풀겠냐고 제안합니다.</p></div>
+        <div class="step"><p><b>다운로드가 손상됐을 때.</b> “읽을 수 있는 것만 추출”을 선택하면 온전한 파일은 모두 나오고, 어떤 파일이 실패했고 어떤 것이 불완전한지 목록으로 알려줍니다. 추출하지 않고 손상 내역만 보려면 먼저 검사하세요.</p></div>
+      </div>
+      <p class="fineprint">자동 압축 해제 <code>.exe</code>, 내용뿐 아니라 파일 이름까지 암호화된 압축 파일, 솔리드 압축 파일도 같은 방식으로 처리합니다. 권한·타임스탬프·심볼릭 링크가 추출 후에도 유지되므로, 꺼낸 앱이나 소스 트리가 그대로 동작합니다.</p>
+    </section>
+
     <section class="section" id="faq">
       <h2>Mac에서 RAR 열기 — FAQ</h2>
       <div class="faq">
@@ -166,6 +180,12 @@
           <p>네. macOS 빌드는 유니버설이며 공증되어 있어, Apple Silicon과 Intel에서 네이티브로 실행됩니다.</p></details>
         <details><summary>여러 파트로 나뉜 RAR 압축 파일(.part1.rar)도 열 수 있나요?</summary>
           <p>네 — Ziplark에 첫 번째 파트를 지정하면 세트를 다시 조합해 압축을 풉니다.</p></details>
+        <details><summary>분할 RAR(part1.rar)은 어떻게 여나요?</summary>
+          <p>세트의 <em>아무 파일</em>이나 열면 됩니다. 첫 조각인 <code>part01.rar</code>이 아니어도 괜찮습니다. Ziplark가 첫 조각을 찾아 조각을 넘나드는 파일을 되돌리므로 미리 합칠 필요가 없습니다.</p></details>
+        <details><summary><code>.r00</code> 파일은 무엇인가요?</summary>
+          <p>예전 방식 분할 RAR의 두 번째 조각이고, 첫 조각은 그 옆의 평범한 <code>.rar</code> 파일입니다. 이후 <code>.r01</code>, <code>.r02</code>로 이어집니다. 아무 조각이나 열면 나머지는 Ziplark가 알아서 처리합니다.</p></details>
+        <details><summary>손상되거나 불완전한 RAR도 추출할 수 있나요?</summary>
+          <p>네. “읽을 수 있는 것만 추출”은 온전한 파일을 모두 기록하고 실패하거나 불완전한 파일을 나열합니다. 조각이 빠졌다면 필요한 파일 이름을 알려줍니다.</p></details>
       </div>
       <p class="fineprint" style="margin-top:22px">관련: <a href="/ko-KR/winrar-alternative/">무료 WinRAR 대안</a> ·
         <a href="/ko-KR/7zip-for-mac/">Mac용 7-Zip</a> · <a href="/ko-KR/">Ziplark 홈</a></p>
