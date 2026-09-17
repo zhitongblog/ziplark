@@ -651,7 +651,9 @@ fn physical_memory() -> Option<u64> {
     Some(kib * 1024)
 }
 
-#[cfg(any(target_os = "macos", target_os = "ios", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
+/// `hw.memsize` is Apple's name for this; the BSDs spell it differently, so
+/// they fall through to the conservative default below instead of guessing.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 fn physical_memory() -> Option<u64> {
     let mut size = 0u64;
     let mut len = std::mem::size_of::<u64>();
@@ -684,15 +686,7 @@ fn physical_memory() -> Option<u64> {
     (ok != 0).then_some(status.ullTotalPhys)
 }
 
-#[cfg(not(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    windows
-)))]
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "ios", windows)))]
 fn physical_memory() -> Option<u64> {
     None
 }

@@ -66,6 +66,9 @@ libc = "0.2"
 windows-sys = { version = "0.59", features = [
     "Win32_Globalization",
     "Win32_System_SystemInformation",
+    # GlobalMemoryStatusEx returns a Foundation::BOOL, and Win32_System_*
+    # features do not pull Foundation in by themselves.
+    "Win32_Foundation",
 ] }
 
 [features]

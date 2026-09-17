@@ -235,6 +235,7 @@ fn a_damaged_archive_stops_by_default_and_salvages_on_request() {
 // ───────────────────────────── safety ─────────────────────────────
 
 #[test]
+#[cfg(unix)] // symlinks and unix permission bits
 fn a_symlink_entry_cannot_be_used_to_write_outside_the_destination() {
     let target = PathBuf::from("/tmp/ziplark-rar-escape");
     let _ = fs::remove_dir_all(&target);
@@ -253,6 +254,7 @@ fn a_symlink_entry_cannot_be_used_to_write_outside_the_destination() {
 }
 
 #[test]
+#[cfg(unix)] // symlinks and unix permission bits
 fn a_directory_entry_does_not_follow_a_symlink_already_in_the_destination() {
     let target = tmp("planted-target");
     let dest = tmp("planted");
@@ -402,6 +404,7 @@ fn extraction_reports_progress_against_real_totals_and_can_be_cancelled() {
 }
 
 #[test]
+#[cfg(unix)] // symlinks and unix permission bits
 fn permissions_and_links_survive_a_round_trip() {
     let info = plain(&fixture("perms.rar"));
     let dest = tmp("perms");
@@ -431,6 +434,7 @@ fn permissions_and_links_survive_a_round_trip() {
 }
 
 #[test]
+#[cfg(unix)] // symlinks and unix permission bits
 fn a_link_entry_is_restored_by_us_rather_than_trusted_to_libunrar() {
     // The escaping archive again, this time salvaging: the link itself is a
     // faithful part of the archive and lands inside the destination, while the
