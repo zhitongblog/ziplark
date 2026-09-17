@@ -101,11 +101,44 @@ struct HeaderData {
     reserved: [u32; 982],
 }
 
-// Packed, these are exactly the sum of their fields — which is what the C side
-// computes too. If either ever fails, a layout has drifted from `dll.hpp` again
-// and every field past the drift is being read from the wrong offset.
-const _: () = assert!(std::mem::size_of::<OpenData>() == 176);
-const _: () = assert!(std::mem::size_of::<HeaderData>() == 14_340);
+/// What these structs must measure: the sum of their fields and nothing more.
+///
+/// The property being guarded is that there is **no padding** — lose `packed`
+/// and every field past the first misaligned pointer moves, which is exactly
+/// the bug `unrar_sys` has. The sizes themselves are not constants: `wchar_t`
+/// is 16 bits on Windows and 32 elsewhere, so the header is 10,244 bytes there
+/// and 14,340 here, and hard-coding either one breaks the other platform's
+/// build (as it did once).
+const fn field_sum(wchar: usize, ptr: usize) -> usize {
+    2 * 1024                    // the two narrow name arrays
+        + 2 * 1024 * wchar      // the two wide name arrays
+        + 11 * 4                // flags … file_attr
+        + ptr                   // cmt_buf
+        + 5 * 4                 // comment sizes, dict_size, hash_type
+        + 32                    // hash
+        + 4                     // redir_type
+        + ptr + 4               // redir_name + its size
+        + 4                     // dir_target
+        + 6 * 4                 // mtime / ctime / atime
+        + 2 * (ptr + 4)         // arc_name_ex / file_name_ex + their sizes
+        + 982 * 4 // reserved
+}
+
+const _: () = assert!(
+    std::mem::size_of::<OpenData>()
+        // Two archive-name pointers, two comment buffers, the callback…
+        == 5 * std::mem::size_of::<*const u8>()
+            + std::mem::size_of::<sys::LPARAM>() // …user_data…
+            + 7 * 4 // …open_mode through op_flags…
+            + 25 * 4 // …and the reserved tail.
+);
+const _: () = assert!(
+    std::mem::size_of::<HeaderData>()
+        == field_sum(
+            std::mem::size_of::<sys::WCHAR>(),
+            std::mem::size_of::<*mut u8>()
+        )
+);
 
 /// `UCM_LARGEDICT`, the callback libunrar uses to ask whether it may allocate a
 /// dictionary bigger than its own 4 GiB default limit. `unrar_sys` predates it.
@@ -237,8 +270,11 @@ impl Archive {
             .ok_or_else(|| Error::other(format!("{}: path is not usable", path.display())))?;
 
         let mut state = Box::new(State {
+            // A password with a character outside the BMP has to survive the
+            // trip: on Windows that means UTF-16 with surrogate pairs, not a
+            // truncated code point.
             password: password.map(|p| {
-                let mut wide: Vec<sys::WCHAR> = p.chars().map(|c| c as u32 as sys::WCHAR).collect();
+                let mut wide = platform::to_wide(p);
                 wide.push(0);
                 wide
             }),
@@ -558,7 +594,7 @@ fn wide_at(ptr: *const sys::WCHAR, max: usize) -> String {
     if ptr.is_null() {
         return String::new();
     }
-    let mut out = String::new();
+    let mut units = Vec::new();
     for i in 0..max {
         // SAFETY: the caller guarantees `max` readable characters, and the loop
         // stops at the NUL libunrar always writes.
@@ -566,11 +602,11 @@ fn wide_at(ptr: *const sys::WCHAR, max: usize) -> String {
         if c == 0 {
             break;
         }
-        if let Some(c) = char::from_u32(c as u32) {
-            out.push(c);
-        }
+        units.push(c);
     }
-    out
+    // Decoding is per platform: those units are UTF-16 on Windows (where a name
+    // outside the BMP arrives as a surrogate pair) and code points elsewhere.
+    platform::wide_to_string(&units)
 }
 
 /// Whether to let libunrar allocate a dictionary of `wanted_kib`.
@@ -742,6 +778,10 @@ mod platform {
     pub fn wide_to_string(buf: &[sys::WCHAR]) -> String {
         buf.iter().filter_map(|c| char::from_u32(*c as u32)).collect()
     }
+
+    pub fn to_wide(s: &str) -> Vec<sys::WCHAR> {
+        s.chars().map(|c| c as u32 as sys::WCHAR).collect()
+    }
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "netbsd")))]
@@ -768,17 +808,28 @@ mod platform {
         unsafe { sys::RARProcessFileW(handle, op, std::ptr::null(), dest) }
     }
 
-    /// `wchar_t` is 16 bits on Windows, so that buffer is UTF-16; everywhere
-    /// else it is 32 bits and holds code points directly.
+    /// `wchar_t` is 16 bits on Windows, so that buffer is UTF-16 — a name
+    /// outside the BMP arrives as a surrogate pair and has to be decoded as
+    /// such. Everywhere else it is 32 bits and holds code points directly.
     #[cfg(windows)]
     pub fn wide_to_string(buf: &[sys::WCHAR]) -> String {
         let units: Vec<u16> = buf.iter().map(|c| *c as u16).collect();
         String::from_utf16_lossy(&units)
     }
 
+    #[cfg(windows)]
+    pub fn to_wide(s: &str) -> Vec<sys::WCHAR> {
+        s.encode_utf16().map(|u| u as sys::WCHAR).collect()
+    }
+
     #[cfg(not(windows))]
     pub fn wide_to_string(buf: &[sys::WCHAR]) -> String {
         buf.iter().filter_map(|c| char::from_u32(*c as u32)).collect()
+    }
+
+    #[cfg(not(windows))]
+    pub fn to_wide(s: &str) -> Vec<sys::WCHAR> {
+        s.chars().map(|c| c as u32 as sys::WCHAR).collect()
     }
 }
 
@@ -840,6 +891,17 @@ mod tests {
         assert_eq!(human_bytes(0), "0 B");
         assert_eq!(human_bytes(4 * 1024 * 1024 * 1024), "4.0 GiB");
         assert_eq!(human_bytes(64 * 1024 * 1024 * 1024), "64 GiB");
+    }
+
+    #[test]
+    fn wide_strings_round_trip_including_outside_the_bmp() {
+        // On Windows these units are UTF-16, so "𝄞" is a surrogate pair; the
+        // encoder and decoder have to agree, or a password with one in it never
+        // opens its archive.
+        for s in ["plain", "密码", "pässwörd", "𝄞 music", "🎉"] {
+            let wide = platform::to_wide(s);
+            assert_eq!(platform::wide_to_string(&wide), s, "round trip of {s:?}");
+        }
     }
 
     #[test]
