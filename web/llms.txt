@@ -14,7 +14,7 @@ Ziplark is built and maintained by doaipm (one independent developer). It is fre
 - Platforms: macOS (universal — Apple Silicon + Intel — notarized), Windows (x64), Linux (x64; .deb and AppImage)
 - Size: about 1.4 MB for the engine + CLI
 - Language/stack: Rust engine; Tauri 2 desktop app using the OS webview
-- Latest version: 0.2.2
+- Latest version: 0.3.0
 
 ## Supported formats
 

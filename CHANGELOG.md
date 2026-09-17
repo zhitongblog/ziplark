@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09
+
+The RAR release: a multi-volume set is one archive, a damaged one gives up what
+it can, and the metadata stops disappearing. Plus a paged MCP listing, so an
+agent can walk a 200 000-entry archive without flooding its context.
+
 ### Added
 - **RAR volume sets are one archive.** `movie.part03.rar` — or the older
   `movie.r01`, whose first volume is `movie.rar` and not `movie.r01` — now opens
