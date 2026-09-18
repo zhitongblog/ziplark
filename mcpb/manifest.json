@@ -1,0 +1,78 @@
+{
+  "manifest_version": "0.3",
+  "name": "ziplark-mcp",
+  "display_name": "Ziplark",
+  "version": "0.0.0-dev",
+  "description": "Read and write archives — ZIP, RAR (incl. multi-volume), 7z, tar, ISO — from an MCP client.",
+  "long_description": "Ziplark's archive engine over the Model Context Protocol. Lists, extracts, verifies and creates archives: ZIP, RAR and RAR5 (including multi-volume sets, encrypted headers and self-extracting archives), 7z, tar and the compressed-tar variants, single-stream gz/bz2/xz/zst/lz4, and ISO 9660 / Joliet disc images. Listings are paged, so a 200,000-entry archive costs the same context as a small one, and entries can be extracted by exact path rather than by substring. Every extraction path is funnelled through a single guard, so no entry can be written outside the destination directory. Read tools are always available; extracting and creating require --allow-write.",
+  "author": {
+    "name": "doaipm",
+    "url": "https://ziplark.com"
+  },
+  "homepage": "https://ziplark.com",
+  "documentation": "https://github.com/zhitongblog/ziplark#3-mcp-server",
+  "support": "https://github.com/zhitongblog/ziplark/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhitongblog/ziplark"
+  },
+  "license": "MIT",
+  "icon": "icon.png",
+  "keywords": [
+    "archive",
+    "zip",
+    "rar",
+    "7z",
+    "tar",
+    "iso",
+    "extract",
+    "compression"
+  ],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/ziplark-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/server/ziplark-mcp",
+      "args": [],
+      "env": {},
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/ziplark-mcp.exe"
+        },
+        "linux": {
+          "command": "${__dirname}/server/ziplark-mcp-linux"
+        }
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "ziplark_info",
+      "description": "What kind of archive this is and what shape it is in: format, entry count, sizes, encryption, and — for a RAR set — its volumes, whether one is missing, whether it is solid, and its comment."
+    },
+    {
+      "name": "ziplark_list",
+      "description": "List the entries inside an archive, paged, with per-directory counts when the result is truncated."
+    },
+    {
+      "name": "ziplark_test",
+      "description": "Verify archive integrity by decompressing every entry. Writes nothing, and reports every bad entry rather than the first."
+    },
+    {
+      "name": "ziplark_extract",
+      "description": "Extract an archive, or exactly the entries named, into a destination directory. Requires --allow-write."
+    },
+    {
+      "name": "ziplark_create",
+      "description": "Create a ZIP (AES-256), 7z (AES-256) or tar archive from files and directories. Requires --allow-write."
+    }
+  ],
+  "tools_generated": false,
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ]
+  }
+}

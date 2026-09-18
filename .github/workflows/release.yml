@@ -142,3 +142,34 @@ jobs:
           tagName: ${{ needs.create-release.outputs.tag }}
           releaseName: Ziplark ${{ needs.create-release.outputs.tag }}
           args: --bundles ${{ matrix.bundles }} ${{ matrix.extraArgs }}
+
+  # The MCP Bundle: one artifact carrying the server for all three platforms.
+  # It is how the official MCP registry accepts a compiled server — and being
+  # listed there is what feeds the MCP directories. Runs after the CLI jobs,
+  # since it packs the very binaries they published.
+  mcpb:
+    needs: [create-release, cli]
+    name: mcpb bundle
+    # macOS, because the bundle carries a universal macOS binary and `lipo`
+    # is what makes one.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the published CLI archives
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ needs.create-release.outputs.tag }}"
+          mkdir -p dist
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern "ziplark-$tag-*.tar.gz" --pattern "ziplark-$tag-*.zip"
+          ls -l dist
+      - name: Build the bundle
+        run: bash scripts/build-mcpb.sh dist dist/mcpb
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag }}
+          files: |
+            dist/mcpb/*.mcpb
+            dist/mcpb/*.mcpb.sha256
