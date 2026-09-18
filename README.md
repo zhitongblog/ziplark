@@ -171,6 +171,13 @@ A Model Context Protocol server (JSON-RPC over stdio). Read tools
 ```bash
 cargo build --release -p ziplark-mcp
 ```
+Or install the **MCP Bundle** — `ziplark-mcp-<version>.mcpb` on the
+[releases page](https://github.com/zhitongblog/ziplark/releases/latest), one file
+carrying the server for macOS, Windows and Linux. Ziplark is listed in the
+[official MCP registry](https://registry.modelcontextprotocol.io/v0/servers?search=ziplark)
+as `io.github.zhitongblog/ziplark`, so clients that read the registry can find it
+on their own.
+
 Register it with an MCP client:
 ```json
 {

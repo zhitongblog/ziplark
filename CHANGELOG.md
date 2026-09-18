@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Added
+- **An MCP Bundle (`.mcpb`) ships with every release**, carrying the server for
+  macOS (universal), Windows and Linux in one artifact, and Ziplark is listed in
+  the official MCP registry as `io.github.zhitongblog/ziplark` — which is how
+  the MCP directories find a server. The registry takes npm, PyPI, OCI, NuGet or
+  a bundle; a Rust binary on a Homebrew tap was not something it could list.
+
 ## [0.3.0] — 2026-09
 
 The RAR release: a multi-volume set is one archive, a damaged one gives up what

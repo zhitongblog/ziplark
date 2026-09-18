@@ -15,6 +15,9 @@ on:
 
 permissions:
   contents: write
+  # The mcpb job authenticates to the MCP registry with an OIDC token rather
+  # than a stored secret.
+  id-token: write
 
 jobs:
   create-release:
@@ -173,3 +176,39 @@ jobs:
           files: |
             dist/mcpb/*.mcpb
             dist/mcpb/*.mcpb.sha256
+
+      # Then tell the official MCP registry about it. server.json in the repo
+      # points at whatever release it was last published for, so it is rewritten
+      # here from the bundle that was just built — the registry rejects an entry
+      # whose fileSha256 does not match what the URL serves.
+      - name: Point server.json at this release
+        run: |
+          tag="${{ needs.create-release.outputs.tag }}"
+          version="${tag#v}"
+          bundle="dist/mcpb/ziplark-mcp-$version.mcpb"
+          sha="$(shasum -a 256 "$bundle" | cut -d' ' -f1)"
+          python3 - "$version" "$tag" "$sha" <<'PY'
+          import json, sys
+          version, tag, sha = sys.argv[1:4]
+          manifest = json.load(open("server.json"))
+          manifest["version"] = version
+          pkg = manifest["packages"][0]
+          pkg["identifier"] = (
+              "https://github.com/zhitongblog/ziplark/releases/download/"
+              f"{tag}/ziplark-mcp-{version}.mcpb"
+          )
+          pkg["fileSha256"] = sha
+          json.dump(manifest, open("server.json", "w"), indent=2, ensure_ascii=False)
+          print(json.dumps(pkg, indent=2))
+          PY
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      - name: Publish to the MCP registry
+        # Best-effort: the bundle is already attached to the release by now, and
+        # a registry hiccup should not turn a good release red. Re-runnable by
+        # hand with `mcp-publisher login github && mcp-publisher publish`.
+        continue-on-error: true
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish server.json

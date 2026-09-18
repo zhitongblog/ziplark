@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.zhitongblog/ziplark",
+  "title": "Ziplark",
+  "description": "Archive server: extract & create ZIP, 7z, tar, gz/xz/zst; read RAR/RAR5 & ISO. AES-256, safe.",
+  "version": "0.3.0",
+  "repository": {
+    "url": "https://github.com/zhitongblog/ziplark",
+    "source": "github"
+  },
+  "websiteUrl": "https://ziplark.com",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/zhitongblog/ziplark/releases/download/v0.3.0/ziplark-mcp-0.3.0.mcpb",
+      "fileSha256": "8348f8969125f7b726d096507a01abb8869344d6e2e62e96ddb6fa257b5e01f0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
