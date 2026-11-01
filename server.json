@@ -13,7 +13,7 @@
     {
       "registryType": "mcpb",
       "identifier": "https://github.com/zhitongblog/ziplark/releases/download/v0.4.0/ziplark-mcp-0.4.0.mcpb",
-      "fileSha256": "8348f8969125f7b726d096507a01abb8869344d6e2e62e96ddb6fa257b5e01f0",
+      "fileSha256": "980c12ad16c271476ae7a848868a196ce25c8937d90f0d0cbf7c5e23fb04a703",
       "transport": {
         "type": "stdio"
       }
