@@ -225,6 +225,13 @@ impl Entry {
     }
 }
 
+struct Capture {
+    offset: u64,
+    max_bytes: u64,
+    seen: u64,
+    bytes: Vec<u8>,
+}
+
 /// Mutable state libunrar reaches back into through the callback.
 ///
 /// Boxed so its address is stable: libunrar keeps the pointer we hand it at
@@ -236,6 +243,8 @@ struct State {
     missing_volume: Option<String>,
     /// A dictionary libunrar asked to allocate and we refused, in KiB.
     refused_dictionary_kib: Option<u64>,
+    /// Optional in-memory capture buffer filled during `RAR_TEST` via `UCM_PROCESSDATA`.
+    capture: Option<Capture>,
 }
 
 /// An open RAR archive.
@@ -280,6 +289,7 @@ impl Archive {
             }),
             missing_volume: None,
             refused_dictionary_kib: None,
+            capture: None,
         });
 
         // 64 KiB of characters, the ceiling RAR itself puts on a comment.
@@ -399,6 +409,21 @@ impl Archive {
     /// Decompress the entry and check its checksum, writing nothing.
     pub fn test(&mut self) -> Result<()> {
         self.process(sys::RAR_TEST, None)
+    }
+
+    /// Decompress the entry in memory (`RAR_TEST`) and return `[offset .. offset + max_bytes]`
+    /// alongside the total uncompressed bytes observed.
+    pub fn read_bytes(&mut self, offset: u64, max_bytes: u64) -> Result<(Vec<u8>, u64)> {
+        self.state.capture = Some(Capture {
+            offset,
+            max_bytes: max_bytes.min(64 * 1024 * 1024),
+            seen: 0,
+            bytes: Vec::new(),
+        });
+        let res = self.process(sys::RAR_TEST, None);
+        let cap = self.state.capture.take().unwrap();
+        res?;
+        Ok((cap.bytes, cap.seen))
     }
 
     /// Extract the entry to exactly this path.
@@ -580,6 +605,27 @@ extern "C" fn callback(
                 buf.add(n).write(0);
             }
             0
+        }
+        sys::UCM_PROCESSDATA => {
+            if let Some(cap) = &mut state.capture {
+                if p1 != 0 && p2 > 0 {
+                    // SAFETY: libunrar passes `(addr, size)` of the unpacked chunk.
+                    let chunk =
+                        unsafe { std::slice::from_raw_parts(p1 as *const u8, p2 as usize) };
+                    let chunk_start = cap.seen;
+                    let chunk_end = cap.seen + chunk.len() as u64;
+                    cap.seen = chunk_end;
+
+                    let win_start = cap.offset;
+                    let win_end = cap.offset.saturating_add(cap.max_bytes);
+                    if chunk_end > win_start && chunk_start < win_end {
+                        let from = win_start.saturating_sub(chunk_start) as usize;
+                        let to = (win_end.min(chunk_end) - chunk_start) as usize;
+                        cap.bytes.extend_from_slice(&chunk[from..to]);
+                    }
+                }
+            }
+            1
         }
         _ => 0,
     }

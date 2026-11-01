@@ -1,3 +1,6 @@
+pub mod ar;
+pub mod cab;
+pub mod cpio;
 pub mod iso;
 pub mod rar;
 pub mod sevenz;
@@ -6,10 +9,11 @@ pub mod tar;
 pub mod zip;
 
 use crate::error::{Error, Result};
-use crate::model::Progress;
+use crate::model::{EntryContent, Progress};
+use crate::ReadOptions;
 use std::collections::HashSet;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 /// How much we move per read/write when copying an entry. Small enough that a
@@ -49,6 +53,37 @@ pub fn copy_watched<R: Read + ?Sized, W: Write + ?Sized>(
             return Err(Error::Cancelled);
         }
     }
+}
+
+/// Read up to `opts.max_bytes` starting at `opts.offset` from an entry stream
+/// without touching the disk.
+pub fn read_bounded<R: Read + ?Sized>(
+    reader: &mut R,
+    path: String,
+    size: u64,
+    opts: &ReadOptions,
+) -> Result<EntryContent> {
+    if opts.offset > 0 {
+        let mut skip = (&mut *reader).take(opts.offset);
+        io::copy(&mut skip, &mut io::sink())?;
+    }
+    let cap = opts.max_bytes.min(64 * 1024 * 1024);
+    let mut bytes = Vec::new();
+    (&mut *reader).take(cap).read_to_end(&mut bytes)?;
+    // Probe 1 more byte to know for sure if the stream continues (even for
+    // formats like `.gz` where `size` is 0 / unknown beforehand).
+    let mut probe = [0u8; 1];
+    let has_more = reader.read(&mut probe)? > 0;
+    let known_end = opts.offset.saturating_add(bytes.len() as u64);
+    let truncated = has_more || (size > 0 && known_end < size);
+    let effective_size = size.max(known_end + u64::from(has_more));
+    Ok(EntryContent {
+        path,
+        size: effective_size,
+        offset: opts.offset,
+        bytes,
+        truncated,
+    })
 }
 
 /// Guards every write an extraction makes against escaping the destination.

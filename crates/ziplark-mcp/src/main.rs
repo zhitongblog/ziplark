@@ -6,8 +6,8 @@
 //! transport). Logs go to stderr so they never corrupt the protocol stream.
 
 use ziplark_core::{
-    create, detect, extract, list, test, CreateOptions, ExtractOptions, Format, Level, ListOptions,
-    MatchMode, Selector,
+    add, create, detect, detect_by_extension, extract, list, read_entry, test, CreateOptions,
+    ExtractOptions, Format, Level, ListOptions, MatchMode, ReadOptions, Selector,
 };
 use serde_json::{json, Value};
 use std::io::{BufRead, Write};
@@ -130,19 +130,39 @@ can be triaged — and says so if a volume of a multi-volume set is missing.",
             "inputSchema": { "type": "object", "required": ["path"],
                 "properties": { "path": { "type": "string" }, "password": pw.clone() } }
         }),
+        json!({
+            "name": "ziplark_read",
+            "description": "Read a single entry inside an archive into memory without extracting \
+anything to disk. Always available in read-only mode. Returns UTF-8 text (or a hex preview for \
+binary files) along with the entry's full size and `next_offset` so large files can be paged.",
+            "inputSchema": { "type": "object", "required": ["path", "entry"],
+                "properties": {
+                    "path": { "type": "string" },
+                    "entry": { "type": "string", "description": "Entry path inside the archive" },
+                    "password": pw.clone(),
+                    "offset": { "type": "integer", "minimum": 0,
+                        "description": "Byte offset inside the entry to start reading from (default 0)" },
+                    "max_bytes": { "type": "integer", "minimum": 1,
+                        "description": "Maximum bytes to return (default 262144, capped at 4194304)" }
+                } }
+        }),
     ];
     if allow_write {
         tools.push(json!({
             "name": "ziplark_extract",
             "description": "Extract an archive into a destination directory. No entry can be \
-written outside `dest`, whatever the archive claims. For a multi-volume RAR set, pass any one of \
-its files.",
+written outside `dest`, whatever the archive claims. For a multi-volume RAR/7z/ZIP set, pass any \
+one of its files.",
             "inputSchema": { "type": "object", "required": ["path", "dest"],
                 "properties": {
                     "path": { "type": "string" },
                     "dest": { "type": "string", "description": "Destination directory" },
                     "password": pw.clone(),
                     "overwrite": { "type": "boolean" },
+                    "smart": { "type": "boolean",
+                        "description": "Anti-tarbomb smart folder: wrap multiple top-level items \
+into `dest/<archive-stem>/`, or extract directly into `dest` when the archive already has a single \
+top-level folder." },
                     "include": { "type": "array", "items": { "type": "string" },
                         "description": "Only extract entries matching one of these patterns. A \
 pattern with `*` or `?` is matched as a glob against the whole path; otherwise it is a substring \
@@ -165,7 +185,18 @@ readable files out of a damaged archive, or out of a volume set with a volume mi
                 "properties": {
                     "output": { "type": "string" },
                     "inputs": { "type": "array", "items": { "type": "string" } },
-                    "format": { "type": "string", "description": "zip|7z|tar|tar.gz|tar.bz2|tar.xz|tar.zst|gz|bz2|xz|zst" },
+                    "format": { "type": "string", "description": "zip|7z|tar|tar.gz|tar.bz2|tar.xz|tar.zst|tar.lz4|gz|bz2|xz|zst|lz4" },
+                    "level": { "type": "string", "description": "store|fast|default|best" },
+                    "password": pw.clone()
+                } }
+        }));
+        tools.push(json!({
+            "name": "ziplark_add",
+            "description": "Add or replace files/directories inside an existing archive (zip, 7z, tar.*), or create it if it does not exist.",
+            "inputSchema": { "type": "object", "required": ["archive", "inputs"],
+                "properties": {
+                    "archive": { "type": "string" },
+                    "inputs": { "type": "array", "items": { "type": "string" } },
                     "level": { "type": "string", "description": "store|fast|default|best" },
                     "password": pw
                 } }
@@ -183,9 +214,11 @@ fn handle_call(id: Option<Value>, req: &Value, allow_write: bool) -> Value {
         "ziplark_info" => call_info(&args),
         "ziplark_list" => call_list(&args),
         "ziplark_test" => call_test(&args),
+        "ziplark_read" => call_read(&args),
         "ziplark_extract" if allow_write => call_extract(&args),
         "ziplark_create" if allow_write => call_create(&args),
-        "ziplark_extract" | "ziplark_create" => {
+        "ziplark_add" if allow_write => call_add(&args),
+        "ziplark_extract" | "ziplark_create" | "ziplark_add" => {
             Err("write tools are disabled; start ziplark-mcp with --allow-write".into())
         }
         other => return error(id, -32602, &format!("unknown tool: {other}")),
@@ -434,6 +467,7 @@ fn call_extract(args: &Value) -> Result<String, String> {
             .unwrap_or_default(),
         match_mode: if exact { MatchMode::Exact } else { MatchMode::Auto },
         keep_broken: args.get("keep_broken").and_then(|v| v.as_bool()).unwrap_or(false),
+        smart: args.get("smart").and_then(|v| v.as_bool()).unwrap_or(false),
     };
     let report = extract(path, &opts, None).map_err(|e| e.to_string())?;
 
@@ -487,6 +521,82 @@ fn call_create(args: &Value) -> Result<String, String> {
     jsonify(&report)
 }
 
+const READ_DEFAULT_MAX_BYTES: u64 = 256 * 1024;
+const READ_CAP_MAX_BYTES: u64 = 4 * 1024 * 1024;
+
+fn call_read(args: &Value) -> Result<String, String> {
+    let path = str_arg(args, "path")?;
+    let entry = str_arg(args, "entry")?;
+    let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+    let max_bytes = args
+        .get("max_bytes")
+        .and_then(|v| v.as_u64())
+        .map(|n| n.clamp(1, READ_CAP_MAX_BYTES))
+        .unwrap_or(READ_DEFAULT_MAX_BYTES);
+
+    let opts = ReadOptions {
+        password: opt_str(args, "password"),
+        offset,
+        max_bytes,
+    };
+    let content = read_entry(path, entry, &opts).map_err(|e| e.to_string())?;
+    let returned_bytes = content.bytes.len() as u64;
+    let next_offset = content.offset + returned_bytes;
+    let is_binary = content.bytes.contains(&0) || std::str::from_utf8(&content.bytes).is_err();
+
+    let mut out = json!({
+        "path": content.path,
+        "size": content.size,
+        "offset": content.offset,
+        "returned_bytes": returned_bytes,
+        "truncated": content.truncated,
+        "next_offset": if content.truncated { json!(next_offset) } else { Value::Null },
+        "is_binary": is_binary,
+    });
+    if !is_binary {
+        out["text"] = json!(String::from_utf8_lossy(&content.bytes));
+    } else {
+        // For binary data, include a compact hex preview of the first 256 bytes.
+        let preview_len = content.bytes.len().min(256);
+        let hex: String = content.bytes[..preview_len]
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        out["hex_preview"] = json!(hex);
+    }
+    if content.truncated {
+        out["hint"] = json!(format!(
+            "Read {returned_bytes} bytes starting at offset {}. Call ziplark_read with \
+offset={next_offset} for the next chunk.",
+            content.offset
+        ));
+    }
+    jsonify(&out)
+}
+
+fn call_add(args: &Value) -> Result<String, String> {
+    let archive = str_arg(args, "archive")?;
+    let inputs: Vec<PathBuf> = args
+        .get("inputs")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(PathBuf::from)).collect())
+        .unwrap_or_default();
+    if inputs.is_empty() {
+        return Err("'inputs' must be a non-empty array of paths".into());
+    }
+    let fmt = detect(std::path::Path::new(archive))
+        .or_else(|| format_from_name(archive))
+        .ok_or_else(|| format!("cannot infer archive format from '{archive}'"))?;
+    let opts = CreateOptions {
+        format: fmt,
+        level: parse_level(opt_str(args, "level").as_deref()),
+        password: opt_str(args, "password"),
+    };
+    let report = add(archive, &inputs, &opts, None).map_err(|e| e.to_string())?;
+    jsonify(&report)
+}
+
 fn parse_level(s: Option<&str>) -> Level {
     match s {
         Some("store") => Level::Store,
@@ -505,35 +615,18 @@ fn parse_format(s: &str) -> Result<Format, String> {
         "tar.bz2" | "tbz2" => Format::TarBz2,
         "tar.xz" | "txz" => Format::TarXz,
         "tar.zst" | "tzst" => Format::TarZst,
+        "tar.lz4" | "tlz4" => Format::TarLz4,
         "gz" => Format::Gz,
         "bz2" => Format::Bz2,
         "xz" => Format::Xz,
         "zst" => Format::Zst,
+        "lz4" => Format::Lz4,
         other => return Err(format!("unknown format '{other}'")),
     })
 }
 
 fn format_from_name(name: &str) -> Option<Format> {
-    let l = name.to_ascii_lowercase();
-    for (ext, f) in [
-        (".tar.gz", Format::TarGz),
-        (".tgz", Format::TarGz),
-        (".tar.bz2", Format::TarBz2),
-        (".tar.xz", Format::TarXz),
-        (".tar.zst", Format::TarZst),
-        (".tar", Format::Tar),
-        (".zip", Format::Zip),
-        (".7z", Format::SevenZ),
-        (".gz", Format::Gz),
-        (".bz2", Format::Bz2),
-        (".xz", Format::Xz),
-        (".zst", Format::Zst),
-    ] {
-        if l.ends_with(ext) {
-            return Some(f);
-        }
-    }
-    None
+    detect_by_extension(&name.to_ascii_lowercase())
 }
 
 #[cfg(test)]
@@ -561,7 +654,7 @@ mod tests {
         let out = root.join("a.zip");
         create(
             &out,
-            &[src.clone()],
+            std::slice::from_ref(&src),
             &CreateOptions { format: Format::Zip, level: Level::Fast, password: None },
             None,
         )
@@ -569,7 +662,7 @@ mod tests {
         (root, out)
     }
 
-    fn list_call(path: &PathBuf, extra: Value) -> Value {
+    fn list_call(path: &std::path::Path, extra: Value) -> Value {
         let mut args = json!({ "path": path.to_str().unwrap() });
         if let Some(map) = extra.as_object() {
             for (k, v) in map {
@@ -774,5 +867,61 @@ mod tests {
     #[test]
     fn notifications_get_no_response() {
         assert!(handle(&json!({ "method": "notifications/initialized" }), false).is_none());
+    }
+
+    #[test]
+    fn read_tool_returns_utf8_content_without_extracting() {
+        let v = call(
+            "ziplark_read",
+            json!({
+                "path": fixture("multi.part1.rar").to_str().unwrap(),
+                "entry": "tree/docs/readme.txt",
+            }),
+        );
+        assert_eq!(v["path"], json!("tree/docs/readme.txt"));
+        assert_eq!(v["is_binary"], json!(false));
+        assert_eq!(v["truncated"], json!(false));
+        assert!(!v["text"].as_str().unwrap().is_empty());
+    }
+
+    #[test]
+    fn add_tool_appends_files_when_allow_write_is_set() {
+        let dir = tmpdir("mcp-add");
+        let f1 = dir.join("a.txt");
+        let f2 = dir.join("b.txt");
+        std::fs::write(&f1, b"alpha").unwrap();
+        std::fs::write(&f2, b"bravo").unwrap();
+        let archive = dir.join("out.zip");
+
+        let req_create = json!({
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "ziplark_create",
+                "arguments": {
+                    "output": archive.to_str().unwrap(),
+                    "inputs": [f1.to_str().unwrap()]
+                }
+            }
+        });
+        let resp_create = handle(&req_create, true).unwrap();
+        assert_ne!(resp_create["result"]["isError"], json!(true));
+
+        let req_add = json!({
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "ziplark_add",
+                "arguments": {
+                    "archive": archive.to_str().unwrap(),
+                    "inputs": [f2.to_str().unwrap()]
+                }
+            }
+        });
+        let resp_add = handle(&req_add, true).unwrap();
+        assert_ne!(resp_add["result"]["isError"], json!(true));
+
+        let listed = call("ziplark_list", json!({ "path": archive.to_str().unwrap() }));
+        assert_eq!(listed["total_entries"], json!(2));
     }
 }

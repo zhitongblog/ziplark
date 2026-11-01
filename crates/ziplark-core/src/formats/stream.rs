@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
-use crate::formats::{copy_watched, create_file, ensure_parent, report};
+use crate::formats::{copy_watched, create_file, ensure_parent, read_bounded, report};
 use crate::model::*;
-use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
+use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn, ReadOptions};
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
@@ -135,6 +135,21 @@ pub fn test(path: &Path, fmt: Format, _opts: &ListOptions, progress: ProgressFn)
         entries_tested: 1,
         bad_entries: bad,
     })
+}
+
+pub fn read_entry(
+    path: &Path,
+    fmt: Format,
+    entry_path: &str,
+    opts: &ReadOptions,
+) -> Result<EntryContent> {
+    let name = inner_name(path);
+    let target = entry_path.trim_start_matches("./").trim_end_matches('/');
+    if !target.is_empty() && target != name {
+        return Err(Error::other(format!("entry not found in archive: {entry_path}")));
+    }
+    let mut dec = decoder(path, fmt)?;
+    read_bounded(&mut dec, name, 0, opts)
 }
 
 pub fn create(

@@ -22,12 +22,46 @@ pub enum Format {
     TarLz4,
     /// ISO 9660 / Joliet disc image (extract-only).
     Iso,
+    /// Unix `ar` archive / static library (`.ar`, `.a`) (extract-only).
+    Ar,
+    /// Debian software package (`.deb`, `.udeb`, `.ipk`) (extract-only).
+    Deb,
+    /// POSIX / SVR4 `cpio` archive (`.cpio`) (extract-only).
+    Cpio,
+    /// Red Hat software package (`.rpm`) (extract-only).
+    Rpm,
+    /// Microsoft Cabinet archive (`.cab`) (extract-only).
+    Cab,
 }
 
 impl Format {
     /// Whether the engine can create (write) this format.
     pub fn can_create(self) -> bool {
-        !matches!(self, Format::Rar | Format::Iso)
+        !matches!(
+            self,
+            Format::Rar
+                | Format::Iso
+                | Format::Ar
+                | Format::Deb
+                | Format::Cpio
+                | Format::Rpm
+                | Format::Cab
+        )
+    }
+
+    /// Whether entries can be added to an existing archive of this format.
+    pub fn can_modify(self) -> bool {
+        matches!(
+            self,
+            Format::Zip
+                | Format::SevenZ
+                | Format::Tar
+                | Format::TarGz
+                | Format::TarBz2
+                | Format::TarXz
+                | Format::TarZst
+                | Format::TarLz4
+        )
     }
 
     /// Human-readable label.
@@ -48,6 +82,11 @@ impl Format {
             Format::Lz4 => "LZ4",
             Format::TarLz4 => "TAR.LZ4",
             Format::Iso => "ISO",
+            Format::Ar => "AR",
+            Format::Deb => "DEB",
+            Format::Cpio => "CPIO",
+            Format::Rpm => "RPM",
+            Format::Cab => "CAB",
         }
     }
 
@@ -69,6 +108,11 @@ impl Format {
             Format::Lz4 => "lz4",
             Format::TarLz4 => "tar.lz4",
             Format::Iso => "iso",
+            Format::Ar => "ar",
+            Format::Deb => "deb",
+            Format::Cpio => "cpio",
+            Format::Rpm => "rpm",
+            Format::Cab => "cab",
         }
     }
 }
@@ -184,4 +228,20 @@ pub struct TestReport {
     pub ok: bool,
     pub entries_tested: u64,
     pub bad_entries: Vec<String>,
+}
+
+/// Content of a single entry read directly from an archive without extracting
+/// to disk.
+#[derive(Debug, Clone, Serialize)]
+pub struct EntryContent {
+    /// Canonical path of the entry inside the archive.
+    pub path: String,
+    /// Full uncompressed size of the entry in bytes.
+    pub size: u64,
+    /// Byte offset inside the entry where `bytes` begins.
+    pub offset: u64,
+    /// Raw bytes read from `[offset .. offset + bytes.len()]`.
+    pub bytes: Vec<u8>,
+    /// True if the entry continues past `offset + bytes.len()`.
+    pub truncated: bool,
 }

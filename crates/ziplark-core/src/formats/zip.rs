@@ -1,11 +1,13 @@
 use crate::encoding::NameDecoder;
 use crate::error::{Error, Result};
 use crate::formats::{
-    collect_inputs, copy_watched, create_file, create_symlink, ensure_parent, prepare_dir, report,
-    DestGuard, InputKind,
+    collect_inputs, copy_watched, create_file, create_symlink, ensure_parent, prepare_dir,
+    read_bounded, report, DestGuard, InputKind,
 };
 use crate::model::*;
-use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
+use crate::volumes::{VolumeReader, VolumeSet};
+use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn, ReadOptions};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, Write};
 use std::io::{Read, Seek};
@@ -71,8 +73,27 @@ fn read_directory<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<(Vec<St
 }
 
 pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo> {
-    let file = File::open(path)?;
-    let mut archive = ZipArchive::new(file).map_err(map_zip_err)?;
+    let set = VolumeSet::inspect(path);
+    let reader = match VolumeReader::open_zip(&set) {
+        Ok(r) => r,
+        Err(Error::MissingVolume(missing)) => {
+            let total_compressed = set.total_compressed_size().unwrap_or(0);
+            return Ok(ArchiveInfo {
+                format: fmt,
+                path: set.primary,
+                entries: Vec::new(),
+                encrypted: false,
+                total_size: 0,
+                total_compressed,
+                volumes: set.volumes,
+                missing_volume: Some(missing),
+                comment: None,
+                attributes: ArchiveAttributes::default(),
+            });
+        }
+        Err(e) => return Err(e),
+    };
+    let mut archive = ZipArchive::new(reader).map_err(map_zip_err)?;
     // ZIP keeps a comment at the end of the central directory — usually absent,
     // free to read when it is there. Its bytes carry no declared encoding, so
     // anything that is not UTF-8 is read leniently rather than dropped.
@@ -83,6 +104,7 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
     let mut total_size = 0u64;
     let mut total_compressed = 0u64;
     let mut any_encrypted = false;
+    let is_multi_vol = set.volumes.len() > 1;
 
     for (i, name) in names.iter().enumerate() {
         // by_index_raw exposes metadata without needing the password.
@@ -99,27 +121,28 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
             encrypted,
             modified: ts(e.last_modified()),
             crc32: Some(e.crc32()),
-            split: false,
+            split: is_multi_vol,
         });
     }
 
     Ok(ArchiveInfo {
         format: fmt,
-        path: path.to_path_buf(),
+        path: set.primary,
         entries,
         encrypted: any_encrypted,
         total_size,
         total_compressed,
-        volumes: Vec::new(),
-        missing_volume: None,
+        volumes: set.volumes,
+        missing_volume: set.missing_volume,
         comment,
         attributes: ArchiveAttributes::default(),
     })
 }
 
 pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Result<ExtractReport> {
-    let file = File::open(path)?;
-    let mut archive = ZipArchive::new(file).map_err(map_zip_err)?;
+    let set = VolumeSet::inspect(path);
+    let reader = VolumeReader::open_zip(&set)?;
+    let mut archive = ZipArchive::new(reader).map_err(map_zip_err)?;
     let (names, bytes_total) = read_directory(&mut archive)?;
     std::fs::create_dir_all(&opts.dest)?;
     let selector = opts.selector();
@@ -203,8 +226,9 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
 }
 
 pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<TestReport> {
-    let file = File::open(path)?;
-    let mut archive = ZipArchive::new(file).map_err(map_zip_err)?;
+    let set = VolumeSet::inspect(path);
+    let reader = VolumeReader::open_zip(&set)?;
+    let mut archive = ZipArchive::new(reader).map_err(map_zip_err)?;
     let names = decode_names(&mut archive)?;
     let total = archive.len() as u64;
     let mut bad = Vec::new();
@@ -421,6 +445,132 @@ pub fn create(
     let mut finished = zipw.finish().map_err(map_zip_err)?;
     finished.flush()?;
     report.bytes_out = finished.metadata()?.len();
+    Ok(report)
+}
+
+pub fn read_entry(path: &Path, entry_path: &str, opts: &ReadOptions) -> Result<EntryContent> {
+    let set = VolumeSet::inspect(path);
+    let reader = VolumeReader::open_zip(&set)?;
+    let mut archive = ZipArchive::new(reader).map_err(map_zip_err)?;
+    let names = decode_names(&mut archive)?;
+    let target = entry_path.replace('\\', "/");
+    let target = target.trim_start_matches("./").trim_end_matches('/');
+
+    for (i, name) in names.iter().enumerate() {
+        if name.trim_end_matches('/') == target {
+            let mut entry = match &opts.password {
+                Some(pw) => archive.by_index_decrypt(i, pw.as_bytes()),
+                None => archive.by_index(i),
+            }
+            .map_err(map_zip_err)?;
+            let size = entry.size();
+            return read_bounded(&mut entry, name.clone(), size, opts);
+        }
+    }
+    Err(Error::other(format!("entry not found in archive: {entry_path}")))
+}
+
+/// Add (or replace) `inputs` inside an existing ZIP archive atomically.
+/// Existing entries that are not overwritten by `inputs` are copied raw without
+/// decompression/recompression.
+pub fn add(
+    archive_path: &Path,
+    inputs: &[std::path::PathBuf],
+    opts: &CreateOptions,
+    progress: ProgressFn,
+) -> Result<CreateReport> {
+    let files = collect_inputs(inputs)?;
+    let new_names: HashSet<String> = files
+        .iter()
+        .map(|f| f.rel.trim_end_matches('/').to_string())
+        .collect();
+
+    let src_file = File::open(archive_path)?;
+    let mut existing = ZipArchive::new(src_file).map_err(map_zip_err)?;
+    let existing_names = decode_names(&mut existing)?;
+    let comment = existing.comment().to_vec();
+
+    let tmp_path = archive_path.with_extension(format!("zip.tmp.{}", std::process::id()));
+    let tmp_file = File::create(&tmp_path)?;
+    let mut zipw = ZipWriter::new(tmp_file);
+    if !comment.is_empty() {
+        zipw.set_raw_comment(comment.into_boxed_slice());
+    }
+
+    let mut report = CreateReport {
+        output: archive_path.to_path_buf(),
+        format: Format::Zip,
+        entries_added: 0,
+        bytes_in: 0,
+        bytes_out: 0,
+    };
+
+    let copy_res = (|| -> Result<()> {
+        for (i, name) in existing_names.iter().enumerate() {
+            let clean = name.trim_end_matches('/');
+            if new_names.contains(clean) {
+                continue;
+            }
+            let raw_entry = existing.by_index_raw(i).map_err(map_zip_err)?;
+            zipw.raw_copy_file(raw_entry).map_err(map_zip_err)?;
+        }
+
+        let total = files.len() as u64;
+        for (idx, input) in files.iter().enumerate() {
+            match input.kind {
+                InputKind::EmptyDir => {
+                    let meta = std::fs::metadata(&input.path).ok();
+                    let o = entry_options(opts, meta.as_ref(), None)?;
+                    zipw.add_directory(input.rel.trim_end_matches('/'), o)
+                        .map_err(map_zip_err)?;
+                }
+                InputKind::Symlink => {
+                    let target = std::fs::read_link(&input.path)?;
+                    let meta = std::fs::symlink_metadata(&input.path).ok();
+                    let o = entry_options(opts, meta.as_ref(), Some(S_IFLNK | 0o777))?;
+                    zipw.add_symlink(
+                        input.rel.as_str(),
+                        target.to_string_lossy().replace('\\', "/"),
+                        o,
+                    )
+                    .map_err(map_zip_err)?;
+                    report.entries_added += 1;
+                }
+                InputKind::File => {
+                    let meta = std::fs::metadata(&input.path)?;
+                    let o = entry_options(opts, Some(&meta), None)?;
+                    zipw.start_file(input.rel.as_str(), o).map_err(map_zip_err)?;
+                    let mut f = File::open(&input.path)?;
+                    let n = io::copy(&mut f, &mut zipw)?;
+                    report.entries_added += 1;
+                    report.bytes_in += n;
+                }
+            }
+            crate::formats::report(
+                progress,
+                Progress {
+                    current_path: input.rel.clone(),
+                    entries_done: idx as u64 + 1,
+                    entries_total: total,
+                    bytes_done: report.bytes_in,
+                    bytes_total: 0,
+                },
+            )?;
+        }
+
+        let mut finished = zipw.finish().map_err(map_zip_err)?;
+        finished.flush()?;
+        Ok(())
+    })();
+
+    drop(existing);
+    if let Err(e) = copy_res {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(e);
+    }
+
+    std::fs::rename(&tmp_path, archive_path)?;
+    report.bytes_out = std::fs::metadata(archive_path)?.len();
     Ok(report)
 }
 

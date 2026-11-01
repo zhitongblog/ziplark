@@ -1,11 +1,11 @@
 use crate::encoding::NameDecoder;
 use crate::error::{Error, Result};
 use crate::formats::{
-    collect_inputs, ensure_parent, prepare_dir, prepare_leaf, report, unpack_link, DestGuard,
-    Input, InputKind,
+    collect_inputs, ensure_parent, prepare_dir, prepare_leaf, read_bounded, report, unpack_link,
+    DestGuard, Input, InputKind,
 };
 use crate::model::*;
-use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
+use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn, ReadOptions};
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
@@ -190,6 +190,31 @@ pub fn test(path: &Path, fmt: Format, _opts: &ListOptions, progress: ProgressFn)
         entries_tested: tested,
         bad_entries: bad,
     })
+}
+
+pub fn read_entry(
+    path: &Path,
+    fmt: Format,
+    entry_path: &str,
+    opts: &ReadOptions,
+) -> Result<EntryContent> {
+    let reader = open_reader(path, fmt)?;
+    let mut archive = tar::Archive::new(reader);
+    let target = entry_path.replace('\\', "/");
+    let target = target.trim_start_matches("./").trim_end_matches('/');
+    let mut names = NameDecoder::new();
+
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let raw = entry.path_bytes().into_owned();
+        names.sample(&raw);
+        let name = names.decode(&raw);
+        if name.trim_end_matches('/') == target {
+            let size = entry.size();
+            return read_bounded(&mut entry, name, size, opts);
+        }
+    }
+    Err(Error::other(format!("entry not found in archive: {entry_path}")))
 }
 
 pub fn create(

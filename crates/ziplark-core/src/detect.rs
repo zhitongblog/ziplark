@@ -11,7 +11,11 @@ pub fn detect(path: &Path) -> Option<Format> {
     let head = &magic[..n];
 
     // Container magics that are unambiguous.
-    if head.starts_with(b"PK\x03\x04") || head.starts_with(b"PK\x05\x06") {
+    if head.starts_with(b"PK\x03\x04")
+        || head.starts_with(b"PK\x05\x06")
+        || head.starts_with(b"PK\x07\x08")
+        || head.starts_with(b"Cr24")
+    {
         return Some(Format::Zip);
     }
     if head.starts_with(b"7z\xBC\xAF\x27\x1C") {
@@ -20,27 +24,61 @@ pub fn detect(path: &Path) -> Option<Format> {
     if head.starts_with(b"Rar!\x1A\x07\x00") || head.starts_with(b"Rar!\x1A\x07\x01\x00") {
         return Some(Format::Rar);
     }
+    if head.starts_with(b"MSCF\x00\x00\x00\x00") {
+        return Some(Format::Cab);
+    }
+    if head.starts_with(b"\xED\xAB\xEE\xDB") {
+        return Some(Format::Rpm);
+    }
+    if head.starts_with(b"070701") || head.starts_with(b"070702") || head.starts_with(b"070707") {
+        return Some(Format::Cpio);
+    }
 
-    // Compressed streams that may wrap a tar. Decide tar-vs-plain by extension.
+    // Compressed streams that may wrap a tar or cpio. Decide by extension.
     let lname = path
         .file_name()
         .and_then(|n| n.to_str())
         .map(|s| s.to_ascii_lowercase())
         .unwrap_or_default();
 
+    if head.starts_with(b"!<arch>\n") {
+        let is_deb_ext = lname.ends_with(".deb") || lname.ends_with(".udeb") || lname.ends_with(".ipk");
+        let is_deb_member = head.len() >= 24 && head[8..24].starts_with(b"debian-binary");
+        return Some(if is_deb_ext || is_deb_member {
+            Format::Deb
+        } else {
+            Format::Ar
+        });
+    }
+
     if head.starts_with(b"\x1F\x8B") {
+        if lname.ends_with(".cpio.gz") || lname.ends_with(".cpgz") {
+            return Some(Format::Cpio);
+        }
         return Some(if is_tar_name(&lname, "gz") { Format::TarGz } else { Format::Gz });
     }
     if head.starts_with(b"BZh") {
+        if lname.ends_with(".cpio.bz2") {
+            return Some(Format::Cpio);
+        }
         return Some(if is_tar_name(&lname, "bz2") { Format::TarBz2 } else { Format::Bz2 });
     }
     if head.starts_with(b"\xFD7zXZ\x00") {
+        if lname.ends_with(".cpio.xz") {
+            return Some(Format::Cpio);
+        }
         return Some(if is_tar_name(&lname, "xz") { Format::TarXz } else { Format::Xz });
     }
     if head.starts_with(b"\x28\xB5\x2F\xFD") {
+        if lname.ends_with(".cpio.zst") {
+            return Some(Format::Cpio);
+        }
         return Some(if is_tar_name(&lname, "zst") { Format::TarZst } else { Format::Zst });
     }
     if head.starts_with(b"\x04\x22\x4D\x18") {
+        if lname.ends_with(".cpio.lz4") {
+            return Some(Format::Cpio);
+        }
         return Some(if is_tar_name(&lname, "lz4") { Format::TarLz4 } else { Format::Lz4 });
     }
 
@@ -55,8 +93,9 @@ pub fn detect(path: &Path) -> Option<Format> {
         return Some(Format::Iso);
     }
 
-    // Then the name: `.tar.gz` against `.gz`, and volume names like `.r00`.
-    if let Some(fmt) = detect_by_extension(&lname) {
+    // Then the name: `.tar.gz` against `.gz`, volume names like `.7z.002` / `.r00` / `.z01`,
+    // and package extensions.
+    if let Some(fmt) = detect_by_extension_or_set(path, &lname) {
         return Some(fmt);
     }
 
@@ -130,7 +169,35 @@ fn is_tar_name(lname: &str, comp_ext: &str) -> bool {
         || (comp_ext == "lz4" && lname.ends_with(".tlz4"))
 }
 
-fn detect_by_extension(lname: &str) -> Option<Format> {
+fn detect_by_extension_or_set(path: &Path, lname: &str) -> Option<Format> {
+    // `<stem>.z01` when `<stem>.zip` exists alongside it is a split ZIP, whereas
+    // `<stem>.r00` .. `<stem>.z99` with `<stem>.rar` (or standalone) is legacy RAR.
+    if let Some((stem, ext)) = lname.rsplit_once('.') {
+        if ext.len() == 3
+            && ext.starts_with('z')
+            && ext[1..].chars().all(|c| c.is_ascii_digit())
+            && path.with_file_name(format!("{stem}.zip")).exists()
+        {
+            return Some(Format::Zip);
+        }
+    }
+    detect_by_extension(lname)
+}
+
+pub fn detect_by_extension(lname: &str) -> Option<Format> {
+    // Strip a trailing numbered split suffix (`.001` .. `.9999`) if it sits
+    // behind a known archive extension (`movie.7z.002` -> `movie.7z`).
+    let lname = match lname.rsplit_once('.') {
+        Some((base, ext))
+            if (2..=4).contains(&ext.len())
+                && ext.chars().all(|c| c.is_ascii_digit())
+                && base.contains('.') =>
+        {
+            base
+        }
+        _ => lname,
+    };
+
     // A RAR volume can be named `.r00` … `.z99`, which says "RAR" as clearly as
     // `.rar` does and is how every old download is still named.
     if let Some((_, ext)) = lname.rsplit_once('.') {
@@ -154,16 +221,56 @@ fn detect_by_extension(lname: &str) -> Option<Format> {
         (".tzst", Format::TarZst),
         (".tar.lz4", Format::TarLz4),
         (".tlz4", Format::TarLz4),
+        (".cpio.gz", Format::Cpio),
+        (".cpgz", Format::Cpio),
+        (".cpio.bz2", Format::Cpio),
+        (".cpio.xz", Format::Cpio),
+        (".cpio.zst", Format::Cpio),
+        (".cpio.lz4", Format::Cpio),
         (".tar", Format::Tar),
+        (".cbt", Format::Tar),
         (".zip", Format::Zip),
+        (".cbz", Format::Zip),
+        (".jar", Format::Zip),
+        (".war", Format::Zip),
+        (".ear", Format::Zip),
+        (".apk", Format::Zip),
+        (".aab", Format::Zip),
+        (".ipa", Format::Zip),
+        (".xapk", Format::Zip),
+        (".whl", Format::Zip),
+        (".egg", Format::Zip),
+        (".nupkg", Format::Zip),
+        (".crx", Format::Zip),
+        (".vsix", Format::Zip),
+        (".xpi", Format::Zip),
+        (".epub", Format::Zip),
+        (".docx", Format::Zip),
+        (".xlsx", Format::Zip),
+        (".pptx", Format::Zip),
+        (".odt", Format::Zip),
+        (".ods", Format::Zip),
+        (".odp", Format::Zip),
         (".7z", Format::SevenZ),
+        (".cb7", Format::SevenZ),
         (".rar", Format::Rar),
+        (".cbr", Format::Rar),
         (".gz", Format::Gz),
         (".bz2", Format::Bz2),
         (".xz", Format::Xz),
         (".zst", Format::Zst),
         (".lz4", Format::Lz4),
         (".iso", Format::Iso),
+        (".deb", Format::Deb),
+        (".udeb", Format::Deb),
+        (".ipk", Format::Deb),
+        (".ar", Format::Ar),
+        (".a", Format::Ar),
+        (".lib", Format::Ar),
+        (".cpio", Format::Cpio),
+        (".rpm", Format::Rpm),
+        (".srpm", Format::Rpm),
+        (".cab", Format::Cab),
     ];
     table
         .iter()

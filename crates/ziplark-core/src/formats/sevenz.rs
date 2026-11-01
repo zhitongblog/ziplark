@@ -1,10 +1,11 @@
 use crate::error::{Error, Result};
 use crate::formats::{
     collect_inputs, copy_watched, create_file, create_symlink, ensure_parent, prepare_dir,
-    prepare_leaf, report, DestGuard, InputKind,
+    prepare_leaf, read_bounded, report, DestGuard, InputKind,
 };
 use crate::model::*;
-use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn};
+use crate::volumes::{VolumeReader, VolumeSet};
+use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn, ReadOptions};
 use sevenz_rust2::encoder_options::{AesEncoderOptions, Lzma2Options};
 use sevenz_rust2::{
     Archive, ArchiveEntry as SevenZEntry, ArchiveReader, ArchiveWriter, EncoderConfiguration,
@@ -113,9 +114,30 @@ fn modified(entry: &SevenZEntry) -> Option<i64> {
 }
 
 pub fn list(path: &Path, fmt: Format, opts: &ListOptions) -> Result<ArchiveInfo> {
-    let reader = ArchiveReader::open(path, password(&opts.password)).map_err(map_err)?;
+    let set = VolumeSet::inspect(path);
+    let total_compressed = set.total_compressed_size().unwrap_or(0);
+    let vol = match VolumeReader::open(&set) {
+        Ok(v) => v,
+        Err(Error::MissingVolume(missing)) => {
+            return Ok(ArchiveInfo {
+                format: fmt,
+                path: set.primary,
+                entries: Vec::new(),
+                encrypted: false,
+                total_size: 0,
+                total_compressed,
+                volumes: set.volumes,
+                missing_volume: Some(missing),
+                comment: None,
+                attributes: ArchiveAttributes::default(),
+            });
+        }
+        Err(e) => return Err(e),
+    };
+    let reader = ArchiveReader::new(vol, password(&opts.password)).map_err(map_err)?;
     let archive = reader.archive();
     let encrypted = is_encrypted(archive);
+    let is_multi_vol = set.volumes.len() > 1;
     let mut entries = Vec::with_capacity(archive.files.len());
     let mut total_size = 0u64;
     for f in &archive.files {
@@ -128,19 +150,19 @@ pub fn list(path: &Path, fmt: Format, opts: &ListOptions) -> Result<ArchiveInfo>
             encrypted,
             modified: modified(f),
             crc32: f.has_crc.then_some(f.crc as u32),
-            split: false,
+            split: is_multi_vol,
         });
     }
-    let total_compressed = std::fs::metadata(path)?.len();
+    let total_compressed = set.total_compressed_size()?;
     Ok(ArchiveInfo {
         format: fmt,
-        path: path.to_path_buf(),
+        path: set.primary,
         entries,
         encrypted,
         total_size,
         total_compressed,
-        volumes: Vec::new(),
-        missing_volume: None,
+        volumes: set.volumes,
+        missing_volume: set.missing_volume,
         comment: None,
         attributes: ArchiveAttributes {
             // 7z records this, and it is worth surfacing: pulling one file out
@@ -152,7 +174,9 @@ pub fn list(path: &Path, fmt: Format, opts: &ListOptions) -> Result<ArchiveInfo>
 }
 
 pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Result<ExtractReport> {
-    let mut reader = ArchiveReader::open(path, password(&opts.password)).map_err(map_err)?;
+    let set = VolumeSet::inspect(path);
+    let vol = VolumeReader::open(&set)?;
+    let mut reader = ArchiveReader::new(vol, password(&opts.password)).map_err(map_err)?;
     std::fs::create_dir_all(&opts.dest)?;
     let selector = opts.selector();
 
@@ -173,6 +197,9 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
             idx += 1;
             let name = entry.name().to_string();
             if !selector.matches(&name) {
+                if !entry.is_directory() {
+                    std::io::copy(rd, &mut std::io::sink())?;
+                }
                 return Ok(true);
             }
             // Funnel through the shared extraction guard.
@@ -261,7 +288,9 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
 }
 
 pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<TestReport> {
-    let mut reader = ArchiveReader::open(path, password(&opts.password)).map_err(map_err)?;
+    let set = VolumeSet::inspect(path);
+    let vol = VolumeReader::open(&set)?;
+    let mut reader = ArchiveReader::new(vol, password(&opts.password)).map_err(map_err)?;
     let mut tested = 0u64;
     let mut bad = Vec::new();
     let mut cancelled = false;
@@ -299,6 +328,33 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
         entries_tested: tested,
         bad_entries: bad,
     })
+}
+
+pub fn read_entry(path: &Path, entry_path: &str, opts: &ReadOptions) -> Result<EntryContent> {
+    let set = VolumeSet::inspect(path);
+    let vol = VolumeReader::open(&set)?;
+    let mut reader = ArchiveReader::new(vol, password(&opts.password)).map_err(map_err)?;
+    let target = entry_path.replace('\\', "/");
+    let target = target.trim_start_matches("./").trim_end_matches('/');
+    let mut found: Option<Result<EntryContent>> = None;
+
+    let iter_res = reader.for_each_entries(|entry, rd| {
+        let name = entry.name().to_string();
+        if name.trim_end_matches('/') == target {
+            found = Some(read_bounded(rd, name, entry.size(), opts));
+            let _ = std::io::copy(rd, &mut std::io::sink());
+            return Ok(false);
+        }
+        if !entry.is_directory() {
+            std::io::copy(rd, &mut std::io::sink())?;
+        }
+        Ok(true)
+    });
+    if let Some(res) = found {
+        return res;
+    }
+    iter_res.map_err(map_err)?;
+    Err(Error::other(format!("entry not found in archive: {entry_path}")))
 }
 
 /// The coder chain for new archives: optional AES on the outside, then LZMA2

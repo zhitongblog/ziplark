@@ -1,14 +1,16 @@
 //! `ziplark` — the Ziplark command-line archiver.
 //!
-//! A thin shell over `ziplark-core`: list / extract / create / test / info.
+//! A thin shell over `ziplark-core`: list / extract / create / add / cat / test / info.
 //! Designed to be the self-test driver and a scriptable tool (`--json`).
 
-use ziplark_core::{
-    create, detect, extract, list, test, ArchiveInfo, CreateOptions, ExtractOptions, Format, Level,
-    ListOptions, MatchMode, Progress,
-};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use ziplark_core::{
+    add, create, detect, detect_by_extension, extract, list, read_entry, shell, test, ArchiveInfo,
+    CreateOptions, ExtractOptions, Format, Level, ListOptions, MatchMode, Progress, ReadOptions,
+    DEFAULT_READ_MAX_BYTES,
+};
 
 mod shell_integration;
 
@@ -22,9 +24,11 @@ COMMANDS:
     list|l <archive>                 List archive contents
     extract|x <archive> [-o DIR]     Extract an archive (default: current dir)
     create|c <output> <inputs...>    Create an archive (format from extension)
+    add|a <archive> <inputs...>      Add or update files inside an archive
+    cat|read <archive> <entry>       Read a single entry to stdout without extracting
     test|t <archive>                 Verify archive integrity
-    info <archive>                   Detect format
-    extract-here <archive...>        Extract each into a sibling folder (for menus)
+    info <archive>                   Detect format and archive attributes
+    extract-here <archive...>        Smart-extract each into a sibling folder (for menus)
     compress-zip <item...>           Zip the items into a sibling .zip (for menus)
     shell-integration <install|uninstall|status>
                                      Manage the OS right-click (file-manager) menu
@@ -33,6 +37,8 @@ COMMON OPTIONS:
     -p, --password <PW>   Password for encrypted archives
     -o, --output <DIR>    Destination directory (extract)
         --overwrite       Overwrite existing files when extracting
+        --smart           Smart anti-tarbomb folder (wrap loose files into <stem>/,
+                          avoid double-wrapping a single root folder)
         --include <PAT>   Only entries matching PAT (repeatable). A pattern with
                           * or ? is a glob over the whole path; otherwise it is
                           matched as a substring
@@ -41,17 +47,20 @@ COMMON OPTIONS:
         --keep-broken     Carry on past entries that fail, and list them. For
                           damaged or incomplete archives — without it, the first
                           bad entry stops the extraction
-        --level <L>       store | fast | default | best (create)
+        --max-bytes <N>   Maximum bytes to read in `cat` (default: 4 MiB)
+        --offset <N>      Byte offset to start reading from in `cat` (default: 0)
+        --level <L>       store | fast | default | best (create / add)
         --json            Machine-readable JSON output
     -h, --help            Show this help
     -V, --version         Show version
 
 EXAMPLES:
-    ziplark x photos.zip -o ./out
+    ziplark x photos.zip -o ./out --smart
     ziplark c backup.tar.zst ./src ./README.md --level best
-    ziplark c secret.zip ./private --password hunter2
+    ziplark a backup.zip ./extra.txt
+    ziplark cat release.deb DEBIAN/control
     ziplark l movie.part01.rar --json
-    ziplark x movie.r03 -o ./out          # any volume opens the whole set
+    ziplark x movie.7z.002 -o ./out       # any volume opens the whole set
     ziplark x half-downloaded.part1.rar --keep-broken
     ziplark x big.rar --include docs/notes.txt --exact
 ";
@@ -86,7 +95,9 @@ fn run(args: &[String]) -> anyhow::Result<ExitCode> {
         }
         "list" | "l" | "ls" => cmd_list(&args[1..]),
         "extract" | "x" | "e" => cmd_extract(&args[1..]),
-        "create" | "c" | "a" | "add" => cmd_create(&args[1..]),
+        "create" | "c" => cmd_create(&args[1..]),
+        "add" | "a" => cmd_add(&args[1..]),
+        "cat" | "read" | "show" => cmd_cat(&args[1..]),
         "test" | "t" => cmd_test(&args[1..]),
         "info" | "i" => cmd_info(&args[1..]),
         "extract-here" => cmd_extract_here(&args[1..]),
@@ -107,9 +118,12 @@ struct Parsed {
     password: Option<String>,
     output: Option<String>,
     overwrite: bool,
+    smart: bool,
     include: Vec<String>,
     exact: bool,
     keep_broken: bool,
+    max_bytes: Option<u64>,
+    offset: Option<u64>,
     level: Option<String>,
     json: bool,
 }
@@ -137,9 +151,24 @@ fn parse(args: &[String]) -> anyhow::Result<Parsed> {
                 p.output = Some(next(args, &mut i, "--output")?);
             }
             "--overwrite" | "-f" => p.overwrite = true,
+            "--smart" | "-s" => p.smart = true,
             "--include" => p.include.push(next(args, &mut i, "--include")?),
             "--exact" => p.exact = true,
             "--keep-broken" | "--keep" => p.keep_broken = true,
+            "--max-bytes" => {
+                let v = next(args, &mut i, "--max-bytes")?;
+                p.max_bytes = Some(
+                    v.parse::<u64>()
+                        .map_err(|_| anyhow::anyhow!("invalid --max-bytes '{v}'"))?,
+                );
+            }
+            "--offset" => {
+                let v = next(args, &mut i, "--offset")?;
+                p.offset = Some(
+                    v.parse::<u64>()
+                        .map_err(|_| anyhow::anyhow!("invalid --offset '{v}'"))?,
+                );
+            }
             "--level" => p.level = Some(next(args, &mut i, "--level")?),
             "--json" => p.json = true,
             s if s.starts_with('-') && s.len() > 1 => {
@@ -176,7 +205,6 @@ fn progress_printer() -> impl FnMut(Progress) -> bool {
             eprintln!("  {}", p.current_path);
             last = p.current_path;
         }
-        // Nothing here ever asks the engine to stop; Ctrl-C is the CLI's cancel.
         true
     }
 }
@@ -207,7 +235,7 @@ fn cmd_list(args: &[String]) -> anyhow::Result<ExitCode> {
         if info.encrypted { ", encrypted" } else { "" }
     );
     print_archive_facts(&info);
-    println!("{:>12}  {:>5}  {}", "SIZE", "TYPE", "NAME");
+    println!("{:>12}  {:>5}  NAME", "SIZE", "TYPE");
     for e in &info.entries {
         println!(
             "{:>12}  {:>5}  {}{}{}",
@@ -241,6 +269,7 @@ fn cmd_extract(args: &[String]) -> anyhow::Result<ExitCode> {
         dest: PathBuf::from(dest),
         overwrite: p.overwrite,
         include: p.include,
+        smart: p.smart,
     };
     let mut pr = progress_printer();
     let report = extract(&path, &opts, Some(&mut pr))?;
@@ -273,6 +302,39 @@ fn cmd_extract(args: &[String]) -> anyhow::Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
+fn cmd_cat(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    if p.positionals.len() < 2 {
+        anyhow::bail!("cat requires <archive> and <entry>");
+    }
+    let archive = &p.positionals[0];
+    let entry = &p.positionals[1];
+    let opts = ReadOptions {
+        password: p.password,
+        offset: p.offset.unwrap_or(0),
+        max_bytes: p.max_bytes.unwrap_or(DEFAULT_READ_MAX_BYTES),
+    };
+    let content = read_entry(archive, entry, &opts)?;
+    if p.json {
+        let is_binary = content.bytes.contains(&0) || std::str::from_utf8(&content.bytes).is_err();
+        let out = serde_json::json!({
+            "path": content.path,
+            "size": content.size,
+            "offset": content.offset,
+            "returned_bytes": content.bytes.len(),
+            "truncated": content.truncated,
+            "is_binary": is_binary,
+            "text": std::str::from_utf8(&content.bytes).ok(),
+        });
+        println!("{}", serde_json::to_string_pretty(&out)?);
+    } else {
+        let mut stdout = std::io::stdout().lock();
+        stdout.write_all(&content.bytes)?;
+        stdout.flush()?;
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
 /// The things that are true of the archive rather than of one entry. Most
 /// formats have none of them; RAR has all of them.
 fn print_archive_facts(info: &ArchiveInfo) {
@@ -281,7 +343,9 @@ fn print_archive_facts(info: &ArchiveInfo) {
         for v in &info.volumes {
             println!(
                 "  {}",
-                v.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()
+                v.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default()
             );
         }
     }
@@ -317,6 +381,17 @@ fn print_archive_facts(info: &ArchiveInfo) {
     }
 }
 
+fn resolve_create_format(output: &Path, raw_name: &str) -> anyhow::Result<Format> {
+    detect(output)
+        .or_else(|| detect_by_extension(&raw_name.to_ascii_lowercase()))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "cannot infer format from '{}' — use a known extension (.zip, .7z, .tar.gz, ...)",
+                output.display()
+            )
+        })
+}
+
 fn cmd_create(args: &[String]) -> anyhow::Result<ExitCode> {
     let p = parse(args)?;
     if p.positionals.len() < 2 {
@@ -324,14 +399,7 @@ fn cmd_create(args: &[String]) -> anyhow::Result<ExitCode> {
     }
     let output = PathBuf::from(&p.positionals[0]);
     let inputs: Vec<PathBuf> = p.positionals[1..].iter().map(PathBuf::from).collect();
-    let fmt = detect(&output)
-        .or_else(|| format_from_name(&p.positionals[0]))
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "cannot infer format from '{}' — use a known extension (.zip, .7z, .tar.gz, ...)",
-                output.display()
-            )
-        })?;
+    let fmt = resolve_create_format(&output, &p.positionals[0])?;
     let json = p.json;
     let opts = CreateOptions {
         format: fmt,
@@ -356,6 +424,36 @@ fn cmd_create(args: &[String]) -> anyhow::Result<ExitCode> {
             report.bytes_in,
             report.bytes_out,
             ratio
+        );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn cmd_add(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    if p.positionals.len() < 2 {
+        anyhow::bail!("add requires <archive> and at least one input");
+    }
+    let archive = PathBuf::from(&p.positionals[0]);
+    let inputs: Vec<PathBuf> = p.positionals[1..].iter().map(PathBuf::from).collect();
+    let fmt = resolve_create_format(&archive, &p.positionals[0])?;
+    let json = p.json;
+    let opts = CreateOptions {
+        format: fmt,
+        level: parse_level(&p.level)?,
+        password: p.password,
+    };
+    let mut pr = progress_printer();
+    let report = add(&archive, &inputs, &opts, Some(&mut pr))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        println!(
+            "updated {} ({}): added {} entries ({} bytes total on disk)",
+            report.output.display(),
+            report.format.label(),
+            report.entries_added,
+            report.bytes_out
         );
     }
     Ok(ExitCode::SUCCESS)
@@ -403,10 +501,6 @@ fn cmd_info(args: &[String]) -> anyhow::Result<ExitCode> {
         return Ok(ExitCode::FAILURE);
     };
 
-    // Reading the headers is what turns "it's a RAR" into something worth
-    // printing: how many volumes, whether one is missing, solid, comment. If
-    // that fails — an encrypted-header archive with no password, say — the
-    // format is still worth reporting.
     let info = list(
         path,
         &ListOptions {
@@ -452,163 +546,22 @@ fn cmd_info(args: &[String]) -> anyhow::Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
-/// Strip the archive extension(s) from a file name, handling double extensions
-/// like `.tar.gz`. Returns the base name to use for a sibling extract folder.
-fn archive_stem(name: &str) -> String {
-    let l = name.to_ascii_lowercase();
-    for ext in [".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst"] {
-        if l.ends_with(ext) {
-            return name[..name.len() - ext.len()].to_string();
-        }
-    }
-    match name.rsplit_once('.') {
-        Some((stem, _)) if !stem.is_empty() => stem.to_string(),
-        _ => name.to_string(),
-    }
-}
-
-/// Pick a non-existent path by appending " (2)", " (3)", … before the extension
-/// if `path` already exists — so menu actions never clobber.
-fn unique_path(path: PathBuf) -> PathBuf {
-    if !path.exists() {
-        return path;
-    }
-    let parent = path.parent().unwrap_or(Path::new("."));
-    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
-    let ext = path.extension().and_then(|s| s.to_str());
-    for n in 2..1000 {
-        let name = match ext {
-            Some(e) => format!("{stem} ({n}).{e}"),
-            None => format!("{stem} ({n})"),
-        };
-        let cand = parent.join(name);
-        if !cand.exists() {
-            return cand;
-        }
-    }
-    path
-}
-
-/// Best-effort macOS desktop notification (no-op elsewhere). Used so the
-/// right-click actions give visible feedback when launched from Finder.
-fn notify(title: &str, body: &str) {
-    if cfg!(target_os = "macos") {
-        let script = format!(
-            "display notification {:?} with title {:?}",
-            body, title
-        );
-        let _ = std::process::Command::new("osascript")
-            .arg("-e")
-            .arg(script)
-            .status();
-    }
-}
-
-/// `extract-here`: extract each archive into a sibling folder named after it.
-/// This is what the OS right-click "Extract here" menu invokes.
 fn cmd_extract_here(args: &[String]) -> anyhow::Result<ExitCode> {
     let p = parse(args)?;
-    if p.positionals.is_empty() {
-        anyhow::bail!("extract-here requires at least one archive");
+    let reports = shell::extract_here_batch(&p.positionals, p.password, p.keep_broken)?;
+    for (a, r) in p.positionals.iter().zip(reports.iter()) {
+        println!("extracted {a} -> {}", r.dest.display());
     }
-    let mut done = 0usize;
-    let mut errors = Vec::new();
-    for a in &p.positionals {
-        let path = Path::new(a);
-        let parent = path.parent().unwrap_or(Path::new("."));
-        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or(a);
-        let dest = unique_path(parent.join(archive_stem(name)));
-        let opts = ExtractOptions {
-            password: p.password.clone(),
-            dest: dest.clone(),
-            overwrite: true,
-            include: Vec::new(),
-            match_mode: MatchMode::Auto,
-            keep_broken: p.keep_broken,
-        };
-        match extract(a, &opts, None) {
-            Ok(r) => {
-                done += 1;
-                println!("extracted {} -> {}", a, r.dest.display());
-            }
-            Err(e) => errors.push(format!("{a}: {e}")),
-        }
-    }
-    if errors.is_empty() {
-        notify("Ziplark", &format!("Extracted {done} archive(s)"));
-        Ok(ExitCode::SUCCESS)
-    } else {
-        let msg = errors.join("; ");
-        notify("Ziplark — extract failed", &msg);
-        anyhow::bail!(msg)
-    }
+    Ok(ExitCode::SUCCESS)
 }
 
-/// `compress-zip`: zip the given files/folders into a sibling .zip.
-/// This is what the OS right-click "Compress to ZIP" menu invokes.
 fn cmd_compress_zip(args: &[String]) -> anyhow::Result<ExitCode> {
     let p = parse(args)?;
-    if p.positionals.is_empty() {
-        anyhow::bail!("compress-zip requires at least one file or folder");
-    }
-    let first = Path::new(&p.positionals[0]);
-    let parent = first.parent().unwrap_or(Path::new(".")).to_path_buf();
-    let out = if p.positionals.len() == 1 {
-        let base = first.file_name().and_then(|s| s.to_str()).unwrap_or("Archive");
-        parent.join(format!("{base}.zip"))
-    } else {
-        parent.join("Archive.zip")
-    };
-    let out = unique_path(out);
-    let inputs: Vec<PathBuf> = p.positionals.iter().map(PathBuf::from).collect();
-    let opts = CreateOptions {
-        format: Format::Zip,
-        level: parse_level(&p.level)?,
-        password: p.password,
-    };
-    let report = create(&out, &inputs, &opts, None)?;
+    let report = shell::compress_zip_batch(&p.positionals, parse_level(&p.level)?, p.password)?;
     println!(
         "created {} ({} entries)",
         report.output.display(),
         report.entries_added
     );
-    notify(
-        "Ziplark",
-        &format!(
-            "Created {}",
-            out.file_name().and_then(|s| s.to_str()).unwrap_or("archive")
-        ),
-    );
     Ok(ExitCode::SUCCESS)
-}
-
-/// Fall back to extension-based format guessing for non-existent output files
-/// (detect() reads magic bytes, which a to-be-created file doesn't have yet).
-fn format_from_name(name: &str) -> Option<Format> {
-    let l = name.to_ascii_lowercase();
-    let table = [
-        (".tar.gz", Format::TarGz),
-        (".tgz", Format::TarGz),
-        (".tar.bz2", Format::TarBz2),
-        (".tbz2", Format::TarBz2),
-        (".tar.xz", Format::TarXz),
-        (".txz", Format::TarXz),
-        (".tar.zst", Format::TarZst),
-        (".tzst", Format::TarZst),
-        (".tar.lz4", Format::TarLz4),
-        (".tlz4", Format::TarLz4),
-        (".tar", Format::Tar),
-        (".zip", Format::Zip),
-        (".7z", Format::SevenZ),
-        (".gz", Format::Gz),
-        (".bz2", Format::Bz2),
-        (".xz", Format::Xz),
-        (".zst", Format::Zst),
-        (".lz4", Format::Lz4),
-        (".iso", Format::Iso),
-    ];
-    table
-        .iter()
-        .find(|(ext, _)| l.ends_with(ext))
-        .map(|(_, f)| *f)
 }

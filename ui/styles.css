@@ -56,12 +56,18 @@ body {
 .brand h1 { font-size: 17px; margin: 0; }
 .tagline { margin: 0; color: var(--muted); font-size: 12px; }
 
+.topbar-right { display: flex; align-items: center; gap: 10px; }
 .tabs { display: flex; gap: 4px; background: var(--bg); padding: 4px; border-radius: 10px; }
 .tab {
   border: 0; background: transparent; color: var(--muted);
   padding: 7px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px;
 }
 .tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.small-btn { padding: 6px 11px !important; font-size: 12px !important; }
+.lang-select {
+  padding: 6px 8px !important; font-size: 12px !important; font-weight: 600;
+  border-radius: 8px; cursor: pointer;
+}
 
 main { flex: 1; overflow: auto; padding: 20px; }
 .view { display: none; height: 100%; }
@@ -104,11 +110,29 @@ button.link { background: none; border: 0; color: var(--accent); cursor: pointer
 
 .panel-title { min-width: 0; }
 
+.tree-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 18px; border-bottom: 1px solid var(--border); background: var(--inset);
+}
+.search-wrap { display: flex; align-items: center; gap: 8px; flex: 1; max-width: 440px; }
+#tree-search {
+  flex: 1; font: inherit; font-size: 12.5px; padding: 5px 10px;
+  border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
+#tree-search:focus { outline: none; border-color: var(--accent); }
+
 .tree-head {
-  display: flex; justify-content: space-between;
-  padding: 7px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 18px 7px 8px; border-bottom: 1px solid var(--border);
   color: var(--muted); font-weight: 600; font-size: 12px;
 }
+.tree-head .col-name { flex: 1; }
+.tree-head .col-mtime { width: 135px; text-align: right; }
+.tree-head .col-size { width: 86px; text-align: right; }
+.sortable { cursor: pointer; user-select: none; }
+.sortable:hover { color: var(--accent); }
+.sort-ind { font-size: 10px; opacity: .75; }
+
 /* Only the visible rows are in the DOM; the sizer holds the real height so the
    scrollbar behaves as if all of them were. */
 .tree { flex: 1; overflow: auto; position: relative; outline: none; }
@@ -126,7 +150,13 @@ button.link { background: none; border: 0; color: var(--accent); cursor: pointer
 .twisty.empty { visibility: hidden; }
 .ricon { flex: 0 0 auto; font-size: 12px; }
 .rname { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-.rsize { flex: 0 0 auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rmtime { width: 135px; flex: 0 0 135px; text-align: right; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.rsize { width: 86px; flex: 0 0 86px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rpreview {
+  opacity: 0; border: 0; background: none; color: var(--accent); cursor: pointer;
+  font-size: 12px; padding: 1px 5px; border-radius: 4px;
+}
+.tree .row:hover .rpreview { opacity: 1; }
 .lock { color: var(--accent); }
 
 .input-list { list-style: none; margin: 0 0 14px; padding: 0; flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
@@ -237,3 +267,31 @@ select, input[type=password] {
   background: var(--accent);
   border-color: var(--accent);
 }
+
+/* Quick Preview & Right-click menu modals */
+.preview-card {
+  width: 720px; max-width: 92vw; max-height: 84vh;
+  display: flex; flex-direction: column; padding: 18px;
+}
+.preview-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+}
+.preview-head h3 { word-break: break-all; font-size: 14px; margin: 0 0 2px; }
+.preview-body { flex: 1; overflow: auto; margin-top: 12px; min-height: 180px; }
+.preview-code {
+  margin: 0; padding: 12px; border-radius: 8px; background: var(--inset);
+  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap; word-break: break-word; -webkit-user-select: text; user-select: text;
+}
+.preview-img-wrap { display: grid; place-items: center; padding: 16px; background: var(--inset); border-radius: 8px; }
+.preview-img-wrap img { max-width: 100%; max-height: 60vh; object-fit: contain; border-radius: 4px; }
+
+.shell-card { width: 420px; max-width: 90vw; }
+.shell-status-box {
+  margin: 14px 0; padding: 12px 14px; border-radius: 8px;
+  background: var(--inset); font-size: 13px;
+}
+.shell-row { display: flex; justify-content: space-between; padding: 4px 0; }
+.badge-ok { color: var(--ok); font-weight: 600; }
+.badge-off { color: var(--muted); }

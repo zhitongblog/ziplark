@@ -12,13 +12,27 @@
         <img class="logo" src="logo.png" alt="" width="40" height="40" />
         <div>
           <h1>Ziplark</h1>
-          <p class="tagline">Free · fast · every archive</p>
+          <p class="tagline" data-i18n="tagline">Free · fast · every archive</p>
         </div>
       </div>
-      <nav class="tabs">
-        <button class="tab active" data-view="open">Open</button>
-        <button class="tab" data-view="create">Create</button>
-      </nav>
+      <div class="topbar-right">
+        <nav class="tabs">
+          <button class="tab active" data-view="open" data-i18n="tab_open">Open</button>
+          <button class="tab" data-view="create" data-i18n="tab_create">Create</button>
+        </nav>
+        <button id="btn-shell-menu" class="ghost small-btn" title="OS right-click context menu" data-i18n="btn_context_menu">Right-click menu</button>
+        <select id="lang-select" class="lang-select" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="zh-CN">简体中文</option>
+          <option value="zh-TW">繁體中文</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="es">ES</option>
+          <option value="fr">FR</option>
+          <option value="de">DE</option>
+          <option value="ru">RU</option>
+        </select>
+      </div>
     </header>
 
     <main>
@@ -27,10 +41,10 @@
         <div id="open-drop" class="dropzone">
           <div class="drop-inner">
             <div class="drop-icon">📦</div>
-            <p><strong>Drop an archive here</strong></p>
-            <p class="muted">or</p>
-            <button id="btn-open" class="primary">Choose archive…</button>
-            <p class="muted small">ZIP · RAR · 7z · tar · gz · bz2 · xz · zst · lz4 · ISO</p>
+            <p><strong data-i18n="drop_archive">Drop an archive here</strong></p>
+            <p class="muted" data-i18n="or">or</p>
+            <button id="btn-open" class="primary" data-i18n="choose_archive">Choose archive…</button>
+            <p class="muted small">ZIP · RAR · 7z · tar · gz · bz2 · xz · zst · lz4 · ISO · DEB · RPM · CAB · CPIO · AR · JAR · APK · WHL</p>
           </div>
         </div>
 
@@ -41,10 +55,12 @@
               <p id="arc-meta" class="muted small"></p>
             </div>
             <div class="panel-actions">
-              <button id="btn-test" class="ghost">Verify</button>
+              <button id="btn-test" class="ghost" data-i18n="btn_verify">Verify</button>
+              <button id="btn-add-to-archive" class="ghost hidden" data-i18n="btn_add_files">Add files…</button>
               <button id="btn-extract-sel" class="ghost hidden">Extract selected…</button>
-              <button id="btn-extract" class="primary">Extract all…</button>
-              <button id="btn-close" class="ghost">Close</button>
+              <button id="btn-extract-here" class="ghost" title="Smart-extract right next to the archive" data-i18n="btn_extract_here">Extract here</button>
+              <button id="btn-extract" class="primary" data-i18n="btn_extract_all">Extract all…</button>
+              <button id="btn-close" class="ghost" data-i18n="btn_close">Close</button>
             </div>
           </div>
 
@@ -54,10 +70,19 @@
           <div id="arc-notice" class="notice hidden"></div>
           <pre id="arc-comment" class="arc-comment hidden"></pre>
 
+          <div class="tree-toolbar">
+            <div class="search-wrap">
+              <input id="tree-search" type="search" placeholder="Search or filter entries (e.g. *.txt, docs/)…" data-i18n-placeholder="search_placeholder" autocomplete="off" />
+              <span id="tree-filter-count" class="muted small"></span>
+            </div>
+            <span class="muted small hint-dblclick" data-i18n="dblclick_hint">Double-click a file to preview</span>
+          </div>
+
           <div class="tree-head">
             <span class="col-check"></span>
-            <span class="col-name">Name</span>
-            <span class="col-size">Size</span>
+            <span id="col-name" class="col-name sortable" data-sort="name"><span data-i18n="col_name">Name</span> <span class="sort-ind" id="sort-name">▲</span></span>
+            <span id="col-mtime" class="col-mtime sortable" data-sort="mtime"><span data-i18n="col_modified">Modified</span> <span class="sort-ind" id="sort-mtime"></span></span>
+            <span id="col-size" class="col-size sortable" data-sort="size"><span data-i18n="col_size">Size</span> <span class="sort-ind" id="sort-size"></span></span>
           </div>
           <!-- Rows are windowed: only what fits on screen is in the DOM, so a
                200 000-entry archive scrolls as smoothly as a small one. -->
@@ -71,8 +96,8 @@
       <section id="view-create" class="view">
         <div id="create-drop" class="dropzone small">
           <div class="drop-inner">
-            <p><strong>Drop files &amp; folders here</strong> or
-              <button id="btn-add" class="link">add…</button>
+            <p><strong data-i18n="drop_files">Drop files &amp; folders here</strong> <span data-i18n="or">or</span>
+              <button id="btn-add" class="link" data-i18n="add_btn">add…</button>
             </p>
           </div>
         </div>
@@ -80,7 +105,7 @@
         <ul id="input-list" class="input-list"></ul>
 
         <div class="create-options">
-          <label>Format
+          <label><span data-i18n="lbl_format">Format</span>
             <select id="fmt">
               <option value="zip">ZIP (.zip)</option>
               <option value="7z">7-Zip (.7z)</option>
@@ -92,26 +117,26 @@
               <option value="tar">Tar (.tar)</option>
             </select>
           </label>
-          <label>Compression
+          <label><span data-i18n="lbl_compression">Compression</span>
             <select id="level">
-              <option value="default">Default</option>
-              <option value="best">Best (smallest)</option>
-              <option value="fast">Fast</option>
-              <option value="store">Store (none)</option>
+              <option value="default" data-i18n="lvl_default">Default</option>
+              <option value="best" data-i18n="lvl_best">Best (smallest)</option>
+              <option value="fast" data-i18n="lvl_fast">Fast</option>
+              <option value="store" data-i18n="lvl_store">Store (none)</option>
             </select>
           </label>
-          <label>Password <span class="muted small">(ZIP / 7z · optional)</span>
-            <input id="pw-create" type="password" placeholder="leave empty for none" autocomplete="off" />
+          <label><span data-i18n="lbl_password">Password</span> <span class="muted small">(ZIP / 7z)</span>
+            <input id="pw-create" type="password" placeholder="leave empty for none" data-i18n-placeholder="pw_optional" autocomplete="off" />
           </label>
-          <label>Repeat password
-            <input id="pw-create2" type="password" placeholder="type it again" autocomplete="off" />
+          <label><span data-i18n="lbl_repeat_password">Repeat password</span>
+            <input id="pw-create2" type="password" placeholder="type it again" data-i18n-placeholder="pw_repeat" autocomplete="off" />
           </label>
         </div>
-        <p id="pw-mismatch" class="pw-warn hidden">The two passwords don't match.</p>
+        <p id="pw-mismatch" class="pw-warn hidden" data-i18n="pw_mismatch">The two passwords don't match.</p>
 
         <div class="create-foot">
-          <button id="btn-clear" class="ghost">Clear</button>
-          <button id="btn-create" class="primary" disabled>Create archive…</button>
+          <button id="btn-clear" class="ghost" data-i18n="btn_clear">Clear</button>
+          <button id="btn-create" class="primary" disabled data-i18n="btn_create_archive">Create archive…</button>
         </div>
       </section>
     </main>
@@ -134,12 +159,12 @@
     <!-- password prompt -->
     <div id="pw-modal" class="modal hidden">
       <div class="modal-card">
-        <h3>Password required</h3>
+        <h3 data-i18n="pw_required">Password required</h3>
         <p class="muted small" id="pw-modal-msg">This archive is encrypted.</p>
         <input id="pw-input" type="password" placeholder="Password" autocomplete="off" />
         <div class="modal-actions">
-          <button id="pw-cancel" class="ghost">Cancel</button>
-          <button id="pw-ok" class="primary">Unlock</button>
+          <button id="pw-cancel" class="ghost" data-i18n="btn_cancel">Cancel</button>
+          <button id="pw-ok" class="primary" data-i18n="btn_unlock">Unlock</button>
         </div>
       </div>
     </div>
@@ -150,8 +175,46 @@
         <h3 id="confirm-title">Are you sure?</h3>
         <p class="muted small" id="confirm-msg"></p>
         <div class="modal-actions">
-          <button id="confirm-no" class="ghost">Cancel</button>
+          <button id="confirm-no" class="ghost" data-i18n="btn_cancel">Cancel</button>
           <button id="confirm-yes" class="primary">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Preview modal -->
+    <div id="preview-modal" class="modal hidden">
+      <div class="modal-card preview-card">
+        <div class="preview-head">
+          <div>
+            <h3 id="preview-title">file</h3>
+            <p id="preview-meta" class="muted small"></p>
+          </div>
+          <div class="modal-actions">
+            <button id="preview-copy" class="ghost small-btn hidden" data-i18n="btn_copy">Copy</button>
+            <button id="preview-extract" class="ghost small-btn" data-i18n="btn_extract_this">Extract file…</button>
+            <button id="preview-close" class="primary small-btn" data-i18n="btn_close">Close</button>
+          </div>
+        </div>
+        <div class="preview-body">
+          <pre id="preview-text" class="preview-code hidden"></pre>
+          <div id="preview-img-wrap" class="preview-img-wrap hidden">
+            <img id="preview-img" alt="preview" />
+          </div>
+          <pre id="preview-hex" class="preview-code hidden"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- OS Right-Click Context Menu integration modal -->
+    <div id="shell-modal" class="modal hidden">
+      <div class="modal-card shell-card">
+        <h3 data-i18n="shell_title">Right-Click Context Menu</h3>
+        <p class="muted small" data-i18n="shell_desc">Add "Extract here with Ziplark" and "Compress to ZIP with Ziplark" to your OS file manager.</p>
+        <div id="shell-status-box" class="shell-status-box"></div>
+        <div class="modal-actions">
+          <button id="shell-uninstall" class="ghost" data-i18n="btn_remove">Remove</button>
+          <button id="shell-install" class="primary" data-i18n="btn_install">Enable</button>
+          <button id="shell-close" class="ghost" data-i18n="btn_close">Close</button>
         </div>
       </div>
     </div>
@@ -162,7 +225,7 @@
         <p id="busy-msg" class="busy-msg">Working…</p>
         <div class="bar"><div id="bar-fill" class="bar-fill"></div></div>
         <p id="busy-detail" class="muted small busy-detail"></p>
-        <button id="btn-cancel" class="ghost">Cancel</button>
+        <button id="btn-cancel" class="ghost" data-i18n="btn_cancel">Cancel</button>
       </div>
     </div>
 

@@ -35,19 +35,23 @@ scoop install ziplark
 Or grab a build for any platform from the [releases page](https://github.com/zhitongblog/ziplark/releases/latest)
 (macOS `.dmg`, Windows `.msi`/`.exe`, Linux `.deb`/`.AppImage`, and CLI archives).
 
-| | Read / Extract | Create | Encryption |
+| | Read / Extract / Preview | Create / Append | Encryption |
 |---|:---:|:---:|---|
-| ZIP | ✅ | ✅ | AES-256 (read ZipCrypto) |
-| 7z | ✅ | ✅ | AES-256 |
-| RAR / RAR5 (incl. multi-volume, SFX) | ✅ | — | reads encrypted, incl. encrypted headers |
-| tar | ✅ | ✅ | — |
+| ZIP (incl. `.zip.001`, `.z01`+`.zip`, `.jar`, `.apk`, `.ipa`, `.whl`, `.nupkg`, `.crx`, `.epub`, `.docx`, `.cbz`) | ✅ | ✅ | AES-256 (read ZipCrypto) |
+| 7z (incl. `.7z.001` multi-volume, `.cb7`) | ✅ | ✅ | AES-256 |
+| RAR / RAR5 (incl. multi-volume, SFX, `.cbr`) | ✅ | — | reads encrypted, incl. encrypted headers |
+| tar (`.tar`, `.cbt`) | ✅ | ✅ | — |
 | tar.gz / .bz2 / .xz / .zst / .lz4 | ✅ | ✅ | — |
-| gz / bz2 / xz / zst / lz4 (single stream) | ✅ | ✅ | — |
-| ISO 9660 / Joliet (disc image) | ✅ | — | — |
+| gz / bz2 / xz / zst / lz4 (single stream) | ✅ | ✅ (create) | — |
+| ISO 9660 / Joliet (`.iso`) | ✅ | — | — |
+| Debian & Unix `ar` (`.deb`, `.udeb`, `.ipk`, `.ar`, `.a`) | ✅ | — | — |
+| RPM & CPIO (`.rpm`, `.cpio`, `.cpio.gz/.xz/.zst/.bz2/.lz4`) | ✅ | — | — |
+| Microsoft Cabinet (`.cab`, Store + MSZIP) | ✅ | — | — |
 
-> RAR and ISO are extract-only: RAR's compression format is proprietary, and ISO
-> is a disc-image container (we read ISO 9660 + Joliet with our own dependency-free
-> parser). Everything else can be created as well as read.
+> RAR, ISO, DEB/AR, RPM/CPIO and CAB are read/extract/preview formats — all
+> parsed in memory-safe Rust (except RAR, which uses the official UnRAR C++
+> library). ZIP, 7z and tar variants support full creation and in-place append
+> (`ziplark add`).
 
 ## RAR, properly
 
@@ -129,15 +133,18 @@ password), and save.
 ```bash
 cargo build --release -p ziplark-cli      # binary at target/release/ziplark
 
-ziplark list  movie.rar
-ziplark extract photos.zip -o ./out
-ziplark create backup.tar.zst ./src ./README.md --level best
-ziplark create secret.zip ./private --password hunter2
-ziplark test  download.7z
-ziplark info  mystery.bin
+ziplark list    movie.rar
+ziplark cat     repo.tar.gz src/main.rs
+ziplark extract photos.zip -o ./out --smart
+ziplark create  backup.tar.zst ./src ./README.md --level best
+ziplark add     backup.tar.zst ./CHANGELOG.md
+ziplark create  secret.zip ./private --password hunter2
+ziplark test    download.7z
+ziplark info    mystery.bin
 ```
 Every command takes `--json` for scripting. `--include <PAT>` filters entries on
-extract; `--level store|fast|default|best` and `--password` apply to create.
+extract; `--smart` avoids tarbombs and double-nesting; `--level store|fast|default|best`
+and `--password` apply to create/add.
 
 ### Right-click (file-manager) integration
 
@@ -165,8 +172,8 @@ ziplark compress-zip ./photos ./a.txt  # → ./Archive.zip next to them
 ## 3. MCP server — `ziplark-mcp`
 
 A Model Context Protocol server (JSON-RPC over stdio). Read tools
-(`ziplark_info`, `ziplark_list`, `ziplark_test`) are always available; the write tools
-(`ziplark_extract`, `ziplark_create`) require `--allow-write`.
+(`ziplark_info`, `ziplark_list`, `ziplark_read`, `ziplark_test`) are always available; the write tools
+(`ziplark_extract`, `ziplark_create`, `ziplark_add`) require `--allow-write`.
 
 ```bash
 cargo build --release -p ziplark-mcp

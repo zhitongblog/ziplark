@@ -3,8 +3,8 @@
   "name": "ziplark-mcp",
   "display_name": "Ziplark",
   "version": "0.0.0-dev",
-  "description": "Read and write archives — ZIP, RAR (incl. multi-volume), 7z, tar, ISO — from an MCP client.",
-  "long_description": "Ziplark's archive engine over the Model Context Protocol. Lists, extracts, verifies and creates archives: ZIP, RAR and RAR5 (including multi-volume sets, encrypted headers and self-extracting archives), 7z, tar and the compressed-tar variants, single-stream gz/bz2/xz/zst/lz4, and ISO 9660 / Joliet disc images. Listings are paged, so a 200,000-entry archive costs the same context as a small one, and entries can be extracted by exact path rather than by substring. Every extraction path is funnelled through a single guard, so no entry can be written outside the destination directory. Read tools are always available; extracting and creating require --allow-write.",
+  "description": "Read, preview, extract, add & create archives — ZIP, RAR, 7z, tar, ISO, DEB, RPM, CAB, CPIO, AR — from an MCP client.",
+  "long_description": "Ziplark's archive engine over the Model Context Protocol. Lists, reads/previews in memory, extracts (including smart anti-tarbomb extraction), verifies, appends to, and creates archives: ZIP (incl. .z01/.zip.001 split, .crx, .jar, .apk, .whl), RAR and RAR5 (including multi-volume sets, encrypted headers and self-extracting archives), 7z (incl. .7z.001 multi-volume), tar and the compressed-tar variants, single-stream gz/bz2/xz/zst/lz4, ISO 9660 / Joliet disc images, Debian (.deb) & Unix ar (.ar, .a), Red Hat (.rpm) & CPIO (.cpio.*), and Microsoft Cabinet (.cab). Listings and in-memory file reads are paged so huge archives never flood the context, and every extraction path is funnelled through a single guard so no entry can escape the destination directory. Read tools (ziplark_info, ziplark_list, ziplark_read, ziplark_test) are always available; extracting, creating and appending require --allow-write.",
   "author": {
     "name": "doaipm",
     "url": "https://ziplark.com"
@@ -25,6 +25,9 @@
     "7z",
     "tar",
     "iso",
+    "deb",
+    "rpm",
+    "cab",
     "extract",
     "compression"
   ],
@@ -48,11 +51,15 @@
   "tools": [
     {
       "name": "ziplark_info",
-      "description": "What kind of archive this is and what shape it is in: format, entry count, sizes, encryption, and — for a RAR set — its volumes, whether one is missing, whether it is solid, and its comment."
+      "description": "What kind of archive this is and what shape it is in: format, entry count, sizes, encryption, and — for a multi-volume set — its volumes, whether one is missing, whether it is solid, and its comment."
     },
     {
       "name": "ziplark_list",
       "description": "List the entries inside an archive, paged, with per-directory counts when the result is truncated."
+    },
+    {
+      "name": "ziplark_read",
+      "description": "Read a single entry inside an archive into memory without extracting anything to disk, with offset and max_bytes paging."
     },
     {
       "name": "ziplark_test",
@@ -60,11 +67,15 @@
     },
     {
       "name": "ziplark_extract",
-      "description": "Extract an archive, or exactly the entries named, into a destination directory. Requires --allow-write."
+      "description": "Extract an archive, or exactly the entries named, into a destination directory (with optional smart anti-tarbomb mode). Requires --allow-write."
     },
     {
       "name": "ziplark_create",
       "description": "Create a ZIP (AES-256), 7z (AES-256) or tar archive from files and directories. Requires --allow-write."
+    },
+    {
+      "name": "ziplark_add",
+      "description": "Add or replace files/directories inside an existing archive (zip, 7z, tar.*), or create it if it does not exist. Requires --allow-write."
     }
   ],
   "tools_generated": false,

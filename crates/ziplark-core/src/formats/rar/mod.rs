@@ -26,7 +26,7 @@ mod volumes;
 use crate::error::{Error, Result};
 use crate::formats::{ensure_parent, prepare_dir, prepare_leaf, unpack_link, DestGuard};
 use crate::model::*;
-use crate::{ExtractOptions, ListOptions, ProgressFn};
+use crate::{ExtractOptions, ListOptions, ProgressFn, ReadOptions};
 use raw::{Archive, LinkKind, Mode};
 use std::path::Path;
 pub use volumes::first_volume;
@@ -381,4 +381,36 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
         entries_tested: tested,
         bad_entries,
     })
+}
+
+pub fn read_entry(path: &Path, entry_path: &str, opts: &ReadOptions) -> Result<EntryContent> {
+    let first = first_volume(path);
+    let mut archive = Archive::open(&first, Mode::Process, opts.password.as_deref(), false)?;
+    let target = entry_path.replace('\\', "/");
+    let target = target.trim_start_matches("./").trim_end_matches('/');
+
+    while let Some(entry) = archive.read_header()? {
+        if entry.name.trim_end_matches('/') == target {
+            if let Some((LinkKind::Copy, ref copy_target)) = entry.link {
+                // Reference entry (`-oi`): read the referenced entry instead.
+                let ref_target = copy_target.clone();
+                drop(archive);
+                let mut content = read_entry(&first, &ref_target, opts)?;
+                content.path = entry.name;
+                return Ok(content);
+            }
+            let (bytes, seen) = archive.read_bytes(opts.offset, opts.max_bytes)?;
+            let size = entry.size.max(seen);
+            let truncated = opts.offset.saturating_add(bytes.len() as u64) < size;
+            return Ok(EntryContent {
+                path: entry.name,
+                size,
+                offset: opts.offset,
+                bytes,
+                truncated,
+            });
+        }
+        archive.skip()?;
+    }
+    Err(Error::other(format!("entry not found in archive: {entry_path}")))
 }

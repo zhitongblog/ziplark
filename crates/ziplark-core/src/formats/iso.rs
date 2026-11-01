@@ -12,9 +12,11 @@
 //! `create` (`Format::Iso.can_create()` is false).
 
 use crate::error::{Error, Result};
-use crate::formats::{copy_watched, create_file, ensure_parent, prepare_dir, report, DestGuard};
+use crate::formats::{
+    copy_watched, create_file, ensure_parent, prepare_dir, read_bounded, report, DestGuard,
+};
 use crate::model::*;
-use crate::{ExtractOptions, ListOptions, ProgressFn};
+use crate::{ExtractOptions, ListOptions, ProgressFn, ReadOptions};
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::Path;
@@ -359,4 +361,47 @@ fn test_dir(
         )?;
     }
     Ok(())
+}
+
+pub fn read_entry(path: &Path, entry_path: &str, opts: &ReadOptions) -> Result<EntryContent> {
+    let mut f = File::open(path)?;
+    let (lba, size, joliet) = read_volume(&mut f)?;
+    let target = entry_path.replace('\\', "/");
+    let target = target.trim_start_matches("./").trim_end_matches('/');
+    if let Some((rec_lba, rec_size, found_path)) =
+        find_iso_entry(&mut f, lba, size, joliet, "", target, 0)?
+    {
+        f.seek(SeekFrom::Start(rec_lba as u64 * SECTOR))?;
+        let mut slice = f.take(rec_size as u64);
+        return read_bounded(&mut slice, found_path, rec_size as u64, opts);
+    }
+    Err(Error::other(format!("entry not found in archive: {entry_path}")))
+}
+
+fn find_iso_entry(
+    f: &mut File,
+    lba: u32,
+    size: u32,
+    joliet: bool,
+    prefix: &str,
+    target: &str,
+    depth: u32,
+) -> Result<Option<(u32, u32, String)>> {
+    if depth > MAX_DEPTH {
+        return Ok(None);
+    }
+    for rec in read_dir(f, lba, size, joliet)? {
+        let rel = child_rel(prefix, &rec.name);
+        if !rec.is_dir && rel == target {
+            return Ok(Some((rec.lba, rec.size, rel)));
+        }
+        if rec.is_dir && (target == rel || target.starts_with(&format!("{rel}/"))) {
+            if let Some(found) =
+                find_iso_entry(f, rec.lba, rec.size, joliet, &rel, target, depth + 1)?
+            {
+                return Ok(Some(found));
+            }
+        }
+    }
+    Ok(None)
 }
