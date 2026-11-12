@@ -55,8 +55,11 @@
               <p id="arc-meta" class="muted small"></p>
             </div>
             <div class="panel-actions">
+              <button id="btn-back-parent" class="ghost hidden" title="Return to outer archive" data-i18n="btn_back_parent">⬅ Parent</button>
               <button id="btn-test" class="ghost" data-i18n="btn_verify">Verify</button>
+              <button id="btn-convert" class="ghost" title="Convert this archive to another format" data-i18n="btn_convert">Convert…</button>
               <button id="btn-add-to-archive" class="ghost hidden" data-i18n="btn_add_files">Add files…</button>
+              <button id="btn-remove-sel" class="ghost hidden">Remove selected</button>
               <button id="btn-extract-sel" class="ghost hidden">Extract selected…</button>
               <button id="btn-extract-here" class="ghost" title="Smart-extract right next to the archive" data-i18n="btn_extract_here">Extract here</button>
               <button id="btn-extract" class="primary" data-i18n="btn_extract_all">Extract all…</button>
@@ -73,9 +76,10 @@
           <div class="tree-toolbar">
             <div class="search-wrap">
               <input id="tree-search" type="search" placeholder="Search or filter entries (e.g. *.txt, docs/)…" data-i18n-placeholder="search_placeholder" autocomplete="off" />
+              <button id="btn-grep" class="ghost small-btn" title="Search text inside archive files without extracting" data-i18n="btn_grep">Search contents</button>
               <span id="tree-filter-count" class="muted small"></span>
             </div>
-            <span class="muted small hint-dblclick" data-i18n="dblclick_hint">Double-click a file to preview</span>
+            <span class="muted small hint-dblclick" data-i18n="dblclick_hint">Double-click a file to preview (or nested archive to open)</span>
           </div>
 
           <div class="tree-head">
@@ -146,7 +150,7 @@
       <span class="sep">·</span>
       <a class="ext" data-url="https://ziplark.com">ziplark.com</a>
       <span class="sep">·</span>
-      <a class="ext" data-url="https://doaipm.com">by doaipm</a>
+      <a class="ext" data-url="https://doaipm.com">doaipm.com</a>
       <span class="sep">·</span>
       <span>MIT © 2026 doaipm</span>
     </footer>
@@ -202,6 +206,22 @@
           </div>
           <pre id="preview-hex" class="preview-code hidden"></pre>
         </div>
+      </div>
+    </div>
+
+    <!-- Grep (Search Contents) modal -->
+    <div id="grep-modal" class="modal hidden">
+      <div class="modal-card preview-card">
+        <div class="preview-head">
+          <div>
+            <h3 id="grep-title" data-i18n="grep_title">Search Inside Archive</h3>
+            <p id="grep-meta" class="muted small"></p>
+          </div>
+          <div class="modal-actions">
+            <button id="grep-close" class="primary small-btn" data-i18n="btn_close">Close</button>
+          </div>
+        </div>
+        <div id="grep-results" class="preview-body grep-list"></div>
       </div>
     </div>
 

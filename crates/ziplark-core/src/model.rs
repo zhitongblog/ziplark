@@ -245,3 +245,48 @@ pub struct EntryContent {
     /// True if the entry continues past `offset + bytes.len()`.
     pub truncated: bool,
 }
+
+/// A single matching line found inside an archive entry by [`crate::grep`].
+#[derive(Debug, Clone, Serialize)]
+pub struct GrepMatch {
+    /// Entry path inside the archive.
+    pub path: String,
+    /// 1-based line number inside the entry.
+    pub line_number: u64,
+    /// Matched line text (trimmed of trailing newline; capped if very long).
+    pub line: String,
+}
+
+/// Result of searching file contents inside an archive (`grep`).
+#[derive(Debug, Clone, Serialize)]
+pub struct GrepReport {
+    pub pattern: String,
+    pub matches: Vec<GrepMatch>,
+    pub files_searched: u64,
+    pub files_matched: u64,
+    /// True if the search stopped early because `max_matches` was reached.
+    pub truncated: bool,
+}
+
+/// Result of removing entries from an archive (`remove`).
+#[derive(Debug, Clone, Serialize)]
+pub struct RemoveReport {
+    pub output: PathBuf,
+    pub format: Format,
+    pub entries_removed: u64,
+    pub entries_remaining: u64,
+    pub bytes_out: u64,
+}
+
+/// Result of converting an archive from one format to another (`convert`).
+#[derive(Debug, Clone, Serialize)]
+pub struct ConvertReport {
+    pub source: PathBuf,
+    pub source_format: Format,
+    pub output: PathBuf,
+    pub output_format: Format,
+    pub entries_converted: u64,
+    pub bytes_in: u64,
+    pub bytes_out: u64,
+}
+

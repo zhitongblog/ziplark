@@ -357,6 +357,54 @@ pub fn read_entry(path: &Path, entry_path: &str, opts: &ReadOptions) -> Result<E
     Err(Error::other(format!("entry not found in archive: {entry_path}")))
 }
 
+/// Stream every matching regular file in the 7z archive through `on_file` in a
+/// single pass without touching disk. Returning `Ok(false)` stops early.
+pub fn scan_files(
+    path: &Path,
+    password_opt: &Option<String>,
+    selector: &crate::Selector,
+    max_file_size: u64,
+    mut on_file: impl FnMut(&str, u64, &mut dyn Read) -> Result<bool>,
+) -> Result<()> {
+    let set = VolumeSet::inspect(path);
+    let vol = VolumeReader::open(&set)?;
+    let mut reader = ArchiveReader::new(vol, password(password_opt)).map_err(map_err)?;
+    let mut first_error: Option<Error> = None;
+
+    reader
+        .for_each_entries(|entry, rd| {
+            if entry.is_directory() {
+                return Ok(true);
+            }
+            if unix_mode(entry).is_some_and(|m| m & S_IFMT == S_IFLNK) {
+                let _ = io::copy(rd, &mut io::sink());
+                return Ok(true);
+            }
+            let name = entry.name().to_string();
+            let size = entry.size();
+            if size == 0 || size > max_file_size || !selector.matches(&name) {
+                io::copy(rd, &mut io::sink())?;
+                return Ok(true);
+            }
+            let keep_going = match on_file(&name, size, rd) {
+                Ok(cont) => cont,
+                Err(e) => {
+                    first_error = Some(e);
+                    false
+                }
+            };
+            let _ = io::copy(rd, &mut io::sink());
+            Ok(keep_going)
+        })
+        .map_err(map_err)?;
+
+    if let Some(e) = first_error {
+        return Err(e);
+    }
+    Ok(())
+}
+
+
 /// The coder chain for new archives: optional AES on the outside, then LZMA2
 /// (or plain COPY at `Level::Store`).
 fn content_methods(opts: &CreateOptions) -> Vec<EncoderConfiguration> {

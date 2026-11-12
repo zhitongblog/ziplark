@@ -47,11 +47,11 @@
         "description": "मुफ़्त, ओपन-सोर्स, क्रॉस-प्लेटफ़ॉर्म फ़ाइल आर्काइवर। ZIP, RAR (RAR5 और एन्क्रिप्टेड सहित), 7z, tar, ISO और gz/bz2/xz/zst/lz4 एक्सट्रैक्ट करता है; ZIP (AES-256), 7z और tar बनाता है। एक छोटा-सा Rust इंजन, साथ में एक डेस्कटॉप ऐप, एक CLI और एक MCP सर्वर।",
         "url": "https://ziplark.com/",
         "downloadUrl": "https://ziplark.com/#download",
-        "softwareVersion": "0.2.1",
+        "softwareVersion": "0.5.0",
         "license": "https://opensource.org/licenses/MIT",
         "isAccessibleForFree": true,
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-        "author": { "@type": "Person", "name": "doaipm" },
+        "author": { "@type": "Person", "name": "doaipm", "url": "https://doaipm.com" },
         "image": "https://ziplark.com/og.png?v=1",
         "sameAs": ["https://github.com/zhitongblog/ziplark"]
       },
@@ -59,7 +59,7 @@
         "@type": "WebSite",
         "name": "Ziplark",
         "url": "https://ziplark.com/",
-        "publisher": { "@type": "Person", "name": "doaipm" }
+        "publisher": { "@type": "Person", "name": "doaipm", "url": "https://doaipm.com" }
       },
       {
         "@type": "FAQPage",
@@ -81,6 +81,7 @@
   </script>
 </head>
 <body>
+  <div class="promo-bar">✨ AI-युग के PM बनें — बोलें, और AI उत्पाद बनाए → <a href="https://doaipm.com" target="_blank" rel="noopener">doaipm.com ↗</a></div>
   <header class="nav">
     <div class="nav-left">
       <a class="brand" href="/">
@@ -175,13 +176,16 @@
         <table>
           <thead><tr><th>फ़ॉर्मैट</th><th>एक्सट्रैक्ट</th><th>बनाएँ</th><th>एन्क्रिप्शन</th></tr></thead>
           <tbody>
-            <tr><td>ZIP</td><td class="y">✓</td><td class="y">✓</td><td>AES-256 (ZipCrypto पढ़ता है)</td></tr>
-            <tr><td>7z</td><td class="y">✓</td><td class="y">✓</td><td>AES-256</td></tr>
-            <tr><td>RAR / RAR5</td><td class="y">✓</td><td class="n">—</td><td>एन्क्रिप्टेड पढ़ता है</td></tr>
+            <tr><td>ZIP (<code>.z01</code>, <code>.jar</code>, <code>.apk</code>, <code>.whl</code>, <code>.crx</code>, <code>.epub</code>, <code>.docx</code> सहित)</td><td class="y">✓</td><td class="y">✓</td><td>AES-256 (ZipCrypto पढ़ता है)</td></tr>
+            <tr><td>7z (<code>.7z.001</code> मल्टी-वॉल्यूम सहित)</td><td class="y">✓</td><td class="y">✓</td><td>AES-256</td></tr>
+            <tr><td>RAR / RAR5 (मल्टी-वॉल्यूम, SFX)</td><td class="y">✓</td><td class="n">—</td><td>एन्क्रिप्टेड पढ़ता है</td></tr>
             <tr><td>tar</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
             <tr><td>tar.gz / .bz2 / .xz / .zst / .lz4</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
             <tr><td>gz / bz2 / xz / zst / lz4 (सिंगल स्ट्रीम)</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
             <tr><td>ISO 9660 / Joliet (डिस्क इमेज)</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+            <tr><td>Debian &amp; Unix ar (<code>.deb</code>, <code>.udeb</code>, <code>.ipk</code>, <code>.ar</code>, <code>.a</code>)</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+            <tr><td>RPM &amp; CPIO (<code>.rpm</code>, <code>.cpio.*</code>)</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+            <tr><td>Microsoft Cabinet (<code>.cab</code>, Store + MSZIP)</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
           </tbody>
         </table>
       </div>
@@ -234,11 +238,15 @@
           <h3>CLI — <code>ziplark</code></h3>
           <p>किसी भी आर्काइव को लिस्ट करें, एक्सट्रैक्ट करें, बनाएँ और वेरिफ़ाई करें। स्क्रिप्टिंग के लिए हर
              कमांड पर <code>--json</code>।</p>
-          <pre><code>ziplark list  movie.rar
-ziplark extract photos.zip -o ./out
-ziplark create backup.tar.zst ./src --level best
-ziplark create secret.zip ./private --password hunter2
-ziplark test  download.7z</code></pre>
+          <pre><code>ziplark list    movie.rar
+ziplark cat     repo.tar.gz src/main.rs
+ziplark grep    "TODO" repo.tar.gz -i
+ziplark extract photos.zip -o ./out --smart
+ziplark create  backup.tar.zst ./src --level best
+ziplark add     backup.tar.zst ./CHANGELOG.md
+ziplark rm      backup.tar.zst CHANGELOG.md --exact
+ziplark convert legacy.rar clean.tar.zst
+ziplark test    download.7z</code></pre>
         </article>
         <article class="card">
           <h3>MCP सर्वर — <code>ziplark-mcp</code></h3>
@@ -284,7 +292,7 @@ ziplark test  download.7z</code></pre>
 
     <section id="download" class="section">
       <h2>डाउनलोड</h2>
-      <p class="dl-sub">वर्शन <span id="ver">0.1.0</span> · हमेशा के लिए मुफ़्त · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">सभी रिलीज़ और चेकसम</a></p>
+      <p class="dl-sub">वर्शन <span id="ver">0.5.0</span> · हमेशा के लिए मुफ़्त · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">सभी रिलीज़ और चेकसम</a></p>
       <div class="dl-grid">
         <div class="dl-card" data-os="mac">
           <h3>macOS</h3>
@@ -411,14 +419,15 @@ ziplark test  download.7z</code></pre>
       <img src="/favicon.png?v=3" alt="" width="22" height="22" />
       <span>Ziplark</span>
     </div>
-    <p>मुफ़्त, तेज़, क्रॉस-प्लेटफ़ॉर्म आर्काइवर। <a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> लाइसेंस्ड · एक <strong>doaipm</strong> प्रोजेक्ट।</p>
+    <p>मुफ़्त, तेज़, क्रॉस-प्लेटफ़ॉर्म आर्काइवर। <a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> लाइसेंस्ड · एक <a href="https://doaipm.com" target="_blank" rel="noopener"><strong>doaipm.com</strong></a> प्रोजेक्ट।</p>
     <p class="muted">गाइड: <a href="/winrar-alternative/">मुफ़्त WinRAR विकल्प</a> ·
       <a href="/open-rar-on-mac/">Mac पर RAR खोलें</a> · <a href="/7zip-for-mac/">Mac के लिए 7-Zip</a></p>
-    <p class="muted">© 2026 doaipm · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+    <p class="muted">© 2026 <a href="https://doaipm.com" target="_blank" rel="noopener">doaipm.com</a> · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+    <p class="also-from">निर्माता की अन्य प्रस्तुति: <a href="https://doaipm.com" target="_blank" rel="noopener">doaipm.com</a> · AI-युग के PM बनें</p>
   </footer>
 
   <script>
-    const VERSION = "0.2.1";
+    const VERSION = "0.5.0";
     const BASE = "https://github.com/zhitongblog/ziplark/releases/download/v" + VERSION + "/";
     document.getElementById("ver").textContent = VERSION;
     // Wire every data-asset link to its release URL ({V} -> version).

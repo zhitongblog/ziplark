@@ -3,6 +3,27 @@
 All notable changes to Ziplark are documented here.
 This project adheres to [Semantic Versioning](https://semver.org).
 
+## [0.5.0] — 2026-11
+
+The in-archive search, in-place entry removal, format conversion & nested archive drill-down release.
+
+### Added
+- **In-archive full-text search (`ziplark grep` / MCP `ziplark_grep` / GUI "Search contents").**
+  Streams text files inside any archive (`.zip`, `.7z`, `.tar.*`, `.rar`, `.deb`,
+  `.rpm`, `.cab`, `.iso`, single-stream `.gz`/`.zst`/…) in memory without writing
+  anything to disk, automatically skipping binary entries (via 8 KiB NUL-byte
+  detection) and returning `<path>:<line>:<text>` matches.
+- **In-place archive entry deletion (`ziplark rm` / MCP `ziplark_remove` / GUI "Remove selected").**
+  Removes files or directories from existing `.zip` (fast zero-recompression raw
+  stream copy), `.7z`, and `.tar.*` archives atomically.
+- **One-step archive format conversion (`ziplark convert` / MCP `ziplark_convert` / GUI "Convert…").**
+  Converts any readable archive format (including `.rar`, `.cab`, `.deb`, `.rpm`,
+  `.7z`, `.iso`) directly into `.zip`, `.7z`, or `.tar.*` while preserving permissions,
+  symlinks, and modification times.
+- **Nested archive drill-down in the desktop app.** Double-clicking an archive
+  inside another archive opens it directly in the window with a breadcrumb trail
+  and a `⬅ Parent` button to step back out.
+
 ## [0.4.0] — 2026-10
 
 The preview, smart-extract, package-format & desktop experience release.

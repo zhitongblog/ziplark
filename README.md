@@ -14,7 +14,7 @@ tar, ISO and the common compressed-tar variants; creates ZIP (with AES-256), 7z
 and tar archives. One small Rust engine, three ways to drive it: a desktop app,
 a CLI, and an MCP server.
 
-[**Download**](https://ziplark.com/#download) · [Website](https://ziplark.com) · [Report a bug](https://github.com/zhitongblog/ziplark/issues)
+[**Download**](https://ziplark.com/#download) · [Website](https://ziplark.com) · [by doaipm](https://doaipm.com) · [Report a bug](https://github.com/zhitongblog/ziplark/issues)
 
 </div>
 
@@ -135,9 +135,12 @@ cargo build --release -p ziplark-cli      # binary at target/release/ziplark
 
 ziplark list    movie.rar
 ziplark cat     repo.tar.gz src/main.rs
+ziplark grep    "TODO" repo.tar.gz -i --include "*.rs"
 ziplark extract photos.zip -o ./out --smart
 ziplark create  backup.tar.zst ./src ./README.md --level best
 ziplark add     backup.tar.zst ./CHANGELOG.md
+ziplark rm      backup.tar.zst CHANGELOG.md --exact
+ziplark convert legacy.rar clean.tar.zst --level best
 ziplark create  secret.zip ./private --password hunter2
 ziplark test    download.7z
 ziplark info    mystery.bin
@@ -172,8 +175,8 @@ ziplark compress-zip ./photos ./a.txt  # → ./Archive.zip next to them
 ## 3. MCP server — `ziplark-mcp`
 
 A Model Context Protocol server (JSON-RPC over stdio). Read tools
-(`ziplark_info`, `ziplark_list`, `ziplark_read`, `ziplark_test`) are always available; the write tools
-(`ziplark_extract`, `ziplark_create`, `ziplark_add`) require `--allow-write`.
+(`ziplark_info`, `ziplark_list`, `ziplark_read`, `ziplark_grep`, `ziplark_test`) are always available; the write tools
+(`ziplark_extract`, `ziplark_create`, `ziplark_add`, `ziplark_remove`, `ziplark_convert`) require `--allow-write`.
 
 ```bash
 cargo build --release -p ziplark-mcp
@@ -229,7 +232,7 @@ cargo build --release      # all crates, size-optimized
 
 ## License
 
-**MIT** © 2026 **doaipm** — a doaipm project. See [LICENSE](LICENSE).
+**MIT** © 2026 [**doaipm**](https://doaipm.com) — a [doaipm.com](https://doaipm.com) project. See [LICENSE](LICENSE).
 
 Ziplark bundles third-party open-source components under their own licenses,
 acknowledged in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Note in

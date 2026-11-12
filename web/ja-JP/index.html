@@ -47,11 +47,11 @@
         "description": "無料・オープンソース・クロスプラットフォームのファイルアーカイバー。ZIP、RAR（RAR5 や暗号化を含む）、7z、tar、ISO、gz/bz2/xz/zst/lz4 を展開し、ZIP（AES-256）、7z、tar を作成します。デスクトップアプリ、CLI、MCP サーバーを備えた、ひとつの小さな Rust エンジン。",
         "url": "https://ziplark.com/",
         "downloadUrl": "https://ziplark.com/#download",
-        "softwareVersion": "0.2.1",
+        "softwareVersion": "0.5.0",
         "license": "https://opensource.org/licenses/MIT",
         "isAccessibleForFree": true,
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-        "author": { "@type": "Person", "name": "doaipm" },
+        "author": { "@type": "Person", "name": "doaipm", "url": "https://doaipm.com" },
         "image": "https://ziplark.com/og.png?v=1",
         "sameAs": ["https://github.com/zhitongblog/ziplark"]
       },
@@ -59,7 +59,7 @@
         "@type": "WebSite",
         "name": "Ziplark",
         "url": "https://ziplark.com/",
-        "publisher": { "@type": "Person", "name": "doaipm" }
+        "publisher": { "@type": "Person", "name": "doaipm", "url": "https://doaipm.com" }
       },
       {
         "@type": "FAQPage",
@@ -81,6 +81,7 @@
   </script>
 </head>
 <body>
+  <div class="promo-bar">✨ AI 時代の PM になる — 一言で AI がプロダクトを作る → <a href="https://doaipm.com" target="_blank" rel="noopener">doaipm.com ↗</a></div>
   <header class="nav">
     <div class="nav-left">
       <a class="brand" href="/">
@@ -175,13 +176,16 @@
         <table>
           <thead><tr><th>形式</th><th>展開</th><th>作成</th><th>暗号化</th></tr></thead>
           <tbody>
-            <tr><td>ZIP</td><td class="y">✓</td><td class="y">✓</td><td>AES-256（ZipCrypto の読み込み対応）</td></tr>
-            <tr><td>7z</td><td class="y">✓</td><td class="y">✓</td><td>AES-256</td></tr>
-            <tr><td>RAR / RAR5</td><td class="y">✓</td><td class="n">—</td><td>暗号化の読み込み対応</td></tr>
+            <tr><td>ZIP（<code>.z01</code>、<code>.jar</code>、<code>.apk</code>、<code>.whl</code>、<code>.crx</code>、<code>.epub</code>、<code>.docx</code> を含む）</td><td class="y">✓</td><td class="y">✓</td><td>AES-256（ZipCrypto の読み込み対応）</td></tr>
+            <tr><td>7z（<code>.7z.001</code> マルチボリュームを含む）</td><td class="y">✓</td><td class="y">✓</td><td>AES-256</td></tr>
+            <tr><td>RAR / RAR5（マルチボリューム、自己展開 SFX）</td><td class="y">✓</td><td class="n">—</td><td>暗号化の読み込み対応</td></tr>
             <tr><td>tar</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
             <tr><td>tar.gz / .bz2 / .xz / .zst / .lz4</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
             <tr><td>gz / bz2 / xz / zst / lz4（単一ストリーム）</td><td class="y">✓</td><td class="y">✓</td><td>—</td></tr>
             <tr><td>ISO 9660 / Joliet（ディスクイメージ）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+            <tr><td>Debian &amp; Unix ar（<code>.deb</code>、<code>.udeb</code>、<code>.ipk</code>、<code>.ar</code>、<code>.a</code>）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+            <tr><td>RPM &amp; CPIO（<code>.rpm</code>、<code>.cpio.*</code>）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+            <tr><td>Microsoft Cabinet（<code>.cab</code>、Store + MSZIP）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
           </tbody>
         </table>
       </div>
@@ -234,11 +238,15 @@
           <h3>CLI — <code>ziplark</code></h3>
           <p>あらゆるアーカイブの一覧表示、展開、作成、検証ができます。すべてのコマンドに
              <code>--json</code> を用意し、スクリプト化も簡単です。</p>
-          <pre><code>ziplark list  movie.rar
-ziplark extract photos.zip -o ./out
-ziplark create backup.tar.zst ./src --level best
-ziplark create secret.zip ./private --password hunter2
-ziplark test  download.7z</code></pre>
+          <pre><code>ziplark list    movie.rar
+ziplark cat     repo.tar.gz src/main.rs
+ziplark grep    "TODO" repo.tar.gz -i
+ziplark extract photos.zip -o ./out --smart
+ziplark create  backup.tar.zst ./src --level best
+ziplark add     backup.tar.zst ./CHANGELOG.md
+ziplark rm      backup.tar.zst CHANGELOG.md --exact
+ziplark convert legacy.rar clean.tar.zst
+ziplark test    download.7z</code></pre>
         </article>
         <article class="card">
           <h3>MCP サーバー — <code>ziplark-mcp</code></h3>
@@ -284,7 +292,7 @@ ziplark test  download.7z</code></pre>
 
     <section id="download" class="section">
       <h2>ダウンロード</h2>
-      <p class="dl-sub">バージョン <span id="ver">0.1.0</span> · ずっと無料 · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">すべてのリリースとチェックサム</a></p>
+      <p class="dl-sub">バージョン <span id="ver">0.5.0</span> · ずっと無料 · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">すべてのリリースとチェックサム</a></p>
       <div class="dl-grid">
         <div class="dl-card" data-os="mac">
           <h3>macOS</h3>
@@ -411,14 +419,15 @@ ziplark test  download.7z</code></pre>
       <img src="/favicon.png?v=3" alt="" width="22" height="22" />
       <span>Ziplark</span>
     </div>
-    <p>無料・高速・クロスプラットフォームのアーカイバー。<a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> ライセンス · <strong>doaipm</strong> のプロジェクト。</p>
+    <p>無料・高速・クロスプラットフォームのアーカイバー。<a href="https://github.com/zhitongblog/ziplark/blob/main/LICENSE" rel="noopener">MIT</a> ライセンス · <a href="https://doaipm.com" target="_blank" rel="noopener"><strong>doaipm.com</strong></a> のプロジェクト。</p>
     <p class="muted">ガイド： <a href="/winrar-alternative/">無料の WinRAR 代替</a> ·
       <a href="/open-rar-on-mac/">Mac で RAR を開く</a> · <a href="/7zip-for-mac/">Mac 向け 7-Zip</a></p>
-    <p class="muted">© 2026 doaipm · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+    <p class="muted">© 2026 <a href="https://doaipm.com" target="_blank" rel="noopener">doaipm.com</a> · <a href="https://github.com/zhitongblog/ziplark" rel="noopener">github.com/zhitongblog/ziplark</a></p>
+    <p class="also-from">作者の他プロジェクト：<a href="https://doaipm.com" target="_blank" rel="noopener">doaipm.com</a> · AI 時代の PM になる</p>
   </footer>
 
   <script>
-    const VERSION = "0.2.1";
+    const VERSION = "0.5.0";
     const BASE = "https://github.com/zhitongblog/ziplark/releases/download/v" + VERSION + "/";
     document.getElementById("ver").textContent = VERSION;
     // Wire every data-asset link to its release URL ({V} -> version).

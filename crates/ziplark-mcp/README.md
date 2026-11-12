@@ -3,21 +3,20 @@
 The [Ziplark](https://github.com/zhitongblog/ziplark) MCP server — drive a fast,
 cross-platform archive engine from any LLM over the Model Context Protocol.
 
-It exposes tools to **list, extract, test and create** archives:
+It exposes tools to **list, read/preview, grep, extract, test, create, edit and convert** archives:
 
-- Reads **ZIP, RAR (incl. RAR5, encrypted, multi-volume, self-extracting), 7z, tar**,
+- Reads **ZIP (incl. `.z01` split, `.jar`, `.apk`, `.whl`, `.crx`), RAR (incl. RAR5, encrypted, multi-volume, self-extracting), 7z (`.7z.001`), tar**,
   the compressed-tar variants (`tar.gz/.bz2/.xz/.zst/.lz4`), single-stream
-  `gz/bz2/xz/zst/lz4`, and **ISO 9660 / Joliet**.
-- Listings are **paged** (`offset`/`limit`, with per-directory counts when
-  truncated), so a 200 000-entry disc image costs the same context as a small ZIP.
+  `gz/bz2/xz/zst/lz4`, **ISO 9660 / Joliet**, **Debian / ar (`.deb`, `.ar`, `.a`)**, **RPM / CPIO (`.rpm`, `.cpio.*`)**, and **Microsoft Cabinet (`.cab`)**.
+- Listings (`ziplark_list`), file reads (`ziplark_read`), and full-text searches (`ziplark_grep`) are **paged** and stream in memory without writing to disk, so a 200 000-entry disc image costs the same context as a small ZIP.
 - `keep_broken` salvages what is readable from a damaged or incomplete archive
   and reports what failed; `exact` extracts precisely the entries named in a
-  listing.
-- Creates **ZIP (AES-256), 7z (AES-256) and tar** (and the compressed-tar variants).
+  listing; `smart` prevents tarbombs and double-nested folders.
+- Creates, modifies (`ziplark_add`, `ziplark_remove`) and converts (`ziplark_convert`) **ZIP (AES-256), 7z (AES-256) and tar** (and the compressed-tar variants).
 - Every extraction path is funneled through a single **zip-slip guard**, so no entry
   can escape the destination directory.
 
-Read tools are always available; write tools (extract/create) are gated behind
+Read tools (`ziplark_info`, `ziplark_list`, `ziplark_read`, `ziplark_grep`, `ziplark_test`) are always available; write tools (`ziplark_extract`, `ziplark_create`, `ziplark_add`, `ziplark_remove`, `ziplark_convert`) are gated behind
 `--allow-write`.
 
 ## Install

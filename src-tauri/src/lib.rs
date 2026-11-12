@@ -20,10 +20,12 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, State};
 use ziplark_core::shell::{self, ShellStatus};
 use ziplark_core::{
-    add as core_add, create as core_create, detect, extract as core_extract, list as core_list,
-    read_entry as core_read_entry, smart_dest, test as core_test, ArchiveInfo, CreateOptions,
-    CreateReport, Error, ExtractOptions, ExtractReport, Format, Level, ListOptions, MatchMode,
-    Progress, ReadOptions, TestReport,
+    add as core_add, convert as core_convert, create as core_create, detect,
+    extract as core_extract, grep as core_grep, list as core_list, read_entry as core_read_entry,
+    remove as core_remove, smart_dest, test as core_test, ArchiveInfo, ConvertOptions,
+    ConvertReport, CreateOptions, CreateReport, Error, ExtractOptions, ExtractReport, Format,
+    GrepOptions, GrepReport, Level, ListOptions, MatchMode, Progress, ReadOptions, RemoveOptions,
+    RemoveReport, TestReport,
 };
 
 /// Event names the webview listens for.
@@ -461,6 +463,123 @@ async fn add_to_archive(
 }
 
 #[tauri::command]
+async fn remove_from_archive(
+    app: AppHandle,
+    running: State<'_, Arc<Running>>,
+    archive: String,
+    entries: Vec<String>,
+    password: Option<String>,
+) -> Result<RemoveReport, String> {
+    if entries.is_empty() {
+        return Err("select at least one entry to remove".into());
+    }
+    let fmt = detect(Path::new(&archive))
+        .ok_or_else(|| "cannot modify this archive format".to_string())?;
+    if !fmt.can_modify() {
+        return Err(format!("{} archives are read-only", fmt.label()));
+    }
+    let opts = RemoveOptions {
+        password: password.filter(|p| !p.is_empty()),
+        include: entries,
+        match_mode: MatchMode::Exact,
+        level: Level::Default,
+    };
+    let running = running.inner().clone();
+    in_background(app, running, move |progress| {
+        core_remove(&archive, &opts, Some(progress))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn convert_archive(
+    app: AppHandle,
+    running: State<'_, Arc<Running>>,
+    source: String,
+    output: String,
+    format: String,
+    level: String,
+    password: Option<String>,
+) -> Result<ConvertReport, String> {
+    let opts = ConvertOptions {
+        read_password: password.filter(|p| !p.is_empty()),
+        create: CreateOptions {
+            format: parse_format(&format)?,
+            level: parse_level(&level),
+            password: None,
+        },
+    };
+    let running = running.inner().clone();
+    in_background(app, running, move |progress| {
+        core_convert(&source, &output, &opts, Some(progress))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn grep_archive(
+    app: AppHandle,
+    running: State<'_, Arc<Running>>,
+    path: String,
+    pattern: String,
+    password: Option<String>,
+    case_insensitive: Option<bool>,
+) -> Result<GrepReport, String> {
+    let opts = GrepOptions {
+        password: password.filter(|p| !p.is_empty()),
+        case_insensitive: case_insensitive.unwrap_or(true),
+        ..GrepOptions::default()
+    };
+    let running = running.inner().clone();
+    in_background(app, running, move |progress| {
+        core_grep(&path, &pattern, &opts, Some(progress))
+    })
+    .await
+}
+
+/// Extract a nested archive entry into a managed temporary directory so the GUI
+/// can open and browse an archive inside another archive directly.
+#[tauri::command]
+async fn extract_nested_archive(
+    app: AppHandle,
+    running: State<'_, Arc<Running>>,
+    path: String,
+    entry: String,
+    password: Option<String>,
+) -> Result<String, String> {
+    let running = running.inner().clone();
+    in_background(app, running, move |progress| {
+        let base = std::env::temp_dir().join(format!(
+            "ziplark-nested-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&base)?;
+        let opts = ExtractOptions {
+            password: password.filter(|p| !p.is_empty()),
+            dest: base.clone(),
+            overwrite: true,
+            include: vec![entry.clone()],
+            match_mode: MatchMode::Exact,
+            keep_broken: false,
+            smart: false,
+        };
+        core_extract(&path, &opts, Some(progress))?;
+        let extracted = base.join(entry.replace('\\', "/").trim_start_matches("./"));
+        if !extracted.exists() {
+            return Err(Error::other(format!(
+                "nested entry could not be extracted: {entry}"
+            )));
+        }
+        Ok(extracted.to_string_lossy().to_string())
+    })
+    .await
+}
+
+#[tauri::command]
 fn shell_integration_status() -> Result<ShellStatus, String> {
     shell::status().map_err(|e| e.to_string())
 }
@@ -613,6 +732,10 @@ pub fn run() {
             extract_archive_here,
             create_archive,
             add_to_archive,
+            remove_from_archive,
+            convert_archive,
+            grep_archive,
+            extract_nested_archive,
             shell_integration_status,
             shell_integration_install,
             shell_integration_uninstall,

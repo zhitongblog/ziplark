@@ -46,7 +46,8 @@ const fmtDate = (sec) => {
 
 const MODIFIABLE_FORMATS = new Set(["zip", "sevenz", "7z", "tar", "targz", "tarbz2", "tarxz", "tarzst", "tarlz4"]);
 
-let currentArchive = null;     // { path, password, format }
+let currentArchive = null;     // { path, password, format, volumes }
+let archiveStack = [];         // parent archives when drilling into a nested archive
 let createInputs = [];         // string[]
 
 /* ---------- i18n (9 languages) ---------- */
@@ -59,13 +60,17 @@ const I18N = {
     drop_archive: "Drop an archive here",
     or: "or",
     choose_archive: "Choose archive…",
+    btn_back_parent: "⬅ Parent",
     btn_verify: "Verify",
+    btn_convert: "Convert…",
     btn_add_files: "Add files…",
     btn_extract_here: "Extract here",
     btn_extract_all: "Extract all…",
     btn_close: "Close",
     search_placeholder: "Search or filter entries (e.g. *.txt, docs/)…",
-    dblclick_hint: "Double-click a file to preview",
+    btn_grep: "Search contents",
+    grep_title: "Search Inside Archive",
+    dblclick_hint: "Double-click a file to preview (or nested archive to open)",
     col_name: "Name",
     col_modified: "Modified",
     col_size: "Size",
@@ -102,13 +107,17 @@ const I18N = {
     drop_archive: "将压缩包拖放到此处",
     or: "或",
     choose_archive: "选择归档文件…",
+    btn_back_parent: "⬅ 返回上层",
     btn_verify: "校验",
+    btn_convert: "转换格式…",
     btn_add_files: "添加文件…",
     btn_extract_here: "智能解压到当前目录",
     btn_extract_all: "全部解压…",
     btn_close: "关闭",
     search_placeholder: "搜索或过滤条目（例如 *.txt, docs/）…",
-    dblclick_hint: "双击文件可直接预览",
+    btn_grep: "全文搜索",
+    grep_title: "归档内全文搜索",
+    dblclick_hint: "双击文件可直接预览（双击内部压缩包可直接打开）",
     col_name: "名称",
     col_modified: "修改时间",
     col_size: "大小",
@@ -541,7 +550,8 @@ function isPwError(err) {
 }
 
 /* ---------- OPEN / EXTRACT ---------- */
-async function openArchive(path) {
+async function openArchive(path, keepStack = false) {
+  if (!keepStack) archiveStack = [];
   switchView("open");
   busy(true, "Reading archive…");
   let password = null;
@@ -563,7 +573,7 @@ async function openArchive(path) {
         }
       }
     }
-    currentArchive = { path: info.path || path, password, format: info.format };
+    currentArchive = { path: info.path || path, password, format: info.format, volumes: info.volumes };
     renderArchive(info);
   } catch (err) {
     toast(String(err), "err");
@@ -576,7 +586,12 @@ function renderArchive(info) {
   $("open-drop").classList.add("hidden");
   $("archive-panel").classList.remove("hidden");
   const name = info.path.split(/[\\/]/).pop();
-  $("arc-name").textContent = name;
+  $("arc-name").textContent = archiveStack.length
+    ? `${archiveStack.map((a) => a.path.split(/[\\/]/).pop()).join(" ▸ ")} ▸ ${name}`
+    : name;
+  if ($("btn-back-parent")) {
+    $("btn-back-parent").classList.toggle("hidden", archiveStack.length === 0);
+  }
 
   const bits = [
     info.format,
@@ -629,6 +644,7 @@ function renderArchive(info) {
 
 function closeArchive() {
   currentArchive = null;
+  archiveStack = [];
   $("archive-panel").classList.add("hidden");
   $("open-drop").classList.remove("hidden");
   tree.nodes = [];
@@ -802,9 +818,18 @@ document.querySelectorAll(".tree-head .sortable").forEach((el) => {
 
 function updateSelectionUi() {
   const btn = $("btn-extract-sel");
+  const rmBtn = $("btn-remove-sel");
   const n = tree.selected.size;
   btn.classList.toggle("hidden", n === 0);
   btn.textContent = n === 1 ? "Extract 1 selected…" : `Extract ${n} selected…`;
+  if (rmBtn) {
+    const canMod = currentArchive &&
+      MODIFIABLE_FORMATS.has(String(currentArchive.format).toLowerCase()) &&
+      !(currentArchive.volumes?.length > 1) &&
+      archiveStack.length === 0;
+    rmBtn.classList.toggle("hidden", n === 0 || !canMod);
+    rmBtn.textContent = n === 1 ? "Remove 1 selected" : `Remove ${n} selected`;
+  }
 }
 
 function escapeHtml(s) {
@@ -874,8 +899,41 @@ $("tree").addEventListener("click", (e) => {
 $("tree").addEventListener("dblclick", (e) => {
   const row = e.target.closest(".row");
   if (!row || row.dataset.dir === "true") return;
-  previewEntry(row.dataset.path);
+  const entryPath = row.dataset.path;
+  if (isNestedArchivePath(entryPath)) {
+    openNestedEntry(entryPath);
+  } else {
+    previewEntry(entryPath);
+  }
 });
+
+function isNestedArchivePath(entryPath) {
+  const l = (entryPath || "").toLowerCase();
+  const exts = [
+    ".zip", ".7z", ".rar", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2",
+    ".tar.xz", ".txz", ".tar.zst", ".tzst", ".tar.lz4", ".tlz4", ".deb",
+    ".rpm", ".cab", ".cpio", ".ar", ".jar", ".whl", ".apk", ".crx", ".nupkg",
+  ];
+  return exts.some((ext) => l.endsWith(ext));
+}
+
+async function openNestedEntry(entryPath) {
+  if (!currentArchive) return;
+  busy(true, "Opening nested archive…");
+  try {
+    const nestedFile = await invoke("extract_nested_archive", {
+      path: currentArchive.path,
+      entry: entryPath,
+      password: currentArchive.password,
+    });
+    archiveStack.push({ ...currentArchive });
+    await openArchive(nestedFile, true);
+  } catch (err) {
+    if (!wasCancelled(err)) toast(String(err), "err");
+  } finally {
+    busy(false);
+  }
+}
 
 window.addEventListener("resize", renderRows);
 
@@ -1120,6 +1178,16 @@ $("btn-open").onclick = async () => {
 $("btn-extract").onclick = () => extractArchive();
 if ($("btn-extract-here")) $("btn-extract-here").onclick = extractArchiveHere;
 $("btn-extract-sel").onclick = extractSelected;
+if ($("btn-remove-sel")) $("btn-remove-sel").onclick = removeSelected;
+if ($("btn-convert")) $("btn-convert").onclick = convertOpenArchive;
+if ($("btn-back-parent")) {
+  $("btn-back-parent").onclick = async () => {
+    const prev = archiveStack.pop();
+    if (prev) await openArchive(prev.path, true);
+  };
+}
+if ($("btn-grep")) $("btn-grep").onclick = grepOpenArchive;
+if ($("grep-close")) $("grep-close").onclick = () => $("grep-modal").classList.add("hidden");
 $("btn-test").onclick = testArchive;
 $("btn-close").onclick = closeArchive;
 if ($("btn-add-to-archive")) {
@@ -1127,6 +1195,116 @@ if ($("btn-add-to-archive")) {
     const sel = await dialog.open({ multiple: true, title: "Add files to archive…" });
     if (sel) await addFilesToOpenArchive(Array.isArray(sel) ? sel : [sel]);
   };
+}
+
+async function removeSelected() {
+  if (!currentArchive || tree.selected.size === 0) return;
+  const entries = [...tree.selected];
+  const ok = await confirmAction(
+    "Remove selected entries?",
+    `Permanently remove ${entries.length} selected ${entries.length === 1 ? "entry" : "entries"} from ${currentArchive.path.split(/[\\/]/).pop()}?`,
+    "Remove"
+  );
+  if (!ok) return;
+  busy(true, "Removing entries…");
+  try {
+    const r = await invoke("remove_from_archive", {
+      archive: currentArchive.path,
+      entries,
+      password: currentArchive.password,
+    });
+    const info = await invoke("list_archive", {
+      path: currentArchive.path,
+      password: currentArchive.password,
+    });
+    renderArchive(info);
+    toast(`Removed ${r.entries_removed} ${r.entries_removed === 1 ? "entry" : "entries"} (${r.entries_remaining} remaining)`, "ok");
+  } catch (err) {
+    if (!wasCancelled(err)) toast(String(err), "err");
+  } finally {
+    busy(false);
+  }
+}
+
+async function convertOpenArchive() {
+  if (!currentArchive) return;
+  const baseName = currentArchive.path.split(/[\\/]/).pop().replace(/\.(tar\.(gz|bz2|xz|zst|lz4)|[^.]+)$/i, "");
+  const out = await dialog.save({
+    title: "Convert archive to… (.zip, .7z, .tar.zst, .tar.gz)",
+    defaultPath: `${baseName}.zip`,
+  });
+  if (!out) return;
+  const lower = out.toLowerCase();
+  let fmt = "zip";
+  for (const ext of ["tar.zst", "tar.gz", "tar.xz", "tar.bz2", "tar.lz4", "7z", "tar", "zip"]) {
+    if (lower.endsWith("." + ext)) { fmt = ext; break; }
+  }
+  busy(true, "Converting archive…");
+  try {
+    const r = await invoke("convert_archive", {
+      source: currentArchive.path,
+      output: out,
+      format: fmt,
+      level: "default",
+      password: currentArchive.password,
+    });
+    toast(
+      `Converted → ${out.split(/[\\/]/).pop()} (${r.entries_converted} entries, ${fmtBytes(r.bytes_out)})`,
+      "ok",
+      { label: "Show", run: () => invoke("reveal_in_file_manager", { path: out }).catch(() => {}) }
+    );
+  } catch (err) {
+    if (!wasCancelled(err)) toast(String(err), "err");
+  } finally {
+    busy(false);
+  }
+}
+
+async function grepOpenArchive() {
+  if (!currentArchive) return;
+  const pattern = ($("tree-search")?.value || "").trim();
+  if (!pattern) {
+    toast("Type a search term in the search box first, then click Search contents.", "");
+    $("tree-search")?.focus();
+    return;
+  }
+  busy(true, `Searching contents for "${pattern}"…`);
+  try {
+    const r = await invoke("grep_archive", {
+      path: currentArchive.path,
+      pattern,
+      password: currentArchive.password,
+      caseInsensitive: true,
+    });
+    $("grep-title").textContent = `Matches for "${r.pattern}"`;
+    $("grep-meta").textContent =
+      `${r.matches.length}${r.truncated ? "+" : ""} matches across ${r.files_matched} of ${r.files_searched} text files`;
+    const box = $("grep-results");
+    if (r.matches.length === 0) {
+      box.innerHTML = `<div class="muted" style="padding:18px;text-align:center">No matching text found inside archive files.</div>`;
+    } else {
+      box.innerHTML = r.matches
+        .map(
+          (m) =>
+            `<div class="grep-item" data-entry="${escapeHtml(m.path)}">` +
+            `<div class="grep-item-head">${escapeHtml(m.path)} : line ${m.line_number}</div>` +
+            `<div class="grep-item-line">${escapeHtml(m.line)}</div>` +
+            `</div>`
+        )
+        .join("");
+      box.querySelectorAll(".grep-item").forEach((el) => {
+        el.onclick = () => {
+          $("grep-modal").classList.add("hidden");
+          previewEntry(el.dataset.entry);
+        };
+      });
+    }
+    $("grep-modal").classList.remove("hidden");
+  } catch (err) {
+    if (!wasCancelled(err)) toast(String(err), "err");
+  } finally {
+    busy(false);
+  }
 }
 
 /* ---------- OS Right-Click Menu Integration modal ---------- */

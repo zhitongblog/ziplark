@@ -25,6 +25,24 @@ a { color: var(--accent2); text-decoration: none; }
 a:hover { color: #a5b4fc; }
 code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: .92em; }
 
+/* top promo bar */
+.promo-bar {
+  background: linear-gradient(90deg, rgba(99, 102, 241, .16), rgba(124, 58, 237, .18), rgba(99, 102, 241, .16));
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.promo-bar a {
+  color: var(--accent2);
+  font-weight: 700;
+}
+.promo-bar a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
 /* nav */
 .nav {
   position: sticky; top: 0; z-index: 10;
@@ -212,6 +230,15 @@ footer {
 }
 footer .brand { justify-content: center; font-size: 16px; margin-bottom: 10px; color: var(--text); }
 footer p { margin: 4px 0; font-size: 14px; }
+footer .also-from {
+  margin: 14px 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+footer .also-from a {
+  font-weight: 600;
+  color: var(--accent2);
+}
 .muted { color: var(--muted); }
 
 /* language picker (i18n) */

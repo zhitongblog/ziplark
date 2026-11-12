@@ -31,8 +31,8 @@ pub use detect::{detect, detect_by_extension};
 pub use error::{Error, Result};
 pub use matcher::{MatchMode, Selector};
 pub use model::{
-    ArchiveAttributes, ArchiveEntry, ArchiveInfo, CreateReport, EntryContent, ExtractReport,
-    Format, Progress, TestReport,
+    ArchiveAttributes, ArchiveEntry, ArchiveInfo, ConvertReport, CreateReport, EntryContent,
+    ExtractReport, Format, GrepMatch, GrepReport, Progress, RemoveReport, TestReport,
 };
 pub use volumes::VolumeSet;
 
@@ -145,6 +145,81 @@ impl CreateOptions {
         }
     }
 }
+
+/// Default maximum matches returned by [`grep`].
+pub const DEFAULT_GREP_MAX_MATCHES: usize = 500;
+/// Default maximum uncompressed size of a single file scanned by [`grep`] (16 MiB).
+pub const DEFAULT_GREP_MAX_FILE_SIZE: u64 = 16 * 1024 * 1024;
+
+/// Options for searching text inside an archive ([`grep`]).
+#[derive(Debug, Clone)]
+pub struct GrepOptions {
+    pub password: Option<String>,
+    /// Case-insensitive substring matching (`-i`).
+    pub case_insensitive: bool,
+    /// Only search entries matching one of these path patterns (empty = all).
+    pub include: Vec<String>,
+    pub match_mode: MatchMode,
+    /// Stop after finding this many matching lines (default 500).
+    pub max_matches: usize,
+    /// Skip entries larger than this many bytes (default 16 MiB).
+    pub max_file_size: u64,
+}
+
+impl Default for GrepOptions {
+    fn default() -> Self {
+        Self {
+            password: None,
+            case_insensitive: false,
+            include: Vec::new(),
+            match_mode: MatchMode::Auto,
+            max_matches: DEFAULT_GREP_MAX_MATCHES,
+            max_file_size: DEFAULT_GREP_MAX_FILE_SIZE,
+        }
+    }
+}
+
+impl GrepOptions {
+    pub fn selector(&self) -> Selector {
+        Selector::new(&self.include, self.match_mode)
+    }
+}
+
+/// Options for removing entries from an archive ([`remove`]).
+#[derive(Debug, Clone)]
+pub struct RemoveOptions {
+    pub password: Option<String>,
+    pub include: Vec<String>,
+    pub match_mode: MatchMode,
+    pub level: Level,
+}
+
+impl Default for RemoveOptions {
+    fn default() -> Self {
+        Self {
+            password: None,
+            include: Vec::new(),
+            match_mode: MatchMode::Auto,
+            level: Level::Default,
+        }
+    }
+}
+
+impl RemoveOptions {
+    pub fn selector(&self) -> Selector {
+        Selector::new(&self.include, self.match_mode)
+    }
+}
+
+/// Options for converting an archive from one format to another ([`convert`]).
+#[derive(Debug, Clone)]
+pub struct ConvertOptions {
+    /// Password for unlocking the source archive, if encrypted.
+    pub read_password: Option<String>,
+    /// Options for creating the destination archive.
+    pub create: CreateOptions,
+}
+
 
 /// A progress callback. The engine calls it as work proceeds — between entries,
 /// and part-way through large ones — and **returning `false` asks it to stop**,
@@ -568,3 +643,364 @@ pub fn test(
         Format::Cab => formats::cab::test(path, opts, progress),
     }
 }
+
+/// Remove entries matching `opts.include` from an existing `.zip`, `.7z`, or
+/// `.tar.*` archive atomically.
+pub fn remove(
+    archive: impl AsRef<Path>,
+    opts: &RemoveOptions,
+    progress: Option<ProgressFn<'_>>,
+) -> Result<RemoveReport> {
+    let archive = archive.as_ref();
+    let selector = opts.selector();
+    if selector.matches_everything() {
+        return Err(Error::other(
+            "refusing to remove entries without at least one pattern",
+        ));
+    }
+    let fmt = detect(archive).ok_or_else(|| Error::UnsupportedFormat(Some(archive.to_path_buf())))?;
+    if !fmt.can_modify() {
+        return Err(Error::CreateUnsupported(fmt.label().to_string()));
+    }
+    let mut local = noop_progress;
+    let progress: ProgressFn = progress.unwrap_or(&mut local);
+
+    if fmt == Format::Zip {
+        return formats::zip::remove(archive, &selector, progress);
+    }
+
+    // For 7z and tar variants: check if any entry matches first.
+    let info = list(
+        archive,
+        &ListOptions {
+            password: opts.password.clone(),
+        },
+    )?;
+    let total_entries = info.entries.len() as u64;
+    let entries_removed = info
+        .entries
+        .iter()
+        .filter(|e| selector.matches(&e.path))
+        .count() as u64;
+
+    if entries_removed == 0 {
+        let bytes_out = std::fs::metadata(archive)?.len();
+        return Ok(RemoveReport {
+            output: archive.to_path_buf(),
+            format: fmt,
+            entries_removed: 0,
+            entries_remaining: total_entries,
+            bytes_out,
+        });
+    }
+
+    let parent = archive.parent().unwrap_or(Path::new("."));
+    let stage = parent.join(format!(
+        ".ziplark-rm-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
+    std::fs::create_dir_all(&stage)?;
+
+    let result = (|| -> Result<RemoveReport> {
+        let mut ex_opts = ExtractOptions::new(&stage);
+        ex_opts.overwrite = true;
+        ex_opts.password = opts.password.clone();
+        extract(archive, &ex_opts, None)?;
+
+        // Delete matched paths inside `stage` (deepest paths first so children
+        // are removed before parents).
+        let mut matched_paths: Vec<String> = info
+            .entries
+            .iter()
+            .filter(|e| selector.matches(&e.path))
+            .map(|e| e.path.clone())
+            .collect();
+        matched_paths.sort_by(|a, b| b.len().cmp(&a.len()));
+
+        for rel in &matched_paths {
+            if let Ok(target) = formats::safe_join(&stage, rel) {
+                if let Ok(md) = std::fs::symlink_metadata(&target) {
+                    if md.file_type().is_dir() && !md.file_type().is_symlink() {
+                        let _ = std::fs::remove_dir_all(&target);
+                    } else {
+                        let _ = std::fs::remove_file(&target);
+                    }
+                }
+            }
+        }
+
+        let mut remaining_inputs = Vec::new();
+        for entry in std::fs::read_dir(&stage)? {
+            let entry = entry?;
+            remaining_inputs.push(entry.path());
+        }
+        remaining_inputs.sort();
+
+        let tmp_archive = archive.with_extension(format!("rm.tmp.{}", std::process::id()));
+        let create_opts = CreateOptions {
+            format: fmt,
+            level: opts.level,
+            password: opts.password.clone(),
+        };
+        let rep = create(&tmp_archive, &remaining_inputs, &create_opts, Some(progress))?;
+        std::fs::rename(&tmp_archive, archive)?;
+        let bytes_out = std::fs::metadata(archive)?.len();
+        Ok(RemoveReport {
+            output: archive.to_path_buf(),
+            format: fmt,
+            entries_removed,
+            entries_remaining: rep.entries_added,
+            bytes_out,
+        })
+    })();
+
+    let _ = std::fs::remove_dir_all(&stage);
+    result
+}
+
+/// Convert an archive from any supported readable format (including RAR, 7z,
+/// CAB, DEB, RPM, ISO, ZIP, TAR.*) into `output` in `opts.create.format`.
+pub fn convert(
+    source: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+    opts: &ConvertOptions,
+    progress: Option<ProgressFn<'_>>,
+) -> Result<ConvertReport> {
+    let source = source.as_ref();
+    let output = output.as_ref();
+    let source_format =
+        detect(source).ok_or_else(|| Error::UnsupportedFormat(Some(source.to_path_buf())))?;
+    if !opts.create.format.can_create() {
+        return Err(Error::CreateUnsupported(
+            opts.create.format.label().to_string(),
+        ));
+    }
+
+    let mut local = noop_progress;
+    let progress: ProgressFn = progress.unwrap_or(&mut local);
+
+    let out_parent = output.parent().unwrap_or(Path::new("."));
+    std::fs::create_dir_all(out_parent)?;
+    let stage = out_parent.join(format!(
+        ".ziplark-conv-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
+    std::fs::create_dir_all(&stage)?;
+
+    let result = (|| -> Result<ConvertReport> {
+        let mut ex_opts = ExtractOptions::new(&stage);
+        ex_opts.overwrite = true;
+        ex_opts.password = opts.read_password.clone();
+        extract(source, &ex_opts, Some(progress))?;
+
+        let mut inputs = Vec::new();
+        for entry in std::fs::read_dir(&stage)? {
+            let entry = entry?;
+            inputs.push(entry.path());
+        }
+        inputs.sort();
+
+        let tmp_output = output.with_extension(format!("conv.tmp.{}", std::process::id()));
+        let rep = create(&tmp_output, &inputs, &opts.create, Some(progress))?;
+        std::fs::rename(&tmp_output, output)?;
+        let bytes_out = std::fs::metadata(output)?.len();
+
+        Ok(ConvertReport {
+            source: source.to_path_buf(),
+            source_format,
+            output: output.to_path_buf(),
+            output_format: opts.create.format,
+            entries_converted: rep.entries_added,
+            bytes_in: rep.bytes_in,
+            bytes_out,
+        })
+    })();
+
+    let _ = std::fs::remove_dir_all(&stage);
+    result
+}
+
+/// Search for text matching `pattern` across files inside an archive without
+/// extracting anything to disk.
+pub fn grep(
+    path: impl AsRef<Path>,
+    pattern: &str,
+    opts: &GrepOptions,
+    progress: Option<ProgressFn<'_>>,
+) -> Result<GrepReport> {
+    if pattern.is_empty() {
+        return Err(Error::other("search pattern must not be empty"));
+    }
+    let path = path.as_ref();
+    let fmt = detect(path).ok_or_else(|| Error::UnsupportedFormat(Some(path.to_path_buf())))?;
+    let mut local = noop_progress;
+    let progress: ProgressFn = progress.unwrap_or(&mut local);
+
+    let selector = opts.selector();
+    let max_matches = opts.max_matches.max(1);
+    let max_file_size = if opts.max_file_size == 0 {
+        DEFAULT_GREP_MAX_FILE_SIZE
+    } else {
+        opts.max_file_size
+    };
+    let needle = if opts.case_insensitive {
+        pattern.to_lowercase()
+    } else {
+        pattern.to_string()
+    };
+
+    let mut report = GrepReport {
+        pattern: pattern.to_string(),
+        matches: Vec::new(),
+        files_searched: 0,
+        files_matched: 0,
+        truncated: false,
+    };
+
+    let mut scan_one = |entry_path: &str, _size: u64, rd: &mut dyn std::io::Read| -> Result<bool> {
+        if is_binary_extension(entry_path) {
+            return Ok(true);
+        }
+        formats::report(
+            progress,
+            Progress {
+                current_path: entry_path.to_string(),
+                entries_done: report.files_searched,
+                entries_total: 0,
+                bytes_done: 0,
+                bytes_total: 0,
+            },
+        )?;
+
+        let mut bytes = Vec::new();
+        {
+            use std::io::Read as _;
+            rd.take(max_file_size).read_to_end(&mut bytes)?;
+        }
+        if bytes.is_empty() {
+            return Ok(true);
+        }
+        // Follow ripgrep / git-grep heuristic: if the first 8 KiB contains a
+        // NUL byte, treat the entry as binary and skip it.
+        let probe_len = bytes.len().min(8192);
+        if bytes[..probe_len].contains(&0) {
+            return Ok(true);
+        }
+
+        report.files_searched += 1;
+        let text = String::from_utf8_lossy(&bytes);
+        let mut matched_this_file = false;
+
+        for (idx, raw_line) in text.lines().enumerate() {
+            let line_hit = if opts.case_insensitive {
+                raw_line.to_lowercase().contains(&needle)
+            } else {
+                raw_line.contains(&needle)
+            };
+            if line_hit {
+                if !matched_this_file {
+                    matched_this_file = true;
+                    report.files_matched += 1;
+                }
+                let trimmed = raw_line.trim_end_matches('\r');
+                let display_line = if trimmed.chars().count() > 500 {
+                    let mut s: String = trimmed.chars().take(500).collect();
+                    s.push('…');
+                    s
+                } else {
+                    trimmed.to_string()
+                };
+                report.matches.push(GrepMatch {
+                    path: entry_path.to_string(),
+                    line_number: idx as u64 + 1,
+                    line: display_line,
+                });
+                if report.matches.len() >= max_matches {
+                    report.truncated = true;
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(true)
+    };
+
+    match fmt {
+        Format::Zip => {
+            formats::zip::scan_files(path, &opts.password, &selector, max_file_size, &mut scan_one)?
+        }
+        Format::Tar
+        | Format::TarGz
+        | Format::TarBz2
+        | Format::TarXz
+        | Format::TarZst
+        | Format::TarLz4 => {
+            formats::tar::scan_files(path, fmt, &selector, max_file_size, &mut scan_one)?
+        }
+        Format::SevenZ => {
+            formats::sevenz::scan_files(
+                path,
+                &opts.password,
+                &selector,
+                max_file_size,
+                &mut scan_one,
+            )?
+        }
+        _ => {
+            let info = list(
+                path,
+                &ListOptions {
+                    password: opts.password.clone(),
+                },
+            )?;
+            let size_unknown_ok = matches!(
+                fmt,
+                Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4
+            );
+            for entry in &info.entries {
+                if entry.is_dir
+                    || (entry.size == 0 && !size_unknown_ok)
+                    || entry.size > max_file_size
+                    || !selector.matches(&entry.path)
+                    || is_binary_extension(&entry.path)
+                {
+                    continue;
+                }
+                let content = read_entry(
+                    path,
+                    &entry.path,
+                    &ReadOptions {
+                        password: opts.password.clone(),
+                        offset: 0,
+                        max_bytes: max_file_size,
+                    },
+                )?;
+                let mut cursor = std::io::Cursor::new(&content.bytes);
+                if !scan_one(&entry.path, content.size, &mut cursor)? {
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok(report)
+}
+
+fn is_binary_extension(entry_path: &str) -> bool {
+    let lower = entry_path.to_ascii_lowercase();
+    const BIN_EXTS: &[&str] = &[
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".mp3", ".mp4", ".mkv", ".avi",
+        ".mov", ".wav", ".flac", ".ogg", ".woff", ".woff2", ".ttf", ".otf", ".eot", ".pdf", ".zip",
+        ".7z", ".rar", ".gz", ".bz2", ".xz", ".zst", ".lz4", ".iso", ".deb", ".rpm", ".cab", ".o",
+        ".a", ".so", ".dylib", ".dll", ".exe", ".class", ".pyc", ".wasm",
+    ];
+    BIN_EXTS.iter().any(|ext| lower.ends_with(ext))
+}
+

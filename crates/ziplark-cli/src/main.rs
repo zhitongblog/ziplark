@@ -7,9 +7,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use ziplark_core::{
-    add, create, detect, detect_by_extension, extract, list, read_entry, shell, test, ArchiveInfo,
-    CreateOptions, ExtractOptions, Format, Level, ListOptions, MatchMode, Progress, ReadOptions,
-    DEFAULT_READ_MAX_BYTES,
+    add, convert, create, detect, detect_by_extension, extract, grep, list, read_entry, remove,
+    shell, test, ArchiveInfo, ConvertOptions, CreateOptions, ExtractOptions, Format, GrepOptions,
+    Level, ListOptions, MatchMode, Progress, ReadOptions, RemoveOptions,
+    DEFAULT_GREP_MAX_FILE_SIZE, DEFAULT_GREP_MAX_MATCHES, DEFAULT_READ_MAX_BYTES,
 };
 
 mod shell_integration;
@@ -25,7 +26,10 @@ COMMANDS:
     extract|x <archive> [-o DIR]     Extract an archive (default: current dir)
     create|c <output> <inputs...>    Create an archive (format from extension)
     add|a <archive> <inputs...>      Add or update files inside an archive
+    rm|remove <archive> <entries...> Remove entries from an archive
+    convert <source> <output>        Convert an archive to another format
     cat|read <archive> <entry>       Read a single entry to stdout without extracting
+    grep|search <pattern> <archive>  Search text inside archive files without extracting
     test|t <archive>                 Verify archive integrity
     info <archive>                   Detect format and archive attributes
     extract-here <archive...>        Smart-extract each into a sibling folder (for menus)
@@ -36,20 +40,22 @@ COMMANDS:
 COMMON OPTIONS:
     -p, --password <PW>   Password for encrypted archives
     -o, --output <DIR>    Destination directory (extract)
+    -i, --ignore-case     Case-insensitive search (grep)
         --overwrite       Overwrite existing files when extracting
         --smart           Smart anti-tarbomb folder (wrap loose files into <stem>/,
                           avoid double-wrapping a single root folder)
         --include <PAT>   Only entries matching PAT (repeatable). A pattern with
                           * or ? is a glob over the whole path; otherwise it is
                           matched as a substring
-        --exact           Treat --include patterns as exact entry paths (a
+        --exact           Treat --include / rm patterns as exact entry paths (a
                           directory takes everything under it)
         --keep-broken     Carry on past entries that fail, and list them. For
                           damaged or incomplete archives — without it, the first
                           bad entry stops the extraction
+        --max-matches <N> Maximum matching lines in `grep` (default: 500)
         --max-bytes <N>   Maximum bytes to read in `cat` (default: 4 MiB)
         --offset <N>      Byte offset to start reading from in `cat` (default: 0)
-        --level <L>       store | fast | default | best (create / add)
+        --level <L>       store | fast | default | best (create / add / convert)
         --json            Machine-readable JSON output
     -h, --help            Show this help
     -V, --version         Show version
@@ -58,6 +64,9 @@ EXAMPLES:
     ziplark x photos.zip -o ./out --smart
     ziplark c backup.tar.zst ./src ./README.md --level best
     ziplark a backup.zip ./extra.txt
+    ziplark rm backup.zip extra.txt --exact
+    ziplark convert legacy.rar clean.tar.zst --level best
+    ziplark grep \"TODO\" repo.tar.gz -i --include \"*.rs\"
     ziplark cat release.deb DEBIAN/control
     ziplark l movie.part01.rar --json
     ziplark x movie.7z.002 -o ./out       # any volume opens the whole set
@@ -97,7 +106,10 @@ fn run(args: &[String]) -> anyhow::Result<ExitCode> {
         "extract" | "x" | "e" => cmd_extract(&args[1..]),
         "create" | "c" => cmd_create(&args[1..]),
         "add" | "a" => cmd_add(&args[1..]),
+        "rm" | "remove" | "del" | "delete" => cmd_remove(&args[1..]),
+        "convert" | "conv" => cmd_convert(&args[1..]),
         "cat" | "read" | "show" => cmd_cat(&args[1..]),
+        "grep" | "search" => cmd_grep(&args[1..]),
         "test" | "t" => cmd_test(&args[1..]),
         "info" | "i" => cmd_info(&args[1..]),
         "extract-here" => cmd_extract_here(&args[1..]),
@@ -119,9 +131,11 @@ struct Parsed {
     output: Option<String>,
     overwrite: bool,
     smart: bool,
+    ignore_case: bool,
     include: Vec<String>,
     exact: bool,
     keep_broken: bool,
+    max_matches: Option<usize>,
     max_bytes: Option<u64>,
     offset: Option<u64>,
     level: Option<String>,
@@ -150,11 +164,19 @@ fn parse(args: &[String]) -> anyhow::Result<Parsed> {
             "-o" | "--output" | "--dest" => {
                 p.output = Some(next(args, &mut i, "--output")?);
             }
+            "-i" | "--ignore-case" => p.ignore_case = true,
             "--overwrite" | "-f" => p.overwrite = true,
             "--smart" | "-s" => p.smart = true,
             "--include" => p.include.push(next(args, &mut i, "--include")?),
             "--exact" => p.exact = true,
             "--keep-broken" | "--keep" => p.keep_broken = true,
+            "--max-matches" => {
+                let v = next(args, &mut i, "--max-matches")?;
+                p.max_matches = Some(
+                    v.parse::<usize>()
+                        .map_err(|_| anyhow::anyhow!("invalid --max-matches '{v}'"))?,
+                );
+            }
             "--max-bytes" => {
                 let v = next(args, &mut i, "--max-bytes")?;
                 p.max_bytes = Some(
@@ -458,6 +480,116 @@ fn cmd_add(args: &[String]) -> anyhow::Result<ExitCode> {
     }
     Ok(ExitCode::SUCCESS)
 }
+
+fn cmd_remove(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    if p.positionals.is_empty() {
+        anyhow::bail!("remove requires <archive> and at least one entry pattern");
+    }
+    let archive = PathBuf::from(&p.positionals[0]);
+    let mut patterns: Vec<String> = p.positionals[1..].to_vec();
+    patterns.extend(p.include.clone());
+    if patterns.is_empty() {
+        anyhow::bail!("remove requires at least one entry path or --include pattern");
+    }
+    let json = p.json;
+    let match_mode = p.match_mode();
+    let opts = RemoveOptions {
+        password: p.password,
+        include: patterns,
+        match_mode,
+        level: parse_level(&p.level)?,
+    };
+    let mut pr = progress_printer();
+    let report = remove(&archive, &opts, Some(&mut pr))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        println!(
+            "updated {} ({}): removed {} entries, {} remaining ({} bytes on disk)",
+            report.output.display(),
+            report.format.label(),
+            report.entries_removed,
+            report.entries_remaining,
+            report.bytes_out
+        );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn cmd_convert(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    if p.positionals.len() < 2 {
+        anyhow::bail!("convert requires <source> and <output>");
+    }
+    let source = PathBuf::from(&p.positionals[0]);
+    let output = PathBuf::from(&p.positionals[1]);
+    let out_fmt = resolve_create_format(&output, &p.positionals[1])?;
+    let json = p.json;
+    let opts = ConvertOptions {
+        read_password: p.password.clone(),
+        create: CreateOptions {
+            format: out_fmt,
+            level: parse_level(&p.level)?,
+            password: None,
+        },
+    };
+    let mut pr = progress_printer();
+    let report = convert(&source, &output, &opts, Some(&mut pr))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        println!(
+            "converted {} ({}) -> {} ({}): {} entries, {} bytes",
+            report.source.display(),
+            report.source_format.label(),
+            report.output.display(),
+            report.output_format.label(),
+            report.entries_converted,
+            report.bytes_out
+        );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn cmd_grep(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    if p.positionals.len() < 2 {
+        anyhow::bail!("grep requires <pattern> and <archive>");
+    }
+    let pattern = &p.positionals[0];
+    let archive = &p.positionals[1];
+    let json = p.json;
+    let match_mode = p.match_mode();
+    let opts = GrepOptions {
+        password: p.password,
+        case_insensitive: p.ignore_case,
+        include: p.include.clone(),
+        match_mode,
+        max_matches: p.max_matches.unwrap_or(DEFAULT_GREP_MAX_MATCHES),
+        max_file_size: p.max_bytes.unwrap_or(DEFAULT_GREP_MAX_FILE_SIZE),
+    };
+    let report = grep(archive, pattern, &opts, None)?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        return Ok(ExitCode::SUCCESS);
+    }
+    for m in &report.matches {
+        println!("{}:{}:{}", m.path, m.line_number, m.line);
+    }
+    if report.truncated {
+        eprintln!(
+            "  (truncated at {} matches — pass --max-matches <N> for more)",
+            report.matches.len()
+        );
+    }
+    Ok(if report.matches.is_empty() {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    })
+}
+
 
 fn cmd_test(args: &[String]) -> anyhow::Result<ExitCode> {
     let p = parse(args)?;

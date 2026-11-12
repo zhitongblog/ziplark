@@ -295,3 +295,16 @@ select, input[type=password] {
 .shell-row { display: flex; justify-content: space-between; padding: 4px 0; }
 .badge-ok { color: var(--ok); font-weight: 600; }
 .badge-off { color: var(--muted); }
+
+.grep-list { display: flex; flex-direction: column; gap: 6px; }
+.grep-item {
+  padding: 8px 12px; border-radius: 7px; background: var(--inset);
+  cursor: pointer; border: 1px solid transparent; transition: border-color .12s;
+}
+.grep-item:hover { border-color: var(--accent); }
+.grep-item-head { font-weight: 600; font-size: 12px; color: var(--accent); margin-bottom: 3px; word-break: break-all; }
+.grep-item-line {
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--text); white-space: pre-wrap; word-break: break-word;
+}
+

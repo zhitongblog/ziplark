@@ -217,6 +217,43 @@ pub fn read_entry(
     Err(Error::other(format!("entry not found in archive: {entry_path}")))
 }
 
+/// Stream every matching regular file in the tar archive through `on_file` in a
+/// single pass without touching disk. Returning `Ok(false)` stops early.
+pub fn scan_files(
+    path: &Path,
+    fmt: Format,
+    selector: &crate::Selector,
+    max_file_size: u64,
+    mut on_file: impl FnMut(&str, u64, &mut dyn Read) -> Result<bool>,
+) -> Result<()> {
+    let reader = open_reader(path, fmt)?;
+    let mut archive = tar::Archive::new(reader);
+    let mut names = NameDecoder::new();
+
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let ty = entry.header().entry_type();
+        if ty.is_dir() || ty.is_symlink() || ty.is_hard_link() {
+            continue;
+        }
+        let raw = entry.path_bytes().into_owned();
+        names.sample(&raw);
+        let name = names.decode(&raw);
+        if !selector.matches(&name) {
+            continue;
+        }
+        let size = entry.size();
+        if size == 0 || size > max_file_size {
+            continue;
+        }
+        if !on_file(&name, size, &mut entry)? {
+            break;
+        }
+    }
+    Ok(())
+}
+
+
 pub fn create(
     output: &Path,
     inputs: &[PathBuf],

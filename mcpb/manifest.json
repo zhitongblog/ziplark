@@ -3,11 +3,11 @@
   "name": "ziplark-mcp",
   "display_name": "Ziplark",
   "version": "0.0.0-dev",
-  "description": "Read, preview, extract, add & create archives — ZIP, RAR, 7z, tar, ISO, DEB, RPM, CAB, CPIO, AR — from an MCP client.",
-  "long_description": "Ziplark's archive engine over the Model Context Protocol. Lists, reads/previews in memory, extracts (including smart anti-tarbomb extraction), verifies, appends to, and creates archives: ZIP (incl. .z01/.zip.001 split, .crx, .jar, .apk, .whl), RAR and RAR5 (including multi-volume sets, encrypted headers and self-extracting archives), 7z (incl. .7z.001 multi-volume), tar and the compressed-tar variants, single-stream gz/bz2/xz/zst/lz4, ISO 9660 / Joliet disc images, Debian (.deb) & Unix ar (.ar, .a), Red Hat (.rpm) & CPIO (.cpio.*), and Microsoft Cabinet (.cab). Listings and in-memory file reads are paged so huge archives never flood the context, and every extraction path is funnelled through a single guard so no entry can escape the destination directory. Read tools (ziplark_info, ziplark_list, ziplark_read, ziplark_test) are always available; extracting, creating and appending require --allow-write.",
+  "description": "Read, preview, grep, extract, add, remove, convert & create archives — ZIP, RAR, 7z, tar, ISO, DEB, RPM, CAB — from an MCP client.",
+  "long_description": "Ziplark's archive engine over the Model Context Protocol. Lists, reads/previews in memory, searches text across entries in memory (grep), extracts (including smart anti-tarbomb extraction), verifies, appends to, removes entries from, converts between formats, and creates archives: ZIP (incl. .z01/.zip.001 split, .crx, .jar, .apk, .whl), RAR and RAR5 (including multi-volume sets, encrypted headers and self-extracting archives), 7z (incl. .7z.001 multi-volume), tar and the compressed-tar variants, single-stream gz/bz2/xz/zst/lz4, ISO 9660 / Joliet disc images, Debian (.deb) & Unix ar (.ar, .a), Red Hat (.rpm) & CPIO (.cpio.*), and Microsoft Cabinet (.cab). Listings and in-memory file reads are paged so huge archives never flood the context, and every extraction path is funnelled through a single guard so no entry can escape the destination directory. Read tools (ziplark_info, ziplark_list, ziplark_read, ziplark_grep, ziplark_test) are always available; extracting, creating, appending, removing and converting require --allow-write.",
   "author": {
     "name": "doaipm",
-    "url": "https://ziplark.com"
+    "url": "https://doaipm.com"
   },
   "homepage": "https://ziplark.com",
   "documentation": "https://github.com/zhitongblog/ziplark#3-mcp-server",
@@ -62,6 +62,10 @@
       "description": "Read a single entry inside an archive into memory without extracting anything to disk, with offset and max_bytes paging."
     },
     {
+      "name": "ziplark_grep",
+      "description": "Full-text search across text files inside an archive in memory without writing anything to disk. Automatically skips binary entries and returns <path>:<line>:<text> matches."
+    },
+    {
       "name": "ziplark_test",
       "description": "Verify archive integrity by decompressing every entry. Writes nothing, and reports every bad entry rather than the first."
     },
@@ -76,6 +80,14 @@
     {
       "name": "ziplark_add",
       "description": "Add or replace files/directories inside an existing archive (zip, 7z, tar.*), or create it if it does not exist. Requires --allow-write."
+    },
+    {
+      "name": "ziplark_remove",
+      "description": "Remove files or directories from an existing archive (zip, 7z, tar.*) in place. Requires --allow-write."
+    },
+    {
+      "name": "ziplark_convert",
+      "description": "Convert any readable archive (including RAR, CAB, DEB, RPM, 7z, ISO) directly into a .zip, .7z, or .tar.* archive while preserving permissions, symlinks, and modification times. Requires --allow-write."
     }
   ],
   "tools_generated": false,

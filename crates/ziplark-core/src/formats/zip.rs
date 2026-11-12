@@ -574,3 +574,130 @@ pub fn add(
     Ok(report)
 }
 
+/// Remove entries matching `selector` from an existing ZIP archive atomically,
+/// copying remaining entries raw without decompression or recompression.
+pub fn remove(
+    archive_path: &Path,
+    selector: &crate::Selector,
+    progress: ProgressFn,
+) -> Result<RemoveReport> {
+    if selector.matches_everything() {
+        return Err(Error::other(
+            "refusing to remove entries without at least one pattern",
+        ));
+    }
+
+    let src_file = File::open(archive_path)?;
+    let mut existing = ZipArchive::new(src_file).map_err(map_zip_err)?;
+    let existing_names = decode_names(&mut existing)?;
+    let comment = existing.comment().to_vec();
+
+    let total = existing_names.len() as u64;
+    let will_remove = existing_names
+        .iter()
+        .filter(|name| selector.matches(name))
+        .count() as u64;
+
+    if will_remove == 0 {
+        let bytes_out = std::fs::metadata(archive_path)?.len();
+        return Ok(RemoveReport {
+            output: archive_path.to_path_buf(),
+            format: Format::Zip,
+            entries_removed: 0,
+            entries_remaining: total,
+            bytes_out,
+        });
+    }
+
+    let tmp_path = archive_path.with_extension(format!("zip.rm.tmp.{}", std::process::id()));
+    let tmp_file = File::create(&tmp_path)?;
+    let mut zipw = ZipWriter::new(tmp_file);
+    if !comment.is_empty() {
+        zipw.set_raw_comment(comment.into_boxed_slice());
+    }
+
+    let mut entries_removed = 0u64;
+    let mut entries_remaining = 0u64;
+
+    let copy_res = (|| -> Result<()> {
+        for (i, name) in existing_names.iter().enumerate() {
+            if selector.matches(name) {
+                entries_removed += 1;
+            } else {
+                let raw_entry = existing.by_index_raw(i).map_err(map_zip_err)?;
+                zipw.raw_copy_file(raw_entry).map_err(map_zip_err)?;
+                entries_remaining += 1;
+            }
+            crate::formats::report(
+                progress,
+                Progress {
+                    current_path: name.clone(),
+                    entries_done: i as u64 + 1,
+                    entries_total: total,
+                    bytes_done: 0,
+                    bytes_total: 0,
+                },
+            )?;
+        }
+
+        let mut finished = zipw.finish().map_err(map_zip_err)?;
+        finished.flush()?;
+        Ok(())
+    })();
+
+    drop(existing);
+    if let Err(e) = copy_res {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(e);
+    }
+
+    std::fs::rename(&tmp_path, archive_path)?;
+    let bytes_out = std::fs::metadata(archive_path)?.len();
+    Ok(RemoveReport {
+        output: archive_path.to_path_buf(),
+        format: Format::Zip,
+        entries_removed,
+        entries_remaining,
+        bytes_out,
+    })
+}
+
+/// Stream every matching regular file in the ZIP archive through `on_file` in a
+/// single pass without touching disk. Returning `Ok(false)` stops early.
+pub fn scan_files(
+    path: &Path,
+    password: &Option<String>,
+    selector: &crate::Selector,
+    max_file_size: u64,
+    mut on_file: impl FnMut(&str, u64, &mut dyn Read) -> Result<bool>,
+) -> Result<()> {
+    let set = VolumeSet::inspect(path);
+    let reader = VolumeReader::open_zip(&set)?;
+    let mut archive = ZipArchive::new(reader).map_err(map_zip_err)?;
+    let names = decode_names(&mut archive)?;
+
+    for (i, name) in names.iter().enumerate() {
+        if name.ends_with('/') || !selector.matches(name) {
+            continue;
+        }
+        let mut entry = match password {
+            Some(pw) => archive.by_index_decrypt(i, pw.as_bytes()),
+            None => archive.by_index(i),
+        }
+        .map_err(map_zip_err)?;
+        if entry.is_dir() || entry.is_symlink() {
+            continue;
+        }
+        let size = entry.size();
+        if size == 0 || size > max_file_size {
+            continue;
+        }
+        if !on_file(name, size, &mut entry)? {
+            break;
+        }
+    }
+    Ok(())
+}
+
+
+

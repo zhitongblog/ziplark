@@ -6,8 +6,10 @@
 //! transport). Logs go to stderr so they never corrupt the protocol stream.
 
 use ziplark_core::{
-    add, create, detect, detect_by_extension, extract, list, read_entry, test, CreateOptions,
-    ExtractOptions, Format, Level, ListOptions, MatchMode, ReadOptions, Selector,
+    add, convert, create, detect, detect_by_extension, extract, grep, list, read_entry, remove,
+    test, ConvertOptions, CreateOptions, ExtractOptions, Format, GrepOptions, Level, ListOptions,
+    MatchMode, ReadOptions, RemoveOptions, Selector, DEFAULT_GREP_MAX_FILE_SIZE,
+    DEFAULT_GREP_MAX_MATCHES,
 };
 use serde_json::{json, Value};
 use std::io::{BufRead, Write};
@@ -146,6 +148,24 @@ binary files) along with the entry's full size and `next_offset` so large files 
                         "description": "Maximum bytes to return (default 262144, capped at 4194304)" }
                 } }
         }),
+        json!({
+            "name": "ziplark_grep",
+            "description": "Search for a text pattern across files inside an archive without \
+extracting anything to disk. Always available in read-only mode. Returns matching file paths, \
+1-based line numbers, and line text.",
+            "inputSchema": { "type": "object", "required": ["path", "pattern"],
+                "properties": {
+                    "path": { "type": "string" },
+                    "pattern": { "type": "string", "description": "Substring pattern to search for inside archive files" },
+                    "password": pw.clone(),
+                    "case_insensitive": { "type": "boolean", "description": "Case-insensitive search (default false)" },
+                    "include": { "type": "array", "items": { "type": "string" },
+                        "description": "Only search entries matching one of these path patterns (e.g. [\"*.rs\", \"src/*\"])" },
+                    "exact": { "type": "boolean", "description": "Treat `include` as exact entry paths" },
+                    "max_matches": { "type": "integer", "minimum": 1,
+                        "description": "Maximum matching lines to return (default 200, capped at 2000)" }
+                } }
+        }),
     ];
     if allow_write {
         tools.push(json!({
@@ -198,6 +218,32 @@ readable files out of a damaged archive, or out of a volume set with a volume mi
                     "archive": { "type": "string" },
                     "inputs": { "type": "array", "items": { "type": "string" } },
                     "level": { "type": "string", "description": "store|fast|default|best" },
+                    "password": pw.clone()
+                } }
+        }));
+        tools.push(json!({
+            "name": "ziplark_remove",
+            "description": "Remove entries matching `include` from an existing archive (zip, 7z, tar.*).",
+            "inputSchema": { "type": "object", "required": ["archive", "include"],
+                "properties": {
+                    "archive": { "type": "string" },
+                    "include": { "type": "array", "items": { "type": "string" },
+                        "description": "Entry paths or patterns to remove from the archive" },
+                    "exact": { "type": "boolean",
+                        "description": "Treat `include` as exact entry paths (a directory removes everything under it)" },
+                    "level": { "type": "string", "description": "store|fast|default|best" },
+                    "password": pw.clone()
+                } }
+        }));
+        tools.push(json!({
+            "name": "ziplark_convert",
+            "description": "Convert an archive from any readable format (including RAR, 7z, CAB, DEB, RPM, ISO, ZIP, tar.*) into another archive format (zip, 7z, tar.*).",
+            "inputSchema": { "type": "object", "required": ["source", "output"],
+                "properties": {
+                    "source": { "type": "string", "description": "Source archive path" },
+                    "output": { "type": "string", "description": "Destination archive path" },
+                    "format": { "type": "string", "description": "Target format (inferred from output extension if omitted)" },
+                    "level": { "type": "string", "description": "store|fast|default|best" },
                     "password": pw
                 } }
         }));
@@ -215,10 +261,17 @@ fn handle_call(id: Option<Value>, req: &Value, allow_write: bool) -> Value {
         "ziplark_list" => call_list(&args),
         "ziplark_test" => call_test(&args),
         "ziplark_read" => call_read(&args),
+        "ziplark_grep" => call_grep(&args),
         "ziplark_extract" if allow_write => call_extract(&args),
         "ziplark_create" if allow_write => call_create(&args),
         "ziplark_add" if allow_write => call_add(&args),
-        "ziplark_extract" | "ziplark_create" | "ziplark_add" => {
+        "ziplark_remove" if allow_write => call_remove(&args),
+        "ziplark_convert" if allow_write => call_convert(&args),
+        "ziplark_extract"
+        | "ziplark_create"
+        | "ziplark_add"
+        | "ziplark_remove"
+        | "ziplark_convert" => {
             Err("write tools are disabled; start ziplark-mcp with --allow-write".into())
         }
         other => return error(id, -32602, &format!("unknown tool: {other}")),
@@ -597,6 +650,82 @@ fn call_add(args: &Value) -> Result<String, String> {
     jsonify(&report)
 }
 
+const GREP_DEFAULT_MAX_MATCHES: usize = 200;
+const GREP_CAP_MAX_MATCHES: usize = 2000;
+
+fn call_grep(args: &Value) -> Result<String, String> {
+    let path = str_arg(args, "path")?;
+    let pattern = str_arg(args, "pattern")?;
+    let exact = args.get("exact").and_then(|v| v.as_bool()).unwrap_or(false);
+    let include: Vec<String> = args
+        .get("include")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let max_matches = args
+        .get("max_matches")
+        .and_then(|v| v.as_u64())
+        .map(|n| (n as usize).clamp(1, GREP_CAP_MAX_MATCHES))
+        .unwrap_or(GREP_DEFAULT_MAX_MATCHES);
+
+    let opts = GrepOptions {
+        password: opt_str(args, "password"),
+        case_insensitive: args
+            .get("case_insensitive")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        include,
+        match_mode: if exact { MatchMode::Exact } else { MatchMode::Auto },
+        max_matches: max_matches.max(1).min(DEFAULT_GREP_MAX_MATCHES.max(GREP_CAP_MAX_MATCHES)),
+        max_file_size: DEFAULT_GREP_MAX_FILE_SIZE,
+    };
+    let report = grep(path, pattern, &opts, None).map_err(|e| e.to_string())?;
+    jsonify(&report)
+}
+
+fn call_remove(args: &Value) -> Result<String, String> {
+    let archive = str_arg(args, "archive")?;
+    let include: Vec<String> = args
+        .get("include")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    if include.is_empty() {
+        return Err("'include' must be a non-empty array of entry paths or patterns".into());
+    }
+    let exact = args.get("exact").and_then(|v| v.as_bool()).unwrap_or(false);
+    let opts = RemoveOptions {
+        password: opt_str(args, "password"),
+        include,
+        match_mode: if exact { MatchMode::Exact } else { MatchMode::Auto },
+        level: parse_level(opt_str(args, "level").as_deref()),
+    };
+    let report = remove(archive, &opts, None).map_err(|e| e.to_string())?;
+    jsonify(&report)
+}
+
+fn call_convert(args: &Value) -> Result<String, String> {
+    let source = str_arg(args, "source")?;
+    let output = str_arg(args, "output")?;
+    let fmt = match opt_str(args, "format") {
+        Some(s) => parse_format(&s)?,
+        None => detect(std::path::Path::new(output))
+            .or_else(|| format_from_name(output))
+            .ok_or_else(|| format!("cannot infer format from '{output}'; pass 'format'"))?,
+    };
+    let opts = ConvertOptions {
+        read_password: opt_str(args, "password"),
+        create: CreateOptions {
+            format: fmt,
+            level: parse_level(opt_str(args, "level").as_deref()),
+            password: None,
+        },
+    };
+    let report = convert(source, output, &opts, None).map_err(|e| e.to_string())?;
+    jsonify(&report)
+}
+
+
 fn parse_level(s: Option<&str>) -> Level {
     match s {
         Some("store") => Level::Store,
@@ -923,5 +1052,69 @@ mod tests {
 
         let listed = call("ziplark_list", json!({ "path": archive.to_str().unwrap() }));
         assert_eq!(listed["total_entries"], json!(2));
+    }
+
+    #[test]
+    fn grep_remove_and_convert_tools_work_end_to_end() {
+        let dir = tmpdir("mcp-v050");
+        let f1 = dir.join("hello.rs");
+        let f2 = dir.join("notes.txt");
+        std::fs::write(&f1, b"fn main() {\n    println!(\"MagicToken\");\n}\n").unwrap();
+        std::fs::write(&f2, b"keep this\nmagicTOKEN in notes\n").unwrap();
+        let zip_path = dir.join("code.zip");
+
+        call(
+            "ziplark_create",
+            json!({
+                "output": zip_path.to_str().unwrap(),
+                "inputs": [f1.to_str().unwrap(), f2.to_str().unwrap()]
+            }),
+        );
+
+        // 1. ziplark_grep works in read-only mode (allow_write = false)
+        let grep_req = json!({
+            "id": 10,
+            "method": "tools/call",
+            "params": {
+                "name": "ziplark_grep",
+                "arguments": {
+                    "path": zip_path.to_str().unwrap(),
+                    "pattern": "magictoken",
+                    "case_insensitive": true
+                }
+            }
+        });
+        let grep_resp = handle(&grep_req, false).unwrap();
+        assert_eq!(grep_resp["result"]["isError"], json!(false));
+        let grep_val: Value =
+            serde_json::from_str(grep_resp["result"]["content"][0]["text"].as_str().unwrap())
+                .unwrap();
+        assert_eq!(grep_val["files_matched"], json!(2));
+        assert_eq!(grep_val["matches"].as_array().unwrap().len(), 2);
+
+        // 2. ziplark_remove deletes an entry from the archive
+        let rm_val = call(
+            "ziplark_remove",
+            json!({
+                "archive": zip_path.to_str().unwrap(),
+                "include": ["notes.txt"],
+                "exact": true
+            }),
+        );
+        assert_eq!(rm_val["entries_removed"], json!(1));
+        assert_eq!(rm_val["entries_remaining"], json!(1));
+
+        // 3. ziplark_convert converts the .zip into a .tar.zst
+        let tzst_path = dir.join("code.tar.zst");
+        let conv_val = call(
+            "ziplark_convert",
+            json!({
+                "source": zip_path.to_str().unwrap(),
+                "output": tzst_path.to_str().unwrap(),
+                "level": "fast"
+            }),
+        );
+        assert_eq!(conv_val["entries_converted"], json!(1));
+        assert!(tzst_path.exists());
     }
 }
