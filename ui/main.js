@@ -1030,9 +1030,25 @@ async function extractArchiveHere() {
   } catch (err) {
     if (wasCancelled(err)) {
       toast("Extraction stopped.", "");
-    } else {
-      toast(String(err), "err");
+      return;
     }
+    const msg = String(err);
+    if (
+      /permission denied|operation not permitted|os error (1|13)\b/i.test(msg) &&
+      dialog
+    ) {
+      busy(false);
+      const parentDir = currentArchive.path.replace(/[\\/][^\\/]+$/, "");
+      const dest = await dialog.open({
+        directory: true,
+        multiple: false,
+        defaultPath: parentDir || undefined,
+        title: "Choose folder to extract into",
+      });
+      if (dest) await runExtract(dest, { overwrite: false, smart: true });
+      return;
+    }
+    toast(msg, "err");
   } finally {
     busy(false);
   }
@@ -1476,6 +1492,19 @@ renderInputs();
 if (T) {
   invoke("app_version")
     .then((v) => { $("app-ver").textContent = "Ziplark v" + v; })
+    .catch(() => {});
+  invoke("app_is_sandboxed")
+    .then((sandboxed) => {
+      if (sandboxed) {
+        if ($("btn-shell-menu")) $("btn-shell-menu").classList.add("hidden");
+        document.querySelectorAll(".appfoot .ext").forEach((el) => {
+          if (el.previousElementSibling?.classList.contains("sep")) {
+            el.previousElementSibling.classList.add("hidden");
+          }
+          el.classList.add("hidden");
+        });
+      }
+    })
     .catch(() => {});
   // An archive the OS handed us before the window was listening.
   invoke("take_pending_file")

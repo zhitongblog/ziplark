@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Mac App Store sandbox is mandatory. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+
+	<!-- Must match the provisioning profile (TeamID 6NQM3XP5RF, app.ziplark.desktop). -->
+	<key>com.apple.application-identifier</key>
+	<string>6NQM3XP5RF.app.ziplark.desktop</string>
+	<key>com.apple.developer.team-identifier</key>
+	<string>6NQM3XP5RF</string>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>6NQM3XP5RF.*</string>
+	</array>
+
+	<!-- WKWebView JIT & Networking helper process — required so WKWebView can
+	     mount the UI inside the sandbox without launching a blank window (2.1a). -->
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+
+	<!-- User opens archives or folders via the open dialog / drag-drop, and
+	     saves created or converted archives via the save dialog. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+
+	<!-- Allow seamless "Extract here" and multi-volume archive reading inside
+	     the user's Downloads folder without an extra folder-picker prompt. -->
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+</dict>
+</plist>

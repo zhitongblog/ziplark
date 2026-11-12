@@ -534,11 +534,11 @@ pub fn add(
         return formats::zip::add(archive, inputs, opts, progress);
     }
 
-    // For 7z and tar variants: unpack existing entries into a clean sibling
-    // staging directory, overlay `inputs`, and re-pack atomically.
-    let parent = archive.parent().unwrap_or(Path::new("."));
-    let stage = parent.join(format!(
-        ".ziplark-add-{}-{}",
+    // For 7z and tar variants: unpack existing entries into a clean temporary
+    // staging directory, overlay `inputs`, and re-pack atomically (or overwrite
+    // in place when running inside a sandbox without parent-dir write access).
+    let stage = std::env::temp_dir().join(format!(
+        "ziplark-add-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -569,14 +569,15 @@ pub fn add(
         }
         merged_inputs.sort();
 
-        let tmp_archive = archive.with_extension(format!("tmp.{}", std::process::id()));
+        let (tmp_archive, tmp_file) = formats::zip::create_temp_for(archive, "add.tmp")?;
+        drop(tmp_file);
         let create_opts = CreateOptions {
             format: fmt,
             level: opts.level,
             password: opts.password.clone(),
         };
         let mut rep = create(&tmp_archive, &merged_inputs, &create_opts, Some(progress))?;
-        std::fs::rename(&tmp_archive, archive)?;
+        formats::zip::replace_archive_file(&tmp_archive, archive)?;
         rep.output = archive.to_path_buf();
         Ok(rep)
     })();
@@ -694,9 +695,8 @@ pub fn remove(
         });
     }
 
-    let parent = archive.parent().unwrap_or(Path::new("."));
-    let stage = parent.join(format!(
-        ".ziplark-rm-{}-{}",
+    let stage = std::env::temp_dir().join(format!(
+        "ziplark-rm-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -740,14 +740,15 @@ pub fn remove(
         }
         remaining_inputs.sort();
 
-        let tmp_archive = archive.with_extension(format!("rm.tmp.{}", std::process::id()));
+        let (tmp_archive, tmp_file) = formats::zip::create_temp_for(archive, "rm.tmp")?;
+        drop(tmp_file);
         let create_opts = CreateOptions {
             format: fmt,
             level: opts.level,
             password: opts.password.clone(),
         };
         let rep = create(&tmp_archive, &remaining_inputs, &create_opts, Some(progress))?;
-        std::fs::rename(&tmp_archive, archive)?;
+        formats::zip::replace_archive_file(&tmp_archive, archive)?;
         let bytes_out = std::fs::metadata(archive)?.len();
         Ok(RemoveReport {
             output: archive.to_path_buf(),
@@ -783,10 +784,13 @@ pub fn convert(
     let mut local = noop_progress;
     let progress: ProgressFn = progress.unwrap_or(&mut local);
 
-    let out_parent = output.parent().unwrap_or(Path::new("."));
-    std::fs::create_dir_all(out_parent)?;
-    let stage = out_parent.join(format!(
-        ".ziplark-conv-{}-{}",
+    if let Some(out_parent) = output.parent() {
+        if !out_parent.as_os_str().is_empty() {
+            let _ = std::fs::create_dir_all(out_parent);
+        }
+    }
+    let stage = std::env::temp_dir().join(format!(
+        "ziplark-conv-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -808,9 +812,10 @@ pub fn convert(
         }
         inputs.sort();
 
-        let tmp_output = output.with_extension(format!("conv.tmp.{}", std::process::id()));
+        let (tmp_output, tmp_file) = formats::zip::create_temp_for(output, "conv.tmp")?;
+        drop(tmp_file);
         let rep = create(&tmp_output, &inputs, &opts.create, Some(progress))?;
-        std::fs::rename(&tmp_output, output)?;
+        formats::zip::replace_archive_file(&tmp_output, output)?;
         let bytes_out = std::fs::metadata(output)?.len();
 
         Ok(ConvertReport {

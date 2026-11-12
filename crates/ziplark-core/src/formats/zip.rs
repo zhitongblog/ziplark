@@ -490,8 +490,7 @@ pub fn add(
     let existing_names = decode_names(&mut existing)?;
     let comment = existing.comment().to_vec();
 
-    let tmp_path = archive_path.with_extension(format!("zip.tmp.{}", std::process::id()));
-    let tmp_file = File::create(&tmp_path)?;
+    let (tmp_path, tmp_file) = create_temp_for(archive_path, "zip.tmp")?;
     let mut zipw = ZipWriter::new(tmp_file);
     if !comment.is_empty() {
         zipw.set_raw_comment(comment.into_boxed_slice());
@@ -569,7 +568,7 @@ pub fn add(
         return Err(e);
     }
 
-    std::fs::rename(&tmp_path, archive_path)?;
+    replace_archive_file(&tmp_path, archive_path)?;
     report.bytes_out = std::fs::metadata(archive_path)?.len();
     Ok(report)
 }
@@ -609,8 +608,7 @@ pub fn remove(
         });
     }
 
-    let tmp_path = archive_path.with_extension(format!("zip.rm.tmp.{}", std::process::id()));
-    let tmp_file = File::create(&tmp_path)?;
+    let (tmp_path, tmp_file) = create_temp_for(archive_path, "zip.rm.tmp")?;
     let mut zipw = ZipWriter::new(tmp_file);
     if !comment.is_empty() {
         zipw.set_raw_comment(comment.into_boxed_slice());
@@ -651,7 +649,7 @@ pub fn remove(
         return Err(e);
     }
 
-    std::fs::rename(&tmp_path, archive_path)?;
+    replace_archive_file(&tmp_path, archive_path)?;
     let bytes_out = std::fs::metadata(archive_path)?.len();
     Ok(RemoveReport {
         output: archive_path.to_path_buf(),
@@ -660,6 +658,37 @@ pub fn remove(
         entries_remaining,
         bytes_out,
     })
+}
+
+/// Create a temporary file alongside `target` when its parent directory is
+/// writable, or fall back to `std::env::temp_dir()` (e.g. inside the macOS
+/// App Sandbox where only `target` itself was granted access by Powerbox).
+pub(crate) fn create_temp_for(target: &Path, tag: &str) -> Result<(std::path::PathBuf, File)> {
+    let pid = std::process::id();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let sibling = target.with_extension(format!("{tag}.{pid}.{nanos}"));
+    if let Ok(f) = File::create(&sibling) {
+        return Ok((sibling, f));
+    }
+    let fallback = std::env::temp_dir().join(format!("ziplark-{tag}-{pid}-{nanos}.tmp"));
+    let f = File::create(&fallback)?;
+    Ok((fallback, f))
+}
+
+/// Atomically replace `dst` with `tmp` when in the same writable directory, or
+/// copy `tmp` over `dst` in place when `dst` is on another filesystem or inside
+/// a sandboxed directory where only `dst` itself is writable.
+pub(crate) fn replace_archive_file(tmp: &Path, dst: &Path) -> Result<()> {
+    if std::fs::rename(tmp, dst).is_ok() {
+        return Ok(());
+    }
+    let copy_res = std::fs::copy(tmp, dst);
+    let _ = std::fs::remove_file(tmp);
+    copy_res?;
+    Ok(())
 }
 
 /// Stream every matching regular file in the ZIP archive through `on_file` in a

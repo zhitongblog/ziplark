@@ -579,8 +579,25 @@ async fn extract_nested_archive(
     .await
 }
 
+fn is_sandboxed() -> bool {
+    std::env::var_os("APP_SANDBOX_CONTAINER_ID").is_some()
+}
+
+#[tauri::command]
+fn app_is_sandboxed() -> bool {
+    is_sandboxed()
+}
+
 #[tauri::command]
 fn shell_integration_status() -> Result<ShellStatus, String> {
+    if is_sandboxed() {
+        return Ok(ShellStatus {
+            supported: false,
+            installed: false,
+            platform: "macOS (App Sandbox)",
+            details: Vec::new(),
+        });
+    }
     shell::status().map_err(|e| e.to_string())
 }
 
@@ -744,6 +761,7 @@ pub fn run() {
             selftest_action,
             selftest_log,
             app_version,
+            app_is_sandboxed,
             open_url,
             reveal_in_file_manager
         ])
