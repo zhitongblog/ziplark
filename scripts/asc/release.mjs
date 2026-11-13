@@ -1,9 +1,10 @@
 // One-shot App Store Connect metadata + build attachment + submission script for Ziplark (macOS).
 //   node scripts/asc/release.mjs [--no-submit]
-import { api, resolveAppId } from './asc.mjs';
+import { api, resolveAppId, uploadScreenshot } from './asc.mjs';
 import * as M from './metadata.mjs';
 
 const NO_SUBMIT = process.argv.includes('--no-submit');
+const SKIP_SHOTS = process.argv.includes('--skip-screenshots');
 const log = (...a) => console.log('•', ...a);
 
 const APP = await resolveAppId();
@@ -99,6 +100,31 @@ try {
   }
 }
 
+// 3b. Availability: all territories
+try {
+  const avail = await api('GET', `/v2/appAvailabilities/${APP}?include=territoryAvailabilities&limit[territoryAvailabilities]=1`);
+  log('Availability already configured:', avail.data.attributes.availableInNewTerritories ? 'auto-new-territories' : 'manual');
+} catch {
+  const terrs = (await api('GET', '/v1/territories?limit=200')).data.map((t) => t.id);
+  await api('POST', '/v2/appAvailabilities', {
+    data: {
+      type: 'appAvailabilities',
+      attributes: { availableInNewTerritories: true },
+      relationships: {
+        app: { data: { type: 'apps', id: APP } },
+        territoryAvailabilities: { data: terrs.map((_, i) => ({ type: 'territoryAvailabilities', id: `\${t${i}}` })) },
+      },
+    },
+    included: terrs.map((t, i) => ({
+      type: 'territoryAvailabilities',
+      id: `\${t${i}}`,
+      attributes: { available: true },
+      relationships: { territory: { data: { type: 'territories', id: t } } },
+    })),
+  });
+  log('Availability created: all', terrs.length, 'territories');
+}
+
 // 4. Version + version localizations + review detail + build attachment
 const pCfg = M.platforms.MAC_OS;
 const vers = (await api('GET', `/v1/apps/${APP}/appStoreVersions?filter[platform]=MAC_OS&limit=10`)).data;
@@ -175,6 +201,40 @@ try {
 }
 log('Review details updated');
 
+// 5. Upload screenshots into empty sets
+if (!SKIP_SHOTS && M.screenshots?.MAC_OS) {
+  const shots = M.screenshots.MAC_OS;
+  const vlocs2 = (await api('GET', `/v1/appStoreVersions/${ver.id}/appStoreVersionLocalizations?limit=50`)).data;
+  for (const vl of vlocs2) {
+    if (!M.versionLocalizations[vl.attributes.locale]) continue;
+    const allSets = (await api('GET', `/v1/appScreenshotSets/${vl.id}/appScreenshotSets`).catch(() => null))?.data
+      || (await api('GET', `/v1/appStoreVersionLocalizations/${vl.id}/appScreenshotSets`)).data;
+    for (const plan of shots.sets) {
+      let set = allSets.find((s) => s.attributes.screenshotDisplayType === plan.displayType);
+      if (!set) {
+        set = (
+          await api('POST', '/v1/appScreenshotSets', {
+            data: {
+              type: 'appScreenshotSets',
+              attributes: { screenshotDisplayType: plan.displayType },
+              relationships: { appStoreVersionLocalization: { data: { type: 'appStoreVersionLocalizations', id: vl.id } } },
+            },
+          })
+        ).data;
+      }
+      const existing = (await api('GET', `/v1/appScreenshotSets/${set.id}/appScreenshots`)).data.length;
+      if (existing > 0) {
+        log('MAC_OS', plan.displayType, vl.attributes.locale, '— already has', existing, '(skip)');
+        continue;
+      }
+      for (const f of plan.files) {
+        await uploadScreenshot(set.id, shots.dir + f);
+        log('  uploaded screenshot', vl.attributes.locale, plan.displayType, f);
+      }
+    }
+  }
+}
+
 // Attach processed build if available
 const builds = (
   await api(
@@ -193,26 +253,35 @@ if (validBuild) {
 }
 
 if (!NO_SUBMIT && validBuild) {
-  const sub = (
-    await api('POST', '/v1/reviewSubmissions', {
+  const subs = (
+    await api('GET', `/v1/apps/${APP}/reviewSubmissions?filter[platform]=MAC_OS&filter[state]=READY_FOR_REVIEW&limit=1`)
+  ).data || [];
+  const sub =
+    subs[0] ||
+    (
+      await api('POST', '/v1/reviewSubmissions', {
+        data: {
+          type: 'reviewSubmissions',
+          attributes: { platform: 'MAC_OS' },
+          relationships: { app: { data: { type: 'apps', id: APP } } },
+        },
+      })
+    ).data;
+  const items = (await api('GET', `/v1/reviewSubmissions/${sub.id}/items`)).data || [];
+  if (!items.length) {
+    await api('POST', '/v1/reviewSubmissionItems', {
       data: {
-        type: 'reviewSubmissions',
-        attributes: { platform: 'MAC_OS' },
-        relationships: { app: { data: { type: 'apps', id: APP } } },
+        type: 'reviewSubmissionItems',
+        relationships: {
+          reviewSubmission: { data: { type: 'reviewSubmissions', id: sub.id } },
+          appStoreVersion: { data: { type: 'appStoreVersions', id: ver.id } },
+        },
       },
-    })
-  ).data;
-  await api('POST', '/v1/reviewSubmissionItems', {
-    data: {
-      type: 'reviewSubmissionItems',
-      relationships: {
-        reviewSubmission: { data: { type: 'reviewSubmissions', id: sub.id } },
-        appStoreVersion: { data: { type: 'appStoreVersions', id: ver.id } },
-      },
-    },
-  });
+    });
+  }
   await api('PATCH', `/v1/reviewSubmissions/${sub.id}`, {
     data: { type: 'reviewSubmissions', id: sub.id, attributes: { submitted: true } },
   });
-  log('✓ Submitted for Mac App Store review!');
+  const after = (await api('GET', `/v1/reviewSubmissions/${sub.id}`)).data;
+  log('✓ Submitted for Mac App Store review! State:', after.attributes.state);
 }

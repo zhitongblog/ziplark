@@ -7,7 +7,7 @@ export const CONFIG = {
   keyId:   process.env.ASC_KEY_ID   || 'H85Q4NJPVD',
   issuer:  process.env.ASC_ISSUER   || '21dd1b35-fb04-42f1-8ec0-d847838fa7b6',
   bundleId: 'app.ziplark.desktop',
-  appId:   process.env.ASC_APP_ID   || '',
+  appId:   process.env.ASC_APP_ID   || '6834275634',
   keyPath: process.env.ASC_KEY_PATH || `${process.env.HOME}/.appstoreconnect/private_keys/AuthKey_${process.env.ASC_KEY_ID || 'H85Q4NJPVD'}.p8`,
 };
 

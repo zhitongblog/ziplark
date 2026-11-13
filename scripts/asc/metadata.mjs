@@ -123,10 +123,17 @@ export const ageRating = {
   violenceRealisticProlongedGraphicOrSadistic: 'NONE',
   advertising: false,
   ageAssurance: false,
-  inAppControls: false,
-  KoreaAgeRatingOverride: 'NONE',
   messagingAndChat: false,
   parentalControls: false,
+  socialMedia: false,
+};
+
+const dir = new URL('../../appstore-assets/', import.meta.url).pathname;
+export const screenshots = {
+  MAC_OS: {
+    dir,
+    sets: [{ displayType: 'APP_DESKTOP', files: ['mac-1.png', 'mac-2.png', 'mac-3.png'] }],
+  },
 };
 
 export const reviewDetail = {
