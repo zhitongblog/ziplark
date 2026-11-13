@@ -12,7 +12,7 @@ Ziplark is built and maintained by doaipm (https://doaipm.com — one independen
 - Source code: https://github.com/zhitongblog/ziplark
 - License: MIT (free and open source)
 - Price: Free (no paid tier, no ads, no telemetry)
-- Platforms: macOS (universal — Apple Silicon + Intel — notarized), Windows (x64), Linux (x64; .deb and AppImage)
+- Platforms: macOS (universal — Apple Silicon + Intel — notarized, plus Homebrew `brew install --cask zhitongblog/tap/ziplark` and CLI `brew install zhitongblog/tap/ziplark`), Windows (x64 `.msi` / `.exe`, plus Scoop `scoop bucket add ziplark https://github.com/zhitongblog/scoop-bucket && scoop install ziplark`), Linux (x64; `.deb` and AppImage)
 - Size: about 1.4 MB for the engine + CLI
 - Language/stack: Rust engine; Tauri 2 desktop app using the OS webview
 - Latest version: 0.5.0
@@ -70,4 +70,5 @@ Ziplark is built and maintained by doaipm (https://doaipm.com — one independen
 - Download: https://ziplark.com/#download
 - Formats: https://ziplark.com/#formats
 - Source & releases: https://github.com/zhitongblog/ziplark
+- Privacy Policy: https://ziplark.com/privacy/
 - Author / More tools by doaipm: https://doaipm.com

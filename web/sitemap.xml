@@ -3,7 +3,7 @@
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://ziplark.com/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
@@ -19,7 +19,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/zh-CN/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
@@ -35,7 +35,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/zh-TW/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
@@ -51,7 +51,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/ja-JP/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
@@ -67,7 +67,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/ko-KR/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
@@ -83,7 +83,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/de-DE/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
@@ -99,7 +99,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/fr-FR/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
@@ -115,7 +115,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/it-IT/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
@@ -131,7 +131,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/hi-IN/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/" />
@@ -147,7 +147,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/winrar-alternative/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/winrar-alternative/" />
@@ -163,7 +163,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/zh-CN/winrar-alternative/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/winrar-alternative/" />
@@ -179,7 +179,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/zh-TW/winrar-alternative/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/winrar-alternative/" />
@@ -195,7 +195,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/ja-JP/winrar-alternative/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/winrar-alternative/" />
@@ -211,7 +211,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/ko-KR/winrar-alternative/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/winrar-alternative/" />
@@ -227,7 +227,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/de-DE/winrar-alternative/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/winrar-alternative/" />
@@ -243,7 +243,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/fr-FR/winrar-alternative/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/winrar-alternative/" />
@@ -259,7 +259,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/it-IT/winrar-alternative/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/winrar-alternative/" />
@@ -275,7 +275,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/hi-IN/winrar-alternative/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/winrar-alternative/" />
@@ -291,7 +291,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/open-rar-on-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
@@ -307,7 +307,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/zh-CN/open-rar-on-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
@@ -323,7 +323,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/zh-TW/open-rar-on-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
@@ -339,7 +339,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/ja-JP/open-rar-on-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
@@ -355,7 +355,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/ko-KR/open-rar-on-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
@@ -371,7 +371,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/de-DE/open-rar-on-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
@@ -387,7 +387,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/fr-FR/open-rar-on-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
@@ -403,7 +403,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/it-IT/open-rar-on-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
@@ -419,7 +419,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/hi-IN/open-rar-on-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/open-rar-on-mac/" />
@@ -435,7 +435,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/7zip-for-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
@@ -451,7 +451,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/zh-CN/7zip-for-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
@@ -467,7 +467,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/zh-TW/7zip-for-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
@@ -483,7 +483,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/ja-JP/7zip-for-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
@@ -499,7 +499,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/ko-KR/7zip-for-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
@@ -515,7 +515,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/de-DE/7zip-for-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
@@ -531,7 +531,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/fr-FR/7zip-for-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
@@ -547,7 +547,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/it-IT/7zip-for-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
@@ -563,7 +563,7 @@
   </url>
   <url>
     <loc>https://ziplark.com/hi-IN/7zip-for-mac/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
       <xhtml:link rel="alternate" hreflang="en-US" href="https://ziplark.com/7zip-for-mac/" />
@@ -576,5 +576,11 @@
       <xhtml:link rel="alternate" hreflang="it-IT" href="https://ziplark.com/it-IT/7zip-for-mac/" />
       <xhtml:link rel="alternate" hreflang="hi-IN" href="https://ziplark.com/hi-IN/7zip-for-mac/" />
       <xhtml:link rel="alternate" hreflang="x-default" href="https://ziplark.com/7zip-for-mac/" />
+  </url>
+  <url>
+    <loc>https://ziplark.com/privacy/</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>
