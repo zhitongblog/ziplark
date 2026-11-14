@@ -53,4 +53,7 @@ cp "$DMG" "$OUT"
 echo "▶ Uploading $OUT to release ${TAG} ..."
 gh release upload "$TAG" "$OUT" --clobber
 
+echo "▶ Syncing Homebrew tap and Scoop bucket (if CLI artifacts are ready)..."
+./scripts/update-pkg-managers.sh "$TAG" || true
+
 echo "✓ Done — notarized $(basename "$OUT") attached to release $TAG"

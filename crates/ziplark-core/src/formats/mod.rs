@@ -6,6 +6,7 @@ pub mod rar;
 pub mod sevenz;
 pub mod stream;
 pub mod tar;
+pub mod xar;
 pub mod zip;
 
 use crate::error::{Error, Result};

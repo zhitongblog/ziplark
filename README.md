@@ -46,12 +46,13 @@ Or grab a build for any platform from the [releases page](https://github.com/zhi
 | ISO 9660 / Joliet (`.iso`) | ✅ | — | — |
 | Debian & Unix `ar` (`.deb`, `.udeb`, `.ipk`, `.ar`, `.a`) | ✅ | — | — |
 | RPM & CPIO (`.rpm`, `.cpio`, `.cpio.gz/.xz/.zst/.bz2/.lz4`) | ✅ | — | — |
+| macOS Installer & XAR (`.pkg`, `.mpkg`, `.xar`, `.xip`) | ✅ | — | — |
 | Microsoft Cabinet (`.cab`, Store + MSZIP) | ✅ | — | — |
 
-> RAR, ISO, DEB/AR, RPM/CPIO and CAB are read/extract/preview formats — all
+> RAR, ISO, DEB/AR, RPM/CPIO, PKG/XAR and CAB are read/extract/preview formats — all
 > parsed in memory-safe Rust (except RAR, which uses the official UnRAR C++
-> library). ZIP, 7z and tar variants support full creation and in-place append
-> (`ziplark add`).
+> library). ZIP, 7z and tar variants support full creation (including `--split <SIZE>`
+> multi-volume `.001`, `.002`, … output) and in-place modification (`add`, `mv`, `rm`).
 
 ## RAR, properly
 
@@ -136,10 +137,13 @@ cargo build --release -p ziplark-cli      # binary at target/release/ziplark
 ziplark list    movie.rar
 ziplark cat     repo.tar.gz src/main.rs
 ziplark grep    "TODO" repo.tar.gz -i --include "*.rs"
+ziplark diff    v1.zip v2.tar.zst -u
+ziplark hash    release.pkg --algo sha256
 ziplark extract photos.zip -o ./out --smart
-ziplark create  backup.tar.zst ./src ./README.md --level best
+ziplark create  backup.tar.zst ./src ./README.md --level best --split 100M
 ziplark add     backup.tar.zst ./CHANGELOG.md
-ziplark rm      backup.tar.zst CHANGELOG.md --exact
+ziplark mv      backup.tar.zst CHANGELOG.md docs/CHANGELOG.md
+ziplark rm      backup.tar.zst docs/CHANGELOG.md --exact
 ziplark convert legacy.rar clean.tar.zst --level best
 ziplark create  secret.zip ./private --password hunter2
 ziplark test    download.7z
@@ -175,8 +179,8 @@ ziplark compress-zip ./photos ./a.txt  # → ./Archive.zip next to them
 ## 3. MCP server — `ziplark-mcp`
 
 A Model Context Protocol server (JSON-RPC over stdio). Read tools
-(`ziplark_info`, `ziplark_list`, `ziplark_read`, `ziplark_grep`, `ziplark_test`) are always available; the write tools
-(`ziplark_extract`, `ziplark_create`, `ziplark_add`, `ziplark_remove`, `ziplark_convert`) require `--allow-write`.
+(`ziplark_info`, `ziplark_list`, `ziplark_read`, `ziplark_grep`, `ziplark_diff`, `ziplark_hash`, `ziplark_test`) are always available; the write tools
+(`ziplark_extract`, `ziplark_create`, `ziplark_add`, `ziplark_rename`, `ziplark_remove`, `ziplark_convert`) require `--allow-write`.
 
 ```bash
 cargo build --release -p ziplark-mcp

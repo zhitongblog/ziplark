@@ -519,6 +519,7 @@ pub fn create(
         entries_added,
         bytes_in,
         bytes_out,
+        volumes: Vec::new(),
     })
 }
 

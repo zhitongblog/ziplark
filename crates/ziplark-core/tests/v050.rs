@@ -59,6 +59,7 @@ fn grep_searches_across_zip_7z_tar_and_skips_binaries() {
                 format: fmt,
                 level: Level::Fast,
                 password: None,
+                split_size: None,
             },
             None,
         )
@@ -170,6 +171,7 @@ fn remove_deletes_entries_from_zip_7z_and_tar_gz() {
                 format: fmt,
                 level: Level::Fast,
                 password: None,
+                split_size: None,
             },
             None,
         )
@@ -220,6 +222,7 @@ fn convert_transforms_rar_to_tar_zst_and_zip_to_7z() {
                 format: Format::TarZst,
                 level: Level::Fast,
                 password: None,
+                split_size: None,
             },
         },
         None,
@@ -240,6 +243,7 @@ fn convert_transforms_rar_to_tar_zst_and_zip_to_7z() {
                 format: Format::SevenZ,
                 level: Level::Fast,
                 password: None,
+                split_size: None,
             },
         },
         None,

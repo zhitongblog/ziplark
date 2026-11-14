@@ -32,6 +32,10 @@ pub enum Format {
     Rpm,
     /// Microsoft Cabinet archive (`.cab`) (extract-only).
     Cab,
+    /// eXtensible ARchive (`.xar`, `.xip`, `.safariextz`) (extract-only).
+    Xar,
+    /// macOS Installer package (`.pkg`, `.mpkg`) (extract-only).
+    Pkg,
 }
 
 impl Format {
@@ -46,6 +50,8 @@ impl Format {
                 | Format::Cpio
                 | Format::Rpm
                 | Format::Cab
+                | Format::Xar
+                | Format::Pkg
         )
     }
 
@@ -87,6 +93,8 @@ impl Format {
             Format::Cpio => "CPIO",
             Format::Rpm => "RPM",
             Format::Cab => "CAB",
+            Format::Xar => "XAR",
+            Format::Pkg => "PKG",
         }
     }
 
@@ -113,6 +121,8 @@ impl Format {
             Format::Cpio => "cpio",
             Format::Rpm => "rpm",
             Format::Cab => "cab",
+            Format::Xar => "xar",
+            Format::Pkg => "pkg",
         }
     }
 }
@@ -220,6 +230,9 @@ pub struct CreateReport {
     pub entries_added: u64,
     pub bytes_in: u64,
     pub bytes_out: u64,
+    /// Volume files written when `split_size` was used (`archive.zip.001`, …).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub volumes: Vec<PathBuf>,
 }
 
 /// Result of an integrity test.
@@ -288,5 +301,97 @@ pub struct ConvertReport {
     pub entries_converted: u64,
     pub bytes_in: u64,
     pub bytes_out: u64,
+}
+
+/// Result of renaming or moving entries inside an archive (`rename`).
+#[derive(Debug, Clone, Serialize)]
+pub struct RenameReport {
+    pub output: PathBuf,
+    pub format: Format,
+    pub from: String,
+    pub to: String,
+    pub entries_renamed: u64,
+    pub bytes_out: u64,
+}
+
+/// Supported hash algorithms for [`crate::hash`].
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HashAlgorithm {
+    #[default]
+    Sha256,
+    Sha1,
+    Crc32,
+}
+
+impl HashAlgorithm {
+    pub fn label(self) -> &'static str {
+        match self {
+            HashAlgorithm::Sha256 => "sha256",
+            HashAlgorithm::Sha1 => "sha1",
+            HashAlgorithm::Crc32 => "crc32",
+        }
+    }
+}
+
+/// Hash digest of a single entry inside an archive.
+#[derive(Debug, Clone, Serialize)]
+pub struct EntryHash {
+    pub path: String,
+    pub size: u64,
+    pub digest: String,
+}
+
+/// Result of computing cryptographic/CRC digests of entries inside an archive (`hash`).
+#[derive(Debug, Clone, Serialize)]
+pub struct HashReport {
+    pub path: PathBuf,
+    pub format: Format,
+    pub algorithm: HashAlgorithm,
+    pub entries: Vec<EntryHash>,
+    pub files_hashed: u64,
+    pub total_bytes: u64,
+}
+
+/// Kind of change detected between two archives by [`crate::diff`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiffStatus {
+    Added,
+    Removed,
+    Modified,
+}
+
+/// A single entry difference between `left` and `right` archives.
+#[derive(Debug, Clone, Serialize)]
+pub struct DiffEntry {
+    pub path: String,
+    pub status: DiffStatus,
+    pub is_dir: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub old_size: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub new_size: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub old_crc32: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub new_crc32: Option<u32>,
+    /// Optional unified text diff patch when `content` diffing is enabled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub patch: Option<String>,
+}
+
+/// Result of comparing two archives (`diff`).
+#[derive(Debug, Clone, Serialize)]
+pub struct DiffReport {
+    pub left: PathBuf,
+    pub left_format: Format,
+    pub right: PathBuf,
+    pub right_format: Format,
+    pub added: u64,
+    pub removed: u64,
+    pub modified: u64,
+    pub unchanged: u64,
+    pub changes: Vec<DiffEntry>,
 }
 

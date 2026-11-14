@@ -6,9 +6,10 @@
 //! transport). Logs go to stderr so they never corrupt the protocol stream.
 
 use ziplark_core::{
-    add, convert, create, detect, detect_by_extension, extract, grep, list, read_entry, remove,
-    test, ConvertOptions, CreateOptions, ExtractOptions, Format, GrepOptions, Level, ListOptions,
-    MatchMode, ReadOptions, RemoveOptions, Selector, DEFAULT_GREP_MAX_FILE_SIZE,
+    add, convert, create, detect, detect_by_extension, diff, extract, grep, hash, list,
+    parse_byte_size, read_entry, remove, rename, test, ConvertOptions, CreateOptions, DiffOptions,
+    ExtractOptions, Format, GrepOptions, HashAlgorithm, HashOptions, Level, ListOptions, MatchMode,
+    ReadOptions, RemoveOptions, RenameOptions, Selector, DEFAULT_GREP_MAX_FILE_SIZE,
     DEFAULT_GREP_MAX_MATCHES,
 };
 use serde_json::{json, Value};
@@ -166,6 +167,37 @@ extracting anything to disk. Always available in read-only mode. Returns matchin
                         "description": "Maximum matching lines to return (default 200, capped at 2000)" }
                 } }
         }),
+        json!({
+            "name": "ziplark_diff",
+            "description": "Compare two archives of any readable format in memory without extracting \
+anything to disk. Reports added, removed, modified, and unchanged entries, and optionally produces \
+unified text diff patches (`content: true`) for modified UTF-8 files.",
+            "inputSchema": { "type": "object", "required": ["left", "right"],
+                "properties": {
+                    "left": { "type": "string", "description": "Left (old) archive path" },
+                    "right": { "type": "string", "description": "Right (new) archive path" },
+                    "left_password": { "type": "string", "description": "Password for left archive" },
+                    "right_password": { "type": "string", "description": "Password for right archive" },
+                    "content": { "type": "boolean", "description": "Include unified text diff patches for modified text files (default false)" },
+                    "include": { "type": "array", "items": { "type": "string" },
+                        "description": "Only compare entries matching one of these path patterns" },
+                    "exact": { "type": "boolean", "description": "Treat `include` as exact entry paths" }
+                } }
+        }),
+        json!({
+            "name": "ziplark_hash",
+            "description": "Compute cryptographic or CRC checksums (sha256, sha1, crc32) for entries \
+inside an archive without writing anything to disk. Always available in read-only mode.",
+            "inputSchema": { "type": "object", "required": ["path"],
+                "properties": {
+                    "path": { "type": "string" },
+                    "algorithm": { "type": "string", "description": "sha256 (default), sha1, or crc32" },
+                    "password": pw.clone(),
+                    "include": { "type": "array", "items": { "type": "string" },
+                        "description": "Only hash entries matching one of these path patterns" },
+                    "exact": { "type": "boolean", "description": "Treat `include` as exact entry paths" }
+                } }
+        }),
     ];
     if allow_write {
         tools.push(json!({
@@ -200,14 +232,15 @@ readable files out of a damaged archive, or out of a volume set with a volume mi
         }));
         tools.push(json!({
             "name": "ziplark_create",
-            "description": "Create an archive from files/directories. Format inferred from the output extension unless 'format' is given.",
+            "description": "Create an archive from files/directories. Format inferred from the output extension unless 'format' is given. Pass `split_size` (e.g. '100M', '2G') to slice the output into `.001`, `.002`, … volumes.",
             "inputSchema": { "type": "object", "required": ["output", "inputs"],
                 "properties": {
                     "output": { "type": "string" },
                     "inputs": { "type": "array", "items": { "type": "string" } },
                     "format": { "type": "string", "description": "zip|7z|tar|tar.gz|tar.bz2|tar.xz|tar.zst|tar.lz4|gz|bz2|xz|zst|lz4" },
                     "level": { "type": "string", "description": "store|fast|default|best" },
-                    "password": pw.clone()
+                    "password": pw.clone(),
+                    "split_size": { "type": "string", "description": "Optional volume split size, e.g. '100M', '700M', '2G'" }
                 } }
         }));
         tools.push(json!({
@@ -236,8 +269,20 @@ readable files out of a damaged archive, or out of a volume set with a volume mi
                 } }
         }));
         tools.push(json!({
+            "name": "ziplark_rename",
+            "description": "Atomically rename or move an entry (or directory prefix) inside an existing archive (zip, 7z, tar.*). For ZIP archives this performs a zero-recompression raw stream copy.",
+            "inputSchema": { "type": "object", "required": ["archive", "from", "to"],
+                "properties": {
+                    "archive": { "type": "string" },
+                    "from": { "type": "string", "description": "Existing entry path or directory prefix inside the archive" },
+                    "to": { "type": "string", "description": "New entry path or directory prefix inside the archive" },
+                    "level": { "type": "string", "description": "store|fast|default|best" },
+                    "password": pw.clone()
+                } }
+        }));
+        tools.push(json!({
             "name": "ziplark_convert",
-            "description": "Convert an archive from any readable format (including RAR, 7z, CAB, DEB, RPM, ISO, ZIP, tar.*) into another archive format (zip, 7z, tar.*).",
+            "description": "Convert an archive from any readable format (including RAR, 7z, CAB, DEB, RPM, PKG, XAR, ISO, ZIP, tar.*) into another archive format (zip, 7z, tar.*).",
             "inputSchema": { "type": "object", "required": ["source", "output"],
                 "properties": {
                     "source": { "type": "string", "description": "Source archive path" },
@@ -262,15 +307,19 @@ fn handle_call(id: Option<Value>, req: &Value, allow_write: bool) -> Value {
         "ziplark_test" => call_test(&args),
         "ziplark_read" => call_read(&args),
         "ziplark_grep" => call_grep(&args),
+        "ziplark_diff" => call_diff(&args),
+        "ziplark_hash" => call_hash(&args),
         "ziplark_extract" if allow_write => call_extract(&args),
         "ziplark_create" if allow_write => call_create(&args),
         "ziplark_add" if allow_write => call_add(&args),
         "ziplark_remove" if allow_write => call_remove(&args),
+        "ziplark_rename" if allow_write => call_rename(&args),
         "ziplark_convert" if allow_write => call_convert(&args),
         "ziplark_extract"
         | "ziplark_create"
         | "ziplark_add"
         | "ziplark_remove"
+        | "ziplark_rename"
         | "ziplark_convert" => {
             Err("write tools are disabled; start ziplark-mcp with --allow-write".into())
         }
@@ -565,10 +614,15 @@ fn call_create(args: &Value) -> Result<String, String> {
             .or_else(|| format_from_name(output))
             .ok_or_else(|| format!("cannot infer format from '{output}'; pass 'format'"))?,
     };
+    let split_size = match opt_str(args, "split_size") {
+        Some(s) if !s.trim().is_empty() => Some(parse_byte_size(&s).map_err(|e| e.to_string())?),
+        _ => None,
+    };
     let opts = CreateOptions {
         format: fmt,
         level: parse_level(opt_str(args, "level").as_deref()),
         password: opt_str(args, "password"),
+        split_size,
     };
     let report = create(output, &inputs, &opts, None).map_err(|e| e.to_string())?;
     jsonify(&report)
@@ -645,6 +699,7 @@ fn call_add(args: &Value) -> Result<String, String> {
         format: fmt,
         level: parse_level(opt_str(args, "level").as_deref()),
         password: opt_str(args, "password"),
+        split_size: None,
     };
     let report = add(archive, &inputs, &opts, None).map_err(|e| e.to_string())?;
     jsonify(&report)
@@ -719,9 +774,70 @@ fn call_convert(args: &Value) -> Result<String, String> {
             format: fmt,
             level: parse_level(opt_str(args, "level").as_deref()),
             password: None,
+            split_size: None,
         },
     };
     let report = convert(source, output, &opts, None).map_err(|e| e.to_string())?;
+    jsonify(&report)
+}
+
+fn call_rename(args: &Value) -> Result<String, String> {
+    let archive = str_arg(args, "archive")?;
+    let from = str_arg(args, "from")?;
+    let to = str_arg(args, "to")?;
+    let opts = RenameOptions {
+        password: opt_str(args, "password"),
+        level: parse_level(opt_str(args, "level").as_deref()),
+    };
+    let report = rename(archive, from, to, &opts, None).map_err(|e| e.to_string())?;
+    jsonify(&report)
+}
+
+fn call_diff(args: &Value) -> Result<String, String> {
+    let left = str_arg(args, "left")?;
+    let right = str_arg(args, "right")?;
+    let exact = args.get("exact").and_then(|v| v.as_bool()).unwrap_or(false);
+    let include: Vec<String> = args
+        .get("include")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let opts = DiffOptions {
+        left_password: opt_str(args, "left_password"),
+        right_password: opt_str(args, "right_password"),
+        content: args.get("content").and_then(|v| v.as_bool()).unwrap_or(false),
+        include,
+        match_mode: if exact { MatchMode::Exact } else { MatchMode::Auto },
+    };
+    let report = diff(left, right, &opts, None).map_err(|e| e.to_string())?;
+    jsonify(&report)
+}
+
+fn call_hash(args: &Value) -> Result<String, String> {
+    let path = str_arg(args, "path")?;
+    let exact = args.get("exact").and_then(|v| v.as_bool()).unwrap_or(false);
+    let include: Vec<String> = args
+        .get("include")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let algorithm = match opt_str(args, "algorithm").as_deref() {
+        None | Some("") | Some("sha256") | Some("sha-256") => HashAlgorithm::Sha256,
+        Some("sha1") | Some("sha-1") => HashAlgorithm::Sha1,
+        Some("crc32") | Some("crc-32") | Some("crc") => HashAlgorithm::Crc32,
+        Some(other) => {
+            return Err(format!(
+                "unknown hash algorithm '{other}' (expected sha256, sha1, or crc32)"
+            ))
+        }
+    };
+    let opts = HashOptions {
+        password: opt_str(args, "password"),
+        algorithm,
+        include,
+        match_mode: if exact { MatchMode::Exact } else { MatchMode::Auto },
+    };
+    let report = hash(path, &opts, None).map_err(|e| e.to_string())?;
     jsonify(&report)
 }
 
@@ -784,7 +900,12 @@ mod tests {
         create(
             &out,
             std::slice::from_ref(&src),
-            &CreateOptions { format: Format::Zip, level: Level::Fast, password: None },
+            &CreateOptions {
+                format: Format::Zip,
+                level: Level::Fast,
+                password: None,
+                split_size: None,
+            },
             None,
         )
         .unwrap();
@@ -1116,5 +1237,84 @@ mod tests {
         );
         assert_eq!(conv_val["entries_converted"], json!(1));
         assert!(tzst_path.exists());
+    }
+
+    #[test]
+    fn diff_hash_rename_and_split_work_end_to_end() {
+        let dir = tmpdir("mcp-v060");
+        let f1 = dir.join("alpha.txt");
+        let f2 = dir.join("beta.txt");
+        std::fs::write(&f1, b"line1\nline2\n").unwrap();
+        std::fs::write(&f2, b"unchanged\n").unwrap();
+        let left_zip = dir.join("left.zip");
+        call(
+            "ziplark_create",
+            json!({
+                "output": left_zip.to_str().unwrap(),
+                "inputs": [f1.to_str().unwrap(), f2.to_str().unwrap()]
+            }),
+        );
+
+        // Create right archive with modified alpha.txt and renamed beta.txt -> gamma.txt
+        std::fs::write(&f1, b"line1\nline2_mod\n").unwrap();
+        let right_zip = dir.join("right.zip");
+        call(
+            "ziplark_create",
+            json!({
+                "output": right_zip.to_str().unwrap(),
+                "inputs": [f1.to_str().unwrap(), f2.to_str().unwrap()]
+            }),
+        );
+        let rn_val = call(
+            "ziplark_rename",
+            json!({
+                "archive": right_zip.to_str().unwrap(),
+                "from": "beta.txt",
+                "to": "gamma.txt"
+            }),
+        );
+        assert_eq!(rn_val["entries_renamed"], json!(1));
+
+        // 1. ziplark_diff works in read-only mode
+        let diff_req = json!({
+            "id": 20,
+            "method": "tools/call",
+            "params": {
+                "name": "ziplark_diff",
+                "arguments": {
+                    "left": left_zip.to_str().unwrap(),
+                    "right": right_zip.to_str().unwrap(),
+                    "content": true
+                }
+            }
+        });
+        let diff_resp = handle(&diff_req, false).unwrap();
+        assert_eq!(diff_resp["result"]["isError"], json!(false));
+        let diff_val: Value =
+            serde_json::from_str(diff_resp["result"]["content"][0]["text"].as_str().unwrap())
+                .unwrap();
+        assert_eq!(diff_val["added"], json!(1));
+        assert_eq!(diff_val["removed"], json!(1));
+        assert_eq!(diff_val["modified"], json!(1));
+
+        // 2. ziplark_hash works in read-only mode
+        let hash_req = json!({
+            "id": 21,
+            "method": "tools/call",
+            "params": {
+                "name": "ziplark_hash",
+                "arguments": {
+                    "path": right_zip.to_str().unwrap(),
+                    "algorithm": "sha256"
+                }
+            }
+        });
+        let hash_resp = handle(&hash_req, false).unwrap();
+        assert_eq!(hash_resp["result"]["isError"], json!(false));
+        let hash_val: Value =
+            serde_json::from_str(hash_resp["result"]["content"][0]["text"].as_str().unwrap())
+                .unwrap();
+        assert_eq!(hash_val["files_hashed"], json!(2));
+        assert_eq!(hash_val["entries"].as_array().unwrap().len(), 2);
     }
 }

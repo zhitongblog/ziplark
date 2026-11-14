@@ -3,6 +3,36 @@
 All notable changes to Ziplark are documented here.
 This project adheres to [Semantic Versioning](https://semver.org).
 
+## [0.6.0] — 2026-11
+
+The archive diff, in-archive rename/move, split-volume creation, checksum manifest & macOS `.pkg`/`.xar` release.
+
+### Added
+- **In-memory archive comparison (`ziplark diff` / MCP `ziplark_diff` / GUI "Compare…").**
+  Compare any two readable archives across formats (e.g. `.zip` vs `.tar.zst`)
+  without writing anything to disk. Reports `added`, `removed`, `modified`, and
+  `unchanged` entries, and optionally produces unified text diff patches
+  (`-u` / `--unified` / `content: true`) for modified UTF-8 files.
+- **In-archive atomic rename & move (`ziplark mv` / MCP `ziplark_rename` / GUI "Rename…").**
+  Rename or move files and directories inside `.zip` (zero-recompression raw stream
+  copy via `ZipWriter::raw_copy_file_rename`), `.7z`, and `.tar.*` archives.
+- **Multi-volume split archive creation (`--split <SIZE>` / MCP `split_size` / GUI "Split volumes").**
+  Slice newly created `.zip`, `.7z`, `.tar.*`, or single-stream archives into
+  `.001`, `.002`, … volumes (`10M`, `100M`, `700M`, `2G`, etc.), and read/extract
+  numbered volume sets seamlessly across `.zip.001`, `.7z.001`, and `.tar.*.001`.
+- **macOS Installer Packages (`.pkg`, `.mpkg`) & XAR archives (`.xar`, `.xip`, `.safariextz`).**
+  Dependency-free pure-Rust XAR parser (`xar!` header + zlib XML TOC) that
+  transparently traverses embedded CPIO (`070707` odc / `070701` newc) `Payload`
+  and `Scripts` streams (`gzip`, `zlib`, `xz`, `bzip2`, or uncompressed) so `.pkg`
+  installers can be listed, previewed, grepped, hashed, diffed, and extracted on
+  macOS, Windows, and Linux alike.
+- **Streaming entry checksums (`ziplark hash` / MCP `ziplark_hash` / GUI "Hashes").**
+  Compute `sha256` (default), `sha1`, or `crc32` digests for archive entries in
+  memory without extracting to disk.
+- **Automated Homebrew & Scoop release sync (`scripts/update-pkg-managers.sh`).**
+  Automatically updates `zhitongblog/homebrew-tap` (Formula + Cask) and
+  `zhitongblog/scoop-bucket` with exact SHA-256 digests upon release.
+
 ## [0.5.0] — 2026-11
 
 The in-archive search, in-place entry removal, format conversion & nested archive drill-down release.

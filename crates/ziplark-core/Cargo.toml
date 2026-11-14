@@ -53,6 +53,11 @@ lz4_flex = "0.11"
 # guesses which one, encoding_rs decodes it. Both are pure Rust, no C.
 chardetng = "0.1"
 encoding_rs = "0.8"
+# Cryptographic & fast checksums (`ziplark hash`, `ziplark diff`, XAR verification).
+# All three are already in Cargo.lock via zip / sevenz-rust2 / flate2.
+sha2 = "0.10"
+sha1 = "0.10"
+crc32fast = "1"
 
 # sysctl hw.memsize: a RAR 7 entry can need tens of gigabytes of dictionary to
 # unpack, and how much this machine has decides whether we let it try.

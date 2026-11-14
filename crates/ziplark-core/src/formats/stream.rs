@@ -1,6 +1,7 @@
 use crate::error::{Error, Result};
 use crate::formats::{copy_watched, create_file, ensure_parent, read_bounded, report};
 use crate::model::*;
+use crate::volumes::{VolumeReader, VolumeSet};
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn, ReadOptions};
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -9,7 +10,12 @@ use std::path::{Path, PathBuf};
 /// The decompressed name for a single-stream archive: drop the trailing
 /// compression extension. `notes.txt.gz` -> `notes.txt`, `blob.zst` -> `blob`.
 fn inner_name(path: &Path) -> String {
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("output");
+    let mut name = path.file_name().and_then(|n| n.to_str()).unwrap_or("output");
+    if let Some((base, ext)) = name.rsplit_once('.') {
+        if (2..=4).contains(&ext.len()) && ext.chars().all(|c| c.is_ascii_digit()) && base.contains('.') {
+            name = base;
+        }
+    }
     for ext in [".gz", ".bz2", ".xz", ".zst", ".lz4", ".tgz", ".tbz2", ".txz", ".tzst", ".tlz4"] {
         if let Some(stripped) = name.strip_suffix(ext) {
             return stripped.to_string();
@@ -19,7 +25,8 @@ fn inner_name(path: &Path) -> String {
 }
 
 fn decoder(path: &Path, fmt: Format) -> Result<Box<dyn Read>> {
-    let f = File::open(path)?;
+    let set = VolumeSet::inspect(path);
+    let f = VolumeReader::open(&set)?;
     Ok(match fmt {
         Format::Gz => Box::new(flate2::read::GzDecoder::new(f)),
         Format::Bz2 => Box::new(bzip2::read::BzDecoder::new(f)),
@@ -31,27 +38,28 @@ fn decoder(path: &Path, fmt: Format) -> Result<Box<dyn Read>> {
 }
 
 pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo> {
-    let compressed = std::fs::metadata(path)?.len();
+    let set = VolumeSet::inspect(path);
+    let compressed = set.total_compressed_size()?;
     // A single stream stores no uncompressed size; report it as unknown (0).
     let entry = ArchiveEntry {
-        path: inner_name(path),
+        path: inner_name(&set.primary),
         is_dir: false,
         size: 0,
         compressed_size: Some(compressed),
         encrypted: false,
         modified: None,
         crc32: None,
-        split: false,
+        split: set.volumes.len() > 1,
     };
     Ok(ArchiveInfo {
         format: fmt,
-        path: path.to_path_buf(),
+        path: set.primary,
         entries: vec![entry],
         encrypted: false,
         total_size: 0,
         total_compressed: compressed,
-        volumes: Vec::new(),
-        missing_volume: None,
+        volumes: set.volumes,
+        missing_volume: set.missing_volume,
         comment: None,
         attributes: ArchiveAttributes::default(),
     })
@@ -219,6 +227,7 @@ pub fn create(
         entries_added: 1,
         bytes_in,
         bytes_out,
+        volumes: Vec::new(),
     })
 }
 

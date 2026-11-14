@@ -47,7 +47,7 @@
         "description": "免费、开源、跨平台的文件压缩工具。解压 ZIP、RAR（含 RAR5 和加密）、7z、tar、ISO 以及 gz/bz2/xz/zst/lz4；创建 ZIP（AES-256）、7z 和 tar。同一个小巧的 Rust 引擎，配有桌面应用、命令行工具和 MCP 服务器。",
         "url": "https://ziplark.com/",
         "downloadUrl": "https://ziplark.com/#download",
-        "softwareVersion": "0.5.0",
+        "softwareVersion": "0.6.0",
         "license": "https://opensource.org/licenses/MIT",
         "isAccessibleForFree": true,
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -185,6 +185,7 @@
             <tr><td>ISO 9660 / Joliet（光盘镜像）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
             <tr><td>Debian &amp; Unix ar（<code>.deb</code>、<code>.udeb</code>、<code>.ipk</code>、<code>.ar</code>、<code>.a</code>）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
             <tr><td>RPM &amp; CPIO（<code>.rpm</code>、<code>.cpio.*</code>）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
+            <tr><td>macOS 安装包 &amp; XAR（<code>.pkg</code>、<code>.mpkg</code>、<code>.xar</code>、<code>.xip</code>）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
             <tr><td>Microsoft Cabinet（<code>.cab</code>，Store + MSZIP）</td><td class="y">✓</td><td class="n">—</td><td>—</td></tr>
           </tbody>
         </table>
@@ -241,10 +242,13 @@
           <pre><code>ziplark list    movie.rar
 ziplark cat     repo.tar.gz src/main.rs
 ziplark grep    "TODO" repo.tar.gz -i
+ziplark diff    v1.zip v2.tar.zst -u
+ziplark hash    release.pkg --algo sha256
 ziplark extract photos.zip -o ./out --smart
-ziplark create  backup.tar.zst ./src --level best
+ziplark create  backup.tar.zst ./src --level best --split 100M
 ziplark add     backup.tar.zst ./CHANGELOG.md
-ziplark rm      backup.tar.zst CHANGELOG.md --exact
+ziplark mv      backup.tar.zst CHANGELOG.md docs/CHANGELOG.md
+ziplark rm      backup.tar.zst docs/CHANGELOG.md --exact
 ziplark convert legacy.rar clean.tar.zst
 ziplark test    download.7z</code></pre>
         </article>
@@ -292,7 +296,7 @@ ziplark test    download.7z</code></pre>
 
     <section id="download" class="section">
       <h2>下载</h2>
-      <p class="dl-sub">版本 <span id="ver">0.5.0</span> · 永久免费 · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">所有版本与校验和</a></p>
+      <p class="dl-sub">版本 <span id="ver">0.6.0</span> · 永久免费 · <a href="https://github.com/zhitongblog/ziplark/releases" rel="noopener">所有版本与校验和</a></p>
       <div class="dl-grid">
         <div class="dl-card" data-os="mac">
           <h3>macOS</h3>
@@ -428,7 +432,7 @@ ziplark test    download.7z</code></pre>
   </footer>
 
   <script>
-    const VERSION = "0.5.0";
+    const VERSION = "0.6.0";
     const BASE = "https://github.com/zhitongblog/ziplark/releases/download/v" + VERSION + "/";
     document.getElementById("ver").textContent = VERSION;
     // Wire every data-asset link to its release URL ({V} -> version).

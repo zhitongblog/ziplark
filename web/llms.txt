@@ -1,6 +1,6 @@
 # Ziplark
 
-> Ziplark is a free, open-source, cross-platform file archiver for macOS, Windows, and Linux. It extracts and previews ZIP, RAR (including RAR5 and encrypted archives), 7z, tar, the compressed-tar and single-stream variants (gz, bz2, xz, zst, lz4), ISO 9660 / Joliet disc images, Debian (.deb) & Unix ar (.ar, .a), Red Hat (.rpm) & CPIO (.cpio.*), and Microsoft Cabinet (.cab), and it creates and appends to ZIP (with AES-256 encryption), 7z, and tar archives. A single ~1.4 MB Rust engine powers three interfaces: a desktop app, a command-line tool (`ziplark`), and an MCP server (`ziplark-mcp`).
+> Ziplark is a free, open-source, cross-platform file archiver for macOS, Windows, and Linux. It extracts and previews ZIP, RAR (including RAR5 and encrypted archives), 7z, tar, the compressed-tar and single-stream variants (gz, bz2, xz, zst, lz4), ISO 9660 / Joliet disc images, Debian (.deb) & Unix ar (.ar, .a), Red Hat (.rpm) & CPIO (.cpio.*), macOS Installer (.pkg, .mpkg) & XAR (.xar, .xip), and Microsoft Cabinet (.cab), and it creates (including multi-volume .001, .002, … split creation), appends to, renames/moves inside, and removes entries from ZIP (with AES-256 encryption), 7z, and tar archives. A single ~1.4 MB Rust engine powers three interfaces: a desktop app, a command-line tool (`ziplark`), and an MCP server (`ziplark-mcp`).
 
 Ziplark is built and maintained by doaipm (https://doaipm.com — one independent developer). It is free forever, MIT licensed, contains no ads and no telemetry, and the desktop app uses the operating system's native webview rather than a bundled browser engine, which keeps it small.
 
@@ -15,7 +15,7 @@ Ziplark is built and maintained by doaipm (https://doaipm.com — one independen
 - Platforms: macOS (universal — Apple Silicon + Intel — notarized, plus Homebrew `brew install --cask zhitongblog/tap/ziplark` and CLI `brew install zhitongblog/tap/ziplark`), Windows (x64 `.msi` / `.exe`, plus Scoop `scoop bucket add ziplark https://github.com/zhitongblog/scoop-bucket && scoop install ziplark`), Linux (x64; `.deb` and AppImage)
 - Size: about 1.4 MB for the engine + CLI
 - Language/stack: Rust engine; Tauri 2 desktop app using the OS webview
-- Latest version: 0.5.0
+- Latest version: 0.6.0
 
 ## Supported formats
 
@@ -28,6 +28,7 @@ Ziplark is built and maintained by doaipm (https://doaipm.com — one independen
 - ISO 9660 / Joliet — extract and preview (disc images); read with a dependency-free parser, no FUSE
 - Debian (`.deb`, `.udeb`, `.ipk`) & Unix `ar` (`.ar`, `.a`, `.lib`) — extract and preview (`data.tar.*` + `control.tar.*` under `DEBIAN/`)
 - Red Hat (`.rpm`, `.srpm`) & CPIO (`.cpio`, `.cpio.gz/.xz/.zst/.bz2/.lz4`) — extract and preview
+- macOS Installer (`.pkg`, `.mpkg`) & XAR (`.xar`, `.xip`, `.safariextz`) — extract and preview (including nested CPIO `Payload` and `Scripts` streams)
 - Microsoft Cabinet (`.cab`, Store + MSZIP) — extract and preview
 
 ## RAR handling (what makes Ziplark unusual here)
@@ -44,10 +45,10 @@ Ziplark is built and maintained by doaipm (https://doaipm.com — one independen
 
 ## How to use it
 
-- Desktop app: drag an archive onto the window to inspect, search (including full-text content search inside files), sort, double-click to Quick Preview (or drill down into nested archives), remove entries, convert formats, or smart-extract it, or switch to Create to build an archive with an optional password.
-- CLI (`ziplark`): `ziplark extract photos.zip -o ./out --smart`, `ziplark cat repo.tar.gz src/main.rs`, `ziplark grep "TODO" repo.tar.gz -i`, `ziplark create backup.tar.zst ./src --level best`, `ziplark add backup.zip ./extra.txt`, `ziplark rm backup.zip extra.txt --exact`, `ziplark convert legacy.rar clean.tar.zst`, `ziplark list movie.rar`, `ziplark test download.7z`. Every command supports `--json`.
+- Desktop app: drag an archive onto the window to inspect, search (including full-text content search inside files), compare against another archive (Diff), compute SHA-256/SHA-1/CRC32 checksums, sort, double-click to Quick Preview (or drill down into nested archives), rename/move entries, remove entries, convert formats, or smart-extract it, or switch to Create to build an archive with an optional password and multi-volume split size.
+- CLI (`ziplark`): `ziplark extract photos.zip -o ./out --smart`, `ziplark cat repo.tar.gz src/main.rs`, `ziplark grep "TODO" repo.tar.gz -i`, `ziplark diff v1.zip v2.tar.zst -u`, `ziplark hash release.pkg --algo sha256`, `ziplark create backup.tar.zst ./src --level best --split 100M`, `ziplark add backup.zip ./extra.txt`, `ziplark mv backup.zip extra.txt docs/extra.txt`, `ziplark rm backup.zip docs/extra.txt --exact`, `ziplark convert legacy.rar clean.tar.zst`, `ziplark list movie.rar`, `ziplark test download.7z`. Every command supports `--json`.
 - Right-click integration: `ziplark shell-integration install` (or the Right-click menu button in the desktop app) adds "Extract here with Ziplark" and "Compress to ZIP with Ziplark" to Finder (macOS), Explorer (Windows), and KDE/Nautilus (Linux).
-- MCP server (`ziplark-mcp`): exposes the archive engine to any LLM over the Model Context Protocol (listed in the official MCP registry as `io.github.zhitongblog/ziplark`); read tools (`ziplark_info`, `ziplark_list`, `ziplark_read`, `ziplark_grep`, `ziplark_test`) are always available and write tools (`ziplark_extract`, `ziplark_create`, `ziplark_add`, `ziplark_remove`, `ziplark_convert`) require `--allow-write`.
+- MCP server (`ziplark-mcp`): exposes the archive engine to any LLM over the Model Context Protocol (listed in the official MCP registry as `io.github.zhitongblog/ziplark`); read tools (`ziplark_info`, `ziplark_list`, `ziplark_read`, `ziplark_grep`, `ziplark_diff`, `ziplark_hash`, `ziplark_test`) are always available and write tools (`ziplark_extract`, `ziplark_create`, `ziplark_add`, `ziplark_rename`, `ziplark_remove`, `ziplark_convert`) require `--allow-write`.
 
 ## Why it is notable
 

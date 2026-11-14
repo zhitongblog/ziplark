@@ -20,12 +20,13 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, State};
 use ziplark_core::shell::{self, ShellStatus};
 use ziplark_core::{
-    add as core_add, convert as core_convert, create as core_create, detect,
-    extract as core_extract, grep as core_grep, list as core_list, read_entry as core_read_entry,
-    remove as core_remove, smart_dest, test as core_test, ArchiveInfo, ConvertOptions,
-    ConvertReport, CreateOptions, CreateReport, Error, ExtractOptions, ExtractReport, Format,
-    GrepOptions, GrepReport, Level, ListOptions, MatchMode, Progress, ReadOptions, RemoveOptions,
-    RemoveReport, TestReport,
+    add as core_add, convert as core_convert, create as core_create, detect, diff as core_diff,
+    extract as core_extract, grep as core_grep, hash as core_hash, list as core_list,
+    parse_byte_size, read_entry as core_read_entry, remove as core_remove, rename as core_rename,
+    smart_dest, test as core_test, ArchiveInfo, ConvertOptions, ConvertReport, CreateOptions,
+    CreateReport, DiffOptions, DiffReport, Error, ExtractOptions, ExtractReport, Format,
+    GrepOptions, GrepReport, HashAlgorithm, HashOptions, HashReport, Level, ListOptions, MatchMode,
+    Progress, ReadOptions, RemoveOptions, RemoveReport, RenameOptions, RenameReport, TestReport,
 };
 
 /// Event names the webview listens for.
@@ -408,6 +409,7 @@ async fn extract_archive_here(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn create_archive(
     app: AppHandle,
     running: State<'_, Arc<Running>>,
@@ -416,14 +418,20 @@ async fn create_archive(
     format: String,
     level: String,
     password: Option<String>,
+    split_size: Option<String>,
 ) -> Result<CreateReport, String> {
     if inputs.is_empty() {
         return Err("select at least one file or folder".into());
     }
+    let parsed_split = match split_size.as_deref().map(str::trim) {
+        Some(s) if !s.is_empty() => Some(parse_byte_size(s).map_err(|e| e.to_string())?),
+        _ => None,
+    };
     let opts = CreateOptions {
         format: parse_format(&format)?,
         level: parse_level(&level),
         password: password.filter(|p| !p.is_empty()),
+        split_size: parsed_split,
     };
     let running = running.inner().clone();
     in_background(app, running, move |progress| {
@@ -453,6 +461,7 @@ async fn add_to_archive(
         format: fmt,
         level: Level::Default,
         password: password.filter(|p| !p.is_empty()),
+        split_size: None,
     };
     let running = running.inner().clone();
     in_background(app, running, move |progress| {
@@ -492,6 +501,80 @@ async fn remove_from_archive(
 }
 
 #[tauri::command]
+async fn rename_in_archive(
+    app: AppHandle,
+    running: State<'_, Arc<Running>>,
+    archive: String,
+    from: String,
+    to: String,
+    password: Option<String>,
+) -> Result<RenameReport, String> {
+    let fmt = detect(Path::new(&archive))
+        .ok_or_else(|| "cannot modify this archive format".to_string())?;
+    if !fmt.can_modify() {
+        return Err(format!("{} archives are read-only", fmt.label()));
+    }
+    let opts = RenameOptions {
+        password: password.filter(|p| !p.is_empty()),
+        level: Level::Default,
+    };
+    let running = running.inner().clone();
+    in_background(app, running, move |progress| {
+        core_rename(&archive, &from, &to, &opts, Some(progress))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn diff_archives(
+    app: AppHandle,
+    running: State<'_, Arc<Running>>,
+    left: String,
+    right: String,
+    left_password: Option<String>,
+    right_password: Option<String>,
+    content_diff: Option<bool>,
+) -> Result<DiffReport, String> {
+    let opts = DiffOptions {
+        left_password: left_password.filter(|p| !p.is_empty()),
+        right_password: right_password.filter(|p| !p.is_empty()),
+        content: content_diff.unwrap_or(true),
+        ..DiffOptions::default()
+    };
+    let running = running.inner().clone();
+    in_background(app, running, move |progress| {
+        core_diff(&left, &right, &opts, Some(progress))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn hash_archive(
+    app: AppHandle,
+    running: State<'_, Arc<Running>>,
+    path: String,
+    algorithm: Option<String>,
+    password: Option<String>,
+) -> Result<HashReport, String> {
+    let algo = match algorithm.as_deref() {
+        Some("sha1") | Some("sha-1") => HashAlgorithm::Sha1,
+        Some("crc32") | Some("crc-32") => HashAlgorithm::Crc32,
+        _ => HashAlgorithm::Sha256,
+    };
+    let opts = HashOptions {
+        password: password.filter(|p| !p.is_empty()),
+        algorithm: algo,
+        include: Vec::new(),
+        match_mode: MatchMode::Auto,
+    };
+    let running = running.inner().clone();
+    in_background(app, running, move |progress| {
+        core_hash(&path, &opts, Some(progress))
+    })
+    .await
+}
+
+#[tauri::command]
 async fn convert_archive(
     app: AppHandle,
     running: State<'_, Arc<Running>>,
@@ -507,6 +590,7 @@ async fn convert_archive(
             format: parse_format(&format)?,
             level: parse_level(&level),
             password: None,
+            split_size: None,
         },
     };
     let running = running.inner().clone();
@@ -750,6 +834,9 @@ pub fn run() {
             create_archive,
             add_to_archive,
             remove_from_archive,
+            rename_in_archive,
+            diff_archives,
+            hash_archive,
             convert_archive,
             grep_archive,
             extract_nested_archive,

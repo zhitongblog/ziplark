@@ -103,6 +103,7 @@ pub fn compress_zip_batch(
         format: Format::Zip,
         level,
         password,
+        split_size: None,
     };
     let report = create(&out, &inputs, &opts, None)?;
     notify(

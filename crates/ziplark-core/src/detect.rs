@@ -34,12 +34,23 @@ pub fn detect(path: &Path) -> Option<Format> {
         return Some(Format::Cpio);
     }
 
-    // Compressed streams that may wrap a tar or cpio. Decide by extension.
-    let lname = path
+    // Compressed streams that may wrap a tar or cpio. Decide by extension
+    // (stripping any `.001`..`.9999` volume suffix first so `a.tar.zst.001`
+    // is recognised as `TarZst` rather than plain `Zst`).
+    let raw_lname = path
         .file_name()
         .and_then(|n| n.to_str())
         .map(|s| s.to_ascii_lowercase())
         .unwrap_or_default();
+    let lname = strip_split_suffix(&raw_lname);
+
+    if head.starts_with(b"xar!") {
+        return Some(if lname.ends_with(".pkg") || lname.ends_with(".mpkg") {
+            Format::Pkg
+        } else {
+            Format::Xar
+        });
+    }
 
     if head.starts_with(b"!<arch>\n") {
         let is_deb_ext = lname.ends_with(".deb") || lname.ends_with(".udeb") || lname.ends_with(".ipk");
@@ -95,7 +106,7 @@ pub fn detect(path: &Path) -> Option<Format> {
 
     // Then the name: `.tar.gz` against `.gz`, volume names like `.7z.002` / `.r00` / `.z01`,
     // and package extensions.
-    if let Some(fmt) = detect_by_extension_or_set(path, &lname) {
+    if let Some(fmt) = detect_by_extension_or_set(path, &raw_lname) {
         return Some(fmt);
     }
 
@@ -184,10 +195,8 @@ fn detect_by_extension_or_set(path: &Path, lname: &str) -> Option<Format> {
     detect_by_extension(lname)
 }
 
-pub fn detect_by_extension(lname: &str) -> Option<Format> {
-    // Strip a trailing numbered split suffix (`.001` .. `.9999`) if it sits
-    // behind a known archive extension (`movie.7z.002` -> `movie.7z`).
-    let lname = match lname.rsplit_once('.') {
+fn strip_split_suffix(lname: &str) -> &str {
+    match lname.rsplit_once('.') {
         Some((base, ext))
             if (2..=4).contains(&ext.len())
                 && ext.chars().all(|c| c.is_ascii_digit())
@@ -196,7 +205,13 @@ pub fn detect_by_extension(lname: &str) -> Option<Format> {
             base
         }
         _ => lname,
-    };
+    }
+}
+
+pub fn detect_by_extension(lname: &str) -> Option<Format> {
+    // Strip a trailing numbered split suffix (`.001` .. `.9999`) if it sits
+    // behind a known archive extension (`movie.7z.002` -> `movie.7z`).
+    let lname = strip_split_suffix(lname);
 
     // A RAR volume can be named `.r00` … `.z99`, which says "RAR" as clearly as
     // `.rar` does and is how every old download is still named.
@@ -271,6 +286,11 @@ pub fn detect_by_extension(lname: &str) -> Option<Format> {
         (".rpm", Format::Rpm),
         (".srpm", Format::Rpm),
         (".cab", Format::Cab),
+        (".pkg", Format::Pkg),
+        (".mpkg", Format::Pkg),
+        (".xar", Format::Xar),
+        (".xip", Format::Xar),
+        (".safariextz", Format::Xar),
     ];
     table
         .iter()

@@ -28,19 +28,19 @@ const S_IFMT: u32 = 0o170000;
 const S_IFDIR: u32 = 0o040000;
 const S_IFLNK: u32 = 0o120000;
 
-struct CpioHeader {
-    name: String,
-    mode: u32,
-    mtime: i64,
-    size: u64,
-    data_pad: usize,
+pub(crate) struct CpioHeader {
+    pub(crate) name: String,
+    pub(crate) mode: u32,
+    pub(crate) mtime: i64,
+    pub(crate) size: u64,
+    pub(crate) data_pad: usize,
 }
 
 impl CpioHeader {
-    fn is_dir(&self) -> bool {
+    pub(crate) fn is_dir(&self) -> bool {
         (self.mode & S_IFMT) == S_IFDIR
     }
-    fn is_symlink(&self) -> bool {
+    pub(crate) fn is_symlink(&self) -> bool {
         (self.mode & S_IFMT) == S_IFLNK
     }
 }
@@ -90,6 +90,16 @@ fn open_payload(path: &Path, fmt: Format) -> Result<Box<dyn Read>> {
     let n = f.read(&mut peek)?;
     let head = &peek[..n];
     let chained = Cursor::new(head.to_vec()).chain(f);
+    wrap_compressed_stream(chained)
+}
+
+/// Wrap any reader in the matching stream decompressor (`gzip`, `xz`, `zstd`,
+/// `bzip2`, `lz4`) based on its leading magic bytes, or pass it through raw.
+pub(crate) fn wrap_compressed_stream<'a, R: Read + 'a>(mut r: R) -> Result<Box<dyn Read + 'a>> {
+    let mut peek = [0u8; 6];
+    let n = r.read(&mut peek)?;
+    let head = &peek[..n];
+    let chained = Cursor::new(head.to_vec()).chain(r);
 
     Ok(if head.starts_with(b"\x1F\x8B") {
         Box::new(flate2::read::GzDecoder::new(chained))
@@ -108,7 +118,7 @@ fn open_payload(path: &Path, fmt: Format) -> Result<Box<dyn Read>> {
 
 /// Read the next CPIO entry header from `r`, returning `Ok(None)` at EOF or
 /// `"TRAILER!!!"`.
-fn next_header<R: Read>(r: &mut R) -> Result<Option<CpioHeader>> {
+pub(crate) fn next_header<R: Read + ?Sized>(r: &mut R) -> Result<Option<CpioHeader>> {
     let mut magic = [0u8; 6];
     if !read_exact_or_eof(r, &mut magic)? {
         return Ok(None);
@@ -172,13 +182,13 @@ fn next_header<R: Read>(r: &mut R) -> Result<Option<CpioHeader>> {
     }))
 }
 
-fn skip_bytes<R: Read>(r: &mut R, n: u64) -> Result<()> {
+pub(crate) fn skip_bytes<R: Read + ?Sized>(r: &mut R, n: u64) -> Result<()> {
     let mut take = r.take(n);
     io::copy(&mut take, &mut io::sink())?;
     Ok(())
 }
 
-fn read_exact_or_eof<R: Read>(r: &mut R, buf: &mut [u8]) -> Result<bool> {
+fn read_exact_or_eof<R: Read + ?Sized>(r: &mut R, buf: &mut [u8]) -> Result<bool> {
     let mut filled = 0;
     while filled < buf.len() {
         let n = r.read(&mut buf[filled..])?;
@@ -393,7 +403,7 @@ pub fn read_entry(
     Err(Error::other(format!("entry not found in archive: {entry_path}")))
 }
 
-fn restore_metadata(path: &Path, mode: Option<u32>, mtime: Option<i64>) {
+pub(crate) fn restore_metadata(path: &Path, mode: Option<u32>, mtime: Option<i64>) {
     #[cfg(unix)]
     if let Some(mode) = mode {
         use std::os::unix::fs::PermissionsExt;

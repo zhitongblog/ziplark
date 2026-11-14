@@ -31,8 +31,9 @@ pub use detect::{detect, detect_by_extension};
 pub use error::{Error, Result};
 pub use matcher::{MatchMode, Selector};
 pub use model::{
-    ArchiveAttributes, ArchiveEntry, ArchiveInfo, ConvertReport, CreateReport, EntryContent,
-    ExtractReport, Format, GrepMatch, GrepReport, Progress, RemoveReport, TestReport,
+    ArchiveAttributes, ArchiveEntry, ArchiveInfo, ConvertReport, CreateReport, DiffEntry,
+    DiffReport, DiffStatus, EntryContent, EntryHash, ExtractReport, Format, GrepMatch, GrepReport,
+    HashAlgorithm, HashReport, Progress, RemoveReport, RenameReport, TestReport,
 };
 pub use volumes::VolumeSet;
 
@@ -134,6 +135,10 @@ pub struct CreateOptions {
     pub level: Level,
     /// AES-256 password (ZIP / 7z). Ignored by formats that can't encrypt.
     pub password: Option<String>,
+    /// Optional maximum volume size in bytes (`--split`). When set (`> 0`) and
+    /// the created archive exceeds `split_size`, the output is sliced into
+    /// `<output>.001`, `<output>.002`, … volume files.
+    pub split_size: Option<u64>,
 }
 
 impl CreateOptions {
@@ -142,8 +147,41 @@ impl CreateOptions {
             format,
             level: Level::Default,
             password: None,
+            split_size: None,
         }
     }
+}
+
+/// Parse a human-friendly byte size string such as `"100M"`, `"1.5G"`, `"64K"`,
+/// `"500MB"`, or raw bytes `"1048576"`.
+pub fn parse_byte_size(s: &str) -> Result<u64> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Err(Error::other("split size must not be empty"));
+    }
+    let upper = s.to_ascii_uppercase();
+    let (num_str, mult): (&str, f64) = if let Some(n) = upper.strip_suffix("GIB").or_else(|| upper.strip_suffix("GB")).or_else(|| upper.strip_suffix('G')) {
+        (n.trim(), 1024.0 * 1024.0 * 1024.0)
+    } else if let Some(n) = upper.strip_suffix("MIB").or_else(|| upper.strip_suffix("MB")).or_else(|| upper.strip_suffix('M')) {
+        (n.trim(), 1024.0 * 1024.0)
+    } else if let Some(n) = upper.strip_suffix("KIB").or_else(|| upper.strip_suffix("KB")).or_else(|| upper.strip_suffix('K')) {
+        (n.trim(), 1024.0)
+    } else if let Some(n) = upper.strip_suffix('B') {
+        (n.trim(), 1.0)
+    } else {
+        (upper.as_str(), 1.0)
+    };
+    let val: f64 = num_str
+        .parse()
+        .map_err(|_| Error::other(format!("invalid byte size: {s}")))?;
+    if !val.is_finite() || val <= 0.0 {
+        return Err(Error::other(format!("split size must be positive: {s}")));
+    }
+    let bytes = (val * mult).round() as u64;
+    if bytes < 64 * 1024 {
+        return Err(Error::other("split size must be at least 64 KiB"));
+    }
+    Ok(bytes)
 }
 
 /// Default maximum matches returned by [`grep`].
@@ -218,6 +256,45 @@ pub struct ConvertOptions {
     pub read_password: Option<String>,
     /// Options for creating the destination archive.
     pub create: CreateOptions,
+}
+
+/// Options for renaming or moving entries inside an archive ([`rename`]).
+#[derive(Debug, Default, Clone)]
+pub struct RenameOptions {
+    pub password: Option<String>,
+    pub level: Level,
+}
+
+/// Options for computing entry hashes inside an archive ([`hash`]).
+#[derive(Debug, Default, Clone)]
+pub struct HashOptions {
+    pub password: Option<String>,
+    pub algorithm: HashAlgorithm,
+    pub include: Vec<String>,
+    pub match_mode: MatchMode,
+}
+
+impl HashOptions {
+    pub fn selector(&self) -> Selector {
+        Selector::new(&self.include, self.match_mode)
+    }
+}
+
+/// Options for comparing two archives ([`diff`]).
+#[derive(Debug, Default, Clone)]
+pub struct DiffOptions {
+    pub left_password: Option<String>,
+    pub right_password: Option<String>,
+    /// Generate unified text diff patches for modified text files.
+    pub content: bool,
+    pub include: Vec<String>,
+    pub match_mode: MatchMode,
+}
+
+impl DiffOptions {
+    pub fn selector(&self) -> Selector {
+        Selector::new(&self.include, self.match_mode)
+    }
 }
 
 
@@ -396,6 +473,7 @@ pub fn list(path: impl AsRef<Path>, opts: &ListOptions) -> Result<ArchiveInfo> {
         Format::Ar | Format::Deb => formats::ar::list(path, fmt, opts),
         Format::Cpio | Format::Rpm => formats::cpio::list(path, fmt, opts),
         Format::Cab => formats::cab::list(path, fmt, opts),
+        Format::Xar | Format::Pkg => formats::xar::list(path, fmt, opts),
     }
 }
 
@@ -425,6 +503,7 @@ pub fn read_entry(
         Format::Ar | Format::Deb => formats::ar::read_entry(path, fmt, entry_path, opts),
         Format::Cpio | Format::Rpm => formats::cpio::read_entry(path, fmt, entry_path, opts),
         Format::Cab => formats::cab::read_entry(path, entry_path, opts),
+        Format::Xar | Format::Pkg => formats::xar::read_entry(path, fmt, entry_path, opts),
     }
 }
 
@@ -475,6 +554,7 @@ pub fn extract(
         Format::Ar | Format::Deb => formats::ar::extract(path, fmt, opts, progress),
         Format::Cpio | Format::Rpm => formats::cpio::extract(path, fmt, opts, progress),
         Format::Cab => formats::cab::extract(path, opts, progress),
+        Format::Xar | Format::Pkg => formats::xar::extract(path, fmt, opts, progress),
     }
 }
 
@@ -489,22 +569,93 @@ pub fn create(
     if !opts.format.can_create() {
         return Err(Error::CreateUnsupported(opts.format.label().to_string()));
     }
+    // Strip a trailing `.001` suffix if the caller passed `archive.zip.001` as
+    // the output path when requesting `--split`.
+    let base_output = strip_volume_suffix(output);
     let mut local = noop_progress;
     let progress: ProgressFn = progress.unwrap_or(&mut local);
-    match opts.format {
-        Format::Zip => formats::zip::create(output, inputs, opts, progress),
-        Format::SevenZ => formats::sevenz::create(output, inputs, opts, progress),
+    let mut rep = match opts.format {
+        Format::Zip => formats::zip::create(&base_output, inputs, opts, progress),
+        Format::SevenZ => formats::sevenz::create(&base_output, inputs, opts, progress),
         Format::Tar
         | Format::TarGz
         | Format::TarBz2
         | Format::TarXz
         | Format::TarZst
-        | Format::TarLz4 => formats::tar::create(output, inputs, opts, progress),
+        | Format::TarLz4 => formats::tar::create(&base_output, inputs, opts, progress),
         Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4 => {
-            formats::stream::create(output, inputs, opts, progress)
+            formats::stream::create(&base_output, inputs, opts, progress)
         }
         other => Err(Error::CreateUnsupported(other.label().into())),
+    }?;
+
+    if let Some(split_bytes) = opts.split_size.filter(|&n| n > 0) {
+        if split_bytes < 64 * 1024 {
+            let _ = std::fs::remove_file(&base_output);
+            return Err(Error::other("split size must be at least 64 KiB"));
+        }
+        let volumes = slice_into_volumes(&base_output, split_bytes)?;
+        if let Some(first) = volumes.first() {
+            rep.output = first.clone();
+        }
+        rep.volumes = volumes;
     }
+
+    Ok(rep)
+}
+
+fn strip_volume_suffix(path: &Path) -> PathBuf {
+    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+        if let Some((base, ext)) = name.rsplit_once('.') {
+            if (2..=4).contains(&ext.len()) && ext.chars().all(|c| c.is_ascii_digit()) && base.contains('.') {
+                return path.with_file_name(base);
+            }
+        }
+    }
+    path.to_path_buf()
+}
+
+/// Slice a newly created archive file at `archive_path` into fixed-size
+/// `<archive_path>.001`, `<archive_path>.002`, … volume files and remove the
+/// unsplit file.
+fn slice_into_volumes(archive_path: &Path, split_bytes: u64) -> Result<Vec<PathBuf>> {
+    use std::io::{Read, Write};
+    let mut src = std::fs::File::open(archive_path)?;
+    let total_len = src.metadata()?.len();
+    let base_name = archive_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| Error::other("invalid output archive filename"))?;
+
+    let mut volumes = Vec::new();
+    let mut buf = vec![0u8; 128 * 1024];
+    let mut remaining_total = total_len;
+    let mut part_num = 1usize;
+
+    while remaining_total > 0 || part_num == 1 {
+        let vol_path = archive_path.with_file_name(format!("{base_name}.{part_num:03}"));
+        let mut out = std::fs::File::create(&vol_path)?;
+        let mut written_in_vol = 0u64;
+        while written_in_vol < split_bytes {
+            let max_chunk = ((split_bytes - written_in_vol).min(buf.len() as u64)) as usize;
+            let n = src.read(&mut buf[..max_chunk])?;
+            if n == 0 {
+                break;
+            }
+            out.write_all(&buf[..n])?;
+            written_in_vol += n as u64;
+            remaining_total = remaining_total.saturating_sub(n as u64);
+        }
+        out.flush()?;
+        volumes.push(vol_path);
+        part_num += 1;
+        if remaining_total == 0 {
+            break;
+        }
+    }
+    drop(src);
+    let _ = std::fs::remove_file(archive_path);
+    Ok(volumes)
 }
 
 /// Add (or replace) `inputs` inside an existing archive at `archive`.
@@ -575,6 +726,7 @@ pub fn add(
             format: fmt,
             level: opts.level,
             password: opts.password.clone(),
+            split_size: None,
         };
         let mut rep = create(&tmp_archive, &merged_inputs, &create_opts, Some(progress))?;
         formats::zip::replace_archive_file(&tmp_archive, archive)?;
@@ -642,6 +794,7 @@ pub fn test(
         Format::Ar | Format::Deb => formats::ar::test(path, fmt, opts, progress),
         Format::Cpio | Format::Rpm => formats::cpio::test(path, fmt, opts, progress),
         Format::Cab => formats::cab::test(path, opts, progress),
+        Format::Xar | Format::Pkg => formats::xar::test(path, fmt, opts, progress),
     }
 }
 
@@ -746,6 +899,7 @@ pub fn remove(
             format: fmt,
             level: opts.level,
             password: opts.password.clone(),
+            split_size: None,
         };
         let rep = create(&tmp_archive, &remaining_inputs, &create_opts, Some(progress))?;
         formats::zip::replace_archive_file(&tmp_archive, archive)?;
@@ -1003,9 +1157,648 @@ fn is_binary_extension(entry_path: &str) -> bool {
     const BIN_EXTS: &[&str] = &[
         ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".mp3", ".mp4", ".mkv", ".avi",
         ".mov", ".wav", ".flac", ".ogg", ".woff", ".woff2", ".ttf", ".otf", ".eot", ".pdf", ".zip",
-        ".7z", ".rar", ".gz", ".bz2", ".xz", ".zst", ".lz4", ".iso", ".deb", ".rpm", ".cab", ".o",
-        ".a", ".so", ".dylib", ".dll", ".exe", ".class", ".pyc", ".wasm",
+        ".7z", ".rar", ".gz", ".bz2", ".xz", ".zst", ".lz4", ".iso", ".deb", ".rpm", ".cab",
+        ".pkg", ".xar", ".o", ".a", ".so", ".dylib", ".dll", ".exe", ".class", ".pyc", ".wasm",
     ];
     BIN_EXTS.iter().any(|ext| lower.ends_with(ext))
+}
+
+/// Rename or move an entry (or directory prefix) inside an existing `.zip`,
+/// `.7z`, or `.tar.*` archive atomically.
+pub fn rename(
+    archive: impl AsRef<Path>,
+    from: &str,
+    to: &str,
+    opts: &RenameOptions,
+    progress: Option<ProgressFn<'_>>,
+) -> Result<RenameReport> {
+    let archive = archive.as_ref();
+    let from_clean = from.replace('\\', "/");
+    let from_clean = from_clean.trim_start_matches("./").trim_matches('/');
+    let to_clean = to.replace('\\', "/");
+    let to_clean = to_clean.trim_start_matches("./").trim_matches('/');
+    if from_clean.is_empty() || to_clean.is_empty() {
+        return Err(Error::other("rename source and destination paths must not be empty"));
+    }
+
+    let fmt = detect(archive).ok_or_else(|| Error::UnsupportedFormat(Some(archive.to_path_buf())))?;
+    if !fmt.can_modify() {
+        return Err(Error::CreateUnsupported(fmt.label().to_string()));
+    }
+    let mut local = noop_progress;
+    let progress: ProgressFn = progress.unwrap_or(&mut local);
+
+    if fmt == Format::Zip {
+        return formats::zip::rename(archive, from_clean, to_clean, progress);
+    }
+
+    let info = list(
+        archive,
+        &ListOptions {
+            password: opts.password.clone(),
+        },
+    )?;
+    let from_prefix = format!("{from_clean}/");
+    let entries_renamed = info
+        .entries
+        .iter()
+        .filter(|e| {
+            let trimmed = e.path.trim_start_matches("./").trim_end_matches('/');
+            trimmed == from_clean || trimmed.starts_with(&from_prefix)
+        })
+        .count() as u64;
+
+    if entries_renamed == 0 {
+        return Err(Error::other(format!("entry not found in archive: {from_clean}")));
+    }
+
+    let stage = std::env::temp_dir().join(format!(
+        "ziplark-mv-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
+    std::fs::create_dir_all(&stage)?;
+
+    let result = (|| -> Result<RenameReport> {
+        let mut ex_opts = ExtractOptions::new(&stage);
+        ex_opts.overwrite = true;
+        ex_opts.password = opts.password.clone();
+        extract(archive, &ex_opts, None)?;
+
+        let src_path = formats::safe_join(&stage, from_clean)?;
+        let dst_path = formats::safe_join(&stage, to_clean)?;
+        if let Some(parent) = dst_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::rename(&src_path, &dst_path)?;
+
+        let mut remaining_inputs = Vec::new();
+        for entry in std::fs::read_dir(&stage)? {
+            let entry = entry?;
+            remaining_inputs.push(entry.path());
+        }
+        remaining_inputs.sort();
+
+        let (tmp_archive, tmp_file) = formats::zip::create_temp_for(archive, "mv.tmp")?;
+        drop(tmp_file);
+        let create_opts = CreateOptions {
+            format: fmt,
+            level: opts.level,
+            password: opts.password.clone(),
+            split_size: None,
+        };
+        create(&tmp_archive, &remaining_inputs, &create_opts, Some(progress))?;
+        formats::zip::replace_archive_file(&tmp_archive, archive)?;
+        let bytes_out = std::fs::metadata(archive)?.len();
+        Ok(RenameReport {
+            output: archive.to_path_buf(),
+            format: fmt,
+            from: from_clean.to_string(),
+            to: to_clean.to_string(),
+            entries_renamed,
+            bytes_out,
+        })
+    })();
+
+    let _ = std::fs::remove_dir_all(&stage);
+    result
+}
+
+/// Compute cryptographic or CRC32 digests for all matching files inside an
+/// archive without writing anything to disk.
+pub fn hash(
+    path: impl AsRef<Path>,
+    opts: &HashOptions,
+    progress: Option<ProgressFn<'_>>,
+) -> Result<HashReport> {
+    let path = path.as_ref();
+    let fmt = detect(path).ok_or_else(|| Error::UnsupportedFormat(Some(path.to_path_buf())))?;
+    let mut local = noop_progress;
+    let progress: ProgressFn = progress.unwrap_or(&mut local);
+    let selector = opts.selector();
+    let algo = opts.algorithm;
+
+    let mut entries = Vec::new();
+    let mut files_hashed = 0u64;
+    let mut total_bytes = 0u64;
+
+    let mut hash_one = |entry_path: &str, _size: u64, rd: &mut dyn std::io::Read| -> Result<bool> {
+        formats::report(
+            progress,
+            Progress {
+                current_path: entry_path.to_string(),
+                entries_done: files_hashed,
+                entries_total: 0,
+                bytes_done: total_bytes,
+                bytes_total: 0,
+            },
+        )?;
+        let (digest, n) = compute_stream_digest(rd, algo)?;
+        files_hashed += 1;
+        total_bytes += n;
+        entries.push(EntryHash {
+            path: entry_path.to_string(),
+            size: n,
+            digest,
+        });
+        Ok(true)
+    };
+
+    match fmt {
+        Format::Zip => {
+            formats::zip::scan_files(path, &opts.password, &selector, u64::MAX, &mut hash_one)?
+        }
+        Format::Tar
+        | Format::TarGz
+        | Format::TarBz2
+        | Format::TarXz
+        | Format::TarZst
+        | Format::TarLz4 => {
+            formats::tar::scan_files(path, fmt, &selector, u64::MAX, &mut hash_one)?
+        }
+        Format::SevenZ => {
+            formats::sevenz::scan_files(
+                path,
+                &opts.password,
+                &selector,
+                u64::MAX,
+                &mut hash_one,
+            )?
+        }
+        _ => {
+            let info = list(
+                path,
+                &ListOptions {
+                    password: opts.password.clone(),
+                },
+            )?;
+            for entry in &info.entries {
+                if entry.is_dir || !selector.matches(&entry.path) {
+                    continue;
+                }
+                if entry.size == 0
+                    && !matches!(
+                        fmt,
+                        Format::Gz | Format::Bz2 | Format::Xz | Format::Zst | Format::Lz4
+                    )
+                {
+                    let mut empty = std::io::empty();
+                    hash_one(&entry.path, 0, &mut empty)?;
+                    continue;
+                }
+                let content = read_entry(
+                    path,
+                    &entry.path,
+                    &ReadOptions {
+                        password: opts.password.clone(),
+                        offset: 0,
+                        max_bytes: 64 * 1024 * 1024,
+                    },
+                )?;
+                let mut cursor = std::io::Cursor::new(&content.bytes);
+                hash_one(&entry.path, content.size, &mut cursor)?;
+            }
+        }
+    }
+
+    // Notice: `scan_files` skips 0-byte files (created for `grep`), so also
+    // include any 0-byte regular files from `list()` if we used `scan_files`.
+    if matches!(
+        fmt,
+        Format::Zip
+            | Format::SevenZ
+            | Format::Tar
+            | Format::TarGz
+            | Format::TarBz2
+            | Format::TarXz
+            | Format::TarZst
+            | Format::TarLz4
+    ) {
+        if let Ok(info) = list(
+            path,
+            &ListOptions {
+                password: opts.password.clone(),
+            },
+        ) {
+            let seen: HashSet<String> = entries.iter().map(|e| e.path.clone()).collect();
+            for e in info.entries {
+                if !e.is_dir && e.size == 0 && selector.matches(&e.path) && !seen.contains(&e.path)
+                {
+                    let (digest, _) = compute_stream_digest(&mut std::io::empty(), algo)?;
+                    files_hashed += 1;
+                    entries.push(EntryHash {
+                        path: e.path,
+                        size: 0,
+                        digest,
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(HashReport {
+        path: path.to_path_buf(),
+        format: fmt,
+        algorithm: algo,
+        entries,
+        files_hashed,
+        total_bytes,
+    })
+}
+
+fn compute_stream_digest(
+    rd: &mut dyn std::io::Read,
+    algo: HashAlgorithm,
+) -> Result<(String, u64)> {
+    let mut buf = [0u8; 64 * 1024];
+    let mut total = 0u64;
+    match algo {
+        HashAlgorithm::Sha256 => {
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            loop {
+                let n = rd.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                hasher.update(&buf[..n]);
+                total += n as u64;
+            }
+            Ok((hex_encode(&hasher.finalize()), total))
+        }
+        HashAlgorithm::Sha1 => {
+            use sha1::{Digest, Sha1};
+            let mut hasher = Sha1::new();
+            loop {
+                let n = rd.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                hasher.update(&buf[..n]);
+                total += n as u64;
+            }
+            Ok((hex_encode(&hasher.finalize()), total))
+        }
+        HashAlgorithm::Crc32 => {
+            let mut hasher = crc32fast::Hasher::new();
+            loop {
+                let n = rd.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                hasher.update(&buf[..n]);
+                total += n as u64;
+            }
+            Ok((format!("{:08x}", hasher.finalize()), total))
+        }
+    }
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        use std::fmt::Write as _;
+        let _ = write!(&mut out, "{b:02x}");
+    }
+    out
+}
+
+/// Compare two archives (`left` and `right`) of any readable format without
+/// extracting to disk, reporting added, removed, and modified entries (plus
+/// optional unified text diff patches when `opts.content` is set).
+pub fn diff(
+    left: impl AsRef<Path>,
+    right: impl AsRef<Path>,
+    opts: &DiffOptions,
+    progress: Option<ProgressFn<'_>>,
+) -> Result<DiffReport> {
+    use std::collections::BTreeMap;
+    let left = left.as_ref();
+    let right = right.as_ref();
+    let mut local = noop_progress;
+    let progress: ProgressFn = progress.unwrap_or(&mut local);
+
+    let left_info = list(
+        left,
+        &ListOptions {
+            password: opts.left_password.clone(),
+        },
+    )?;
+    let right_info = list(
+        right,
+        &ListOptions {
+            password: opts.right_password.clone(),
+        },
+    )?;
+    let selector = opts.selector();
+
+    let mut left_map: BTreeMap<String, &ArchiveEntry> = BTreeMap::new();
+    for e in &left_info.entries {
+        if !e.is_dir && selector.matches(&e.path) {
+            left_map.insert(e.path.trim_start_matches("./").to_string(), e);
+        }
+    }
+    let mut right_map: BTreeMap<String, &ArchiveEntry> = BTreeMap::new();
+    for e in &right_info.entries {
+        if !e.is_dir && selector.matches(&e.path) {
+            right_map.insert(e.path.trim_start_matches("./").to_string(), e);
+        }
+    }
+
+    let mut all_paths: Vec<String> = left_map
+        .keys()
+        .chain(right_map.keys())
+        .cloned()
+        .collect();
+    all_paths.sort();
+    all_paths.dedup();
+
+    let mut added = 0u64;
+    let mut removed = 0u64;
+    let mut modified = 0u64;
+    let mut unchanged = 0u64;
+    let mut changes = Vec::new();
+    let total_paths = all_paths.len() as u64;
+
+    for (idx, p) in all_paths.iter().enumerate() {
+        formats::report(
+            progress,
+            Progress {
+                current_path: p.clone(),
+                entries_done: idx as u64 + 1,
+                entries_total: total_paths,
+                bytes_done: 0,
+                bytes_total: 0,
+            },
+        )?;
+
+        match (left_map.get(p), right_map.get(p)) {
+            (None, Some(r)) => {
+                added += 1;
+                changes.push(DiffEntry {
+                    path: p.clone(),
+                    status: DiffStatus::Added,
+                    is_dir: r.is_dir,
+                    old_size: None,
+                    new_size: Some(r.size),
+                    old_crc32: None,
+                    new_crc32: r.crc32,
+                    patch: None,
+                });
+            }
+            (Some(l), None) => {
+                removed += 1;
+                changes.push(DiffEntry {
+                    path: p.clone(),
+                    status: DiffStatus::Removed,
+                    is_dir: l.is_dir,
+                    old_size: Some(l.size),
+                    new_size: None,
+                    old_crc32: l.crc32,
+                    new_crc32: None,
+                    patch: None,
+                });
+            }
+            (Some(l), Some(r)) => {
+                // Determine whether `l` and `r` differ.
+                let mut is_mod = l.size != r.size;
+                let mut left_bytes_cache: Option<Vec<u8>> = None;
+                let mut right_bytes_cache: Option<Vec<u8>> = None;
+
+                if !is_mod {
+                    if let (Some(lc), Some(rc)) = (l.crc32, r.crc32) {
+                        if lc != 0 || rc != 0 || l.size == 0 {
+                            is_mod = lc != rc;
+                        }
+                    } else if l.size > 0 && l.size <= 16 * 1024 * 1024 {
+                        // Formats like tar don't store per-entry CRC32 in headers;
+                        // compare bytes directly when sizes match.
+                        let lb = read_entry(
+                            left,
+                            &l.path,
+                            &ReadOptions {
+                                password: opts.left_password.clone(),
+                                offset: 0,
+                                max_bytes: 16 * 1024 * 1024,
+                            },
+                        )
+                        .ok()
+                        .map(|c| c.bytes);
+                        let rb = read_entry(
+                            right,
+                            &r.path,
+                            &ReadOptions {
+                                password: opts.right_password.clone(),
+                                offset: 0,
+                                max_bytes: 16 * 1024 * 1024,
+                            },
+                        )
+                        .ok()
+                        .map(|c| c.bytes);
+                        if let (Some(lb), Some(rb)) = (lb, rb) {
+                            is_mod = lb != rb;
+                            left_bytes_cache = Some(lb);
+                            right_bytes_cache = Some(rb);
+                        }
+                    }
+                }
+
+                if is_mod {
+                    modified += 1;
+                    let patch = if opts.content
+                        && !is_binary_extension(p)
+                        && l.size <= 4 * 1024 * 1024
+                        && r.size <= 4 * 1024 * 1024
+                    {
+                        let lb = left_bytes_cache.or_else(|| {
+                            read_entry(
+                                left,
+                                &l.path,
+                                &ReadOptions {
+                                    password: opts.left_password.clone(),
+                                    offset: 0,
+                                    max_bytes: 4 * 1024 * 1024,
+                                },
+                            )
+                            .ok()
+                            .map(|c| c.bytes)
+                        });
+                        let rb = right_bytes_cache.or_else(|| {
+                            read_entry(
+                                right,
+                                &r.path,
+                                &ReadOptions {
+                                    password: opts.right_password.clone(),
+                                    offset: 0,
+                                    max_bytes: 4 * 1024 * 1024,
+                                },
+                            )
+                            .ok()
+                            .map(|c| c.bytes)
+                        });
+                        match (lb, rb) {
+                            (Some(lb), Some(rb)) => unified_text_diff(p, &lb, &rb),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+
+                    changes.push(DiffEntry {
+                        path: p.clone(),
+                        status: DiffStatus::Modified,
+                        is_dir: false,
+                        old_size: Some(l.size),
+                        new_size: Some(r.size),
+                        old_crc32: l.crc32,
+                        new_crc32: r.crc32,
+                        patch,
+                    });
+                } else {
+                    unchanged += 1;
+                }
+            }
+            (None, None) => {}
+        }
+    }
+
+    Ok(DiffReport {
+        left: left.to_path_buf(),
+        left_format: left_info.format,
+        right: right.to_path_buf(),
+        right_format: right_info.format,
+        added,
+        removed,
+        modified,
+        unchanged,
+        changes,
+    })
+}
+
+/// Produce a compact unified diff for two text buffers (skipping binary blobs).
+fn unified_text_diff(path: &str, old_bytes: &[u8], new_bytes: &[u8]) -> Option<String> {
+    if old_bytes[..old_bytes.len().min(8192)].contains(&0)
+        || new_bytes[..new_bytes.len().min(8192)].contains(&0)
+    {
+        return None;
+    }
+    let old_str = String::from_utf8_lossy(old_bytes);
+    let new_str = String::from_utf8_lossy(new_bytes);
+    let old_lines: Vec<&str> = old_str.lines().collect();
+    let new_lines: Vec<&str> = new_str.lines().collect();
+    if old_lines == new_lines {
+        return None;
+    }
+
+    // Cap LCS matrix size so huge files fall back to a fast prefix/suffix diff.
+    let mut out = format!("--- a/{path}\n+++ b/{path}\n");
+    const MAX_DIFF_LINES: usize = 2000;
+    if old_lines.len() + new_lines.len() > MAX_DIFF_LINES {
+        let mut p = 0;
+        while p < old_lines.len() && p < new_lines.len() && old_lines[p] == new_lines[p] {
+            p += 1;
+        }
+        let mut s = 0;
+        while s < (old_lines.len() - p)
+            && s < (new_lines.len() - p)
+            && old_lines[old_lines.len() - 1 - s] == new_lines[new_lines.len() - 1 - s]
+        {
+            s += 1;
+        }
+        out.push_str(&format!(
+            "@@ -{},{} +{},{} @@\n",
+            p + 1,
+            old_lines.len() - p - s,
+            p + 1,
+            new_lines.len() - p - s
+        ));
+        for &l in &old_lines[p..old_lines.len() - s] {
+            out.push('-');
+            out.push_str(l);
+            out.push('\n');
+        }
+        for &l in &new_lines[p..new_lines.len() - s] {
+            out.push('+');
+            out.push_str(l);
+            out.push('\n');
+        }
+        return Some(out);
+    }
+
+    // Trim common prefix and suffix before LCS.
+    let mut prefix = 0;
+    while prefix < old_lines.len()
+        && prefix < new_lines.len()
+        && old_lines[prefix] == new_lines[prefix]
+    {
+        prefix += 1;
+    }
+    let mut suffix = 0;
+    while suffix < (old_lines.len() - prefix)
+        && suffix < (new_lines.len() - prefix)
+        && old_lines[old_lines.len() - 1 - suffix] == new_lines[new_lines.len() - 1 - suffix]
+    {
+        suffix += 1;
+    }
+
+    let a = &old_lines[prefix..old_lines.len() - suffix];
+    let b = &new_lines[prefix..new_lines.len() - suffix];
+    let n = a.len();
+    let m = b.len();
+    let mut dp = vec![vec![0u16; m + 1]; n + 1];
+    for i in (0..n).rev() {
+        for j in (0..m).rev() {
+            dp[i][j] = if a[i] == b[j] {
+                dp[i + 1][j + 1] + 1
+            } else {
+                dp[i + 1][j].max(dp[i][j + 1])
+            };
+        }
+    }
+
+    let ctx_before = prefix.saturating_sub(2);
+    let ctx_after_old = (old_lines.len() - suffix + 2).min(old_lines.len());
+    let ctx_after_new = (new_lines.len() - suffix + 2).min(new_lines.len());
+    out.push_str(&format!(
+        "@@ -{},{} +{},{} @@\n",
+        ctx_before + 1,
+        ctx_after_old - ctx_before,
+        ctx_before + 1,
+        ctx_after_new - ctx_before
+    ));
+    for &l in &old_lines[ctx_before..prefix] {
+        out.push(' ');
+        out.push_str(l);
+        out.push('\n');
+    }
+    let (mut i, mut j) = (0, 0);
+    while i < n || j < m {
+        if i < n && j < m && a[i] == b[j] {
+            out.push(' ');
+            out.push_str(a[i]);
+            out.push('\n');
+            i += 1;
+            j += 1;
+        } else if j < m && (i == n || dp[i][j + 1] >= dp[i + 1][j]) {
+            out.push('+');
+            out.push_str(b[j]);
+            out.push('\n');
+            j += 1;
+        } else {
+            out.push('-');
+            out.push_str(a[i]);
+            out.push('\n');
+            i += 1;
+        }
+    }
+    for &l in &old_lines[old_lines.len() - suffix..ctx_after_old] {
+        out.push(' ');
+        out.push_str(l);
+        out.push('\n');
+    }
+    Some(out)
 }
 

@@ -44,7 +44,7 @@
             <p><strong data-i18n="drop_archive">Drop an archive here</strong></p>
             <p class="muted" data-i18n="or">or</p>
             <button id="btn-open" class="primary" data-i18n="choose_archive">Choose archive…</button>
-            <p class="muted small">ZIP · RAR · 7z · tar · gz · bz2 · xz · zst · lz4 · ISO · DEB · RPM · CAB · CPIO · AR · JAR · APK · WHL</p>
+            <p class="muted small">ZIP · RAR · 7z · tar · gz · bz2 · xz · zst · lz4 · ISO · DEB · RPM · PKG · XAR · CAB · CPIO · AR · JAR · APK · WHL</p>
           </div>
         </div>
 
@@ -57,8 +57,11 @@
             <div class="panel-actions">
               <button id="btn-back-parent" class="ghost hidden" title="Return to outer archive" data-i18n="btn_back_parent">⬅ Parent</button>
               <button id="btn-test" class="ghost" data-i18n="btn_verify">Verify</button>
+              <button id="btn-diff" class="ghost" title="Compare this archive with another archive" data-i18n="btn_diff">Compare…</button>
+              <button id="btn-hash" class="ghost" title="Calculate entry SHA-256 / CRC32 checksums" data-i18n="btn_hash">Hashes</button>
               <button id="btn-convert" class="ghost" title="Convert this archive to another format" data-i18n="btn_convert">Convert…</button>
               <button id="btn-add-to-archive" class="ghost hidden" data-i18n="btn_add_files">Add files…</button>
+              <button id="btn-rename-sel" class="ghost hidden" data-i18n="btn_rename">Rename…</button>
               <button id="btn-remove-sel" class="ghost hidden">Remove selected</button>
               <button id="btn-extract-sel" class="ghost hidden">Extract selected…</button>
               <button id="btn-extract-here" class="ghost" title="Smart-extract right next to the archive" data-i18n="btn_extract_here">Extract here</button>
@@ -127,6 +130,17 @@
               <option value="best" data-i18n="lvl_best">Best (smallest)</option>
               <option value="fast" data-i18n="lvl_fast">Fast</option>
               <option value="store" data-i18n="lvl_store">Store (none)</option>
+            </select>
+          </label>
+          <label><span data-i18n="lbl_split">Split volumes</span>
+            <select id="split-size">
+              <option value="" data-i18n="split_none">Single file (none)</option>
+              <option value="10M">10 MB (.001, .002…)</option>
+              <option value="100M">100 MB (.001, .002…)</option>
+              <option value="500M">500 MB (.001, .002…)</option>
+              <option value="1G">1 GB (.001, .002…)</option>
+              <option value="2G">2 GB (.001, .002…)</option>
+              <option value="4G">4 GB (.001, .002…)</option>
             </select>
           </label>
           <label><span data-i18n="lbl_password">Password</span> <span class="muted small">(ZIP / 7z)</span>
@@ -222,6 +236,59 @@
           </div>
         </div>
         <div id="grep-results" class="preview-body grep-list"></div>
+      </div>
+    </div>
+
+    <!-- Rename entry modal -->
+    <div id="rename-modal" class="modal hidden">
+      <div class="modal-card">
+        <h3 data-i18n="rename_title">Rename Entry</h3>
+        <p class="muted small" id="rename-from-label"></p>
+        <input id="rename-input" type="text" placeholder="New path inside archive" autocomplete="off" />
+        <div class="modal-actions">
+          <button id="rename-cancel" class="ghost" data-i18n="btn_cancel">Cancel</button>
+          <button id="rename-ok" class="primary" data-i18n="btn_rename_confirm">Rename</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Archive Diff modal -->
+    <div id="diff-modal" class="modal hidden">
+      <div class="modal-card preview-card">
+        <div class="preview-head">
+          <div>
+            <h3 id="diff-title" data-i18n="diff_title">Archive Comparison</h3>
+            <p id="diff-meta" class="muted small"></p>
+          </div>
+          <div class="modal-actions">
+            <button id="diff-close" class="primary small-btn" data-i18n="btn_close">Close</button>
+          </div>
+        </div>
+        <div id="diff-results" class="preview-body grep-list"></div>
+      </div>
+    </div>
+
+    <!-- Checksum Manifest modal -->
+    <div id="hash-modal" class="modal hidden">
+      <div class="modal-card preview-card">
+        <div class="preview-head">
+          <div>
+            <h3 id="hash-title" data-i18n="hash_title">Archive Checksums</h3>
+            <p id="hash-meta" class="muted small"></p>
+          </div>
+          <div class="modal-actions">
+            <select id="hash-algo" class="lang-select">
+              <option value="sha256">SHA-256</option>
+              <option value="sha1">SHA-1</option>
+              <option value="crc32">CRC32</option>
+            </select>
+            <button id="hash-copy" class="ghost small-btn" data-i18n="btn_copy">Copy</button>
+            <button id="hash-close" class="primary small-btn" data-i18n="btn_close">Close</button>
+          </div>
+        </div>
+        <div class="preview-body">
+          <pre id="hash-output" class="preview-code"></pre>
+        </div>
       </div>
     </div>
 

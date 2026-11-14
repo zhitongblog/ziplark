@@ -396,6 +396,7 @@ pub fn create(
         entries_added: 0,
         bytes_in: 0,
         bytes_out: 0,
+        volumes: Vec::new(),
     };
 
     for (idx, input) in files.iter().enumerate() {
@@ -502,6 +503,7 @@ pub fn add(
         entries_added: 0,
         bytes_in: 0,
         bytes_out: 0,
+        volumes: Vec::new(),
     };
 
     let copy_res = (|| -> Result<()> {
@@ -656,6 +658,114 @@ pub fn remove(
         format: Format::Zip,
         entries_removed,
         entries_remaining,
+        bytes_out,
+    })
+}
+
+/// Rename `from` (or all entries under `from/`) to `to` inside an existing ZIP
+/// archive atomically, copying compressed streams directly without recompression.
+pub fn rename(
+    archive_path: &Path,
+    from: &str,
+    to: &str,
+    progress: ProgressFn,
+) -> Result<RenameReport> {
+    let from_clean = from.replace('\\', "/");
+    let from_clean = from_clean.trim_start_matches("./").trim_matches('/');
+    let to_clean = to.replace('\\', "/");
+    let to_clean = to_clean.trim_start_matches("./").trim_matches('/');
+    if from_clean.is_empty() || to_clean.is_empty() {
+        return Err(Error::other("rename source and destination paths must not be empty"));
+    }
+
+    let src_file = File::open(archive_path)?;
+    let mut existing = ZipArchive::new(src_file).map_err(map_zip_err)?;
+    let existing_names = decode_names(&mut existing)?;
+    let comment = existing.comment().to_vec();
+
+    let from_prefix = format!("{from_clean}/");
+    let total = existing_names.len() as u64;
+    let will_rename = existing_names
+        .iter()
+        .filter(|name| {
+            let trimmed = name.trim_start_matches("./").trim_end_matches('/');
+            trimmed == from_clean || trimmed.starts_with(&from_prefix)
+        })
+        .count() as u64;
+
+    if will_rename == 0 {
+        return Err(Error::other(format!("entry not found in archive: {from_clean}")));
+    }
+
+    let (tmp_path, tmp_file) = create_temp_for(archive_path, "zip.mv.tmp")?;
+    let mut zipw = ZipWriter::new(tmp_file);
+    if !comment.is_empty() {
+        zipw.set_raw_comment(comment.into_boxed_slice());
+    }
+
+    let mut entries_renamed = 0u64;
+
+    let copy_res = (|| -> Result<()> {
+        for (i, name) in existing_names.iter().enumerate() {
+            let is_dir_slash = name.ends_with('/');
+            let trimmed = name.trim_start_matches("./").trim_end_matches('/');
+            let new_name = if trimmed == from_clean {
+                entries_renamed += 1;
+                if is_dir_slash {
+                    Some(format!("{to_clean}/"))
+                } else {
+                    Some(to_clean.to_string())
+                }
+            } else if let Some(rest) = trimmed.strip_prefix(&from_prefix) {
+                entries_renamed += 1;
+                if is_dir_slash {
+                    Some(format!("{to_clean}/{rest}/"))
+                } else {
+                    Some(format!("{to_clean}/{rest}"))
+                }
+            } else {
+                None
+            };
+
+            let raw_entry = existing.by_index_raw(i).map_err(map_zip_err)?;
+            if let Some(renamed) = new_name {
+                zipw.raw_copy_file_rename(raw_entry, renamed)
+                    .map_err(map_zip_err)?;
+            } else {
+                zipw.raw_copy_file(raw_entry).map_err(map_zip_err)?;
+            }
+
+            crate::formats::report(
+                progress,
+                Progress {
+                    current_path: name.clone(),
+                    entries_done: i as u64 + 1,
+                    entries_total: total,
+                    bytes_done: 0,
+                    bytes_total: 0,
+                },
+            )?;
+        }
+
+        let mut finished = zipw.finish().map_err(map_zip_err)?;
+        finished.flush()?;
+        Ok(())
+    })();
+
+    drop(existing);
+    if let Err(e) = copy_res {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(e);
+    }
+
+    replace_archive_file(&tmp_path, archive_path)?;
+    let bytes_out = std::fs::metadata(archive_path)?.len();
+    Ok(RenameReport {
+        output: archive_path.to_path_buf(),
+        format: Format::Zip,
+        from: from_clean.to_string(),
+        to: to_clean.to_string(),
+        entries_renamed,
         bytes_out,
     })
 }

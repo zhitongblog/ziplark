@@ -5,14 +5,16 @@ use crate::formats::{
     DestGuard, Input, InputKind,
 };
 use crate::model::*;
+use crate::volumes::{VolumeReader, VolumeSet};
 use crate::{CreateOptions, ExtractOptions, Level, ListOptions, ProgressFn, ReadOptions};
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
-/// Build a decompressing reader for any tar variant.
+/// Build a decompressing reader for any tar variant (single-file or `.001` split set).
 fn open_reader(path: &Path, fmt: Format) -> Result<Box<dyn Read>> {
-    let f = File::open(path)?;
+    let set = VolumeSet::inspect(path);
+    let f = VolumeReader::open(&set)?;
     Ok(match fmt {
         Format::Tar => Box::new(f),
         Format::TarGz => Box::new(flate2::read::GzDecoder::new(f)),
@@ -25,6 +27,7 @@ fn open_reader(path: &Path, fmt: Format) -> Result<Box<dyn Read>> {
 }
 
 pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo> {
+    let set = VolumeSet::inspect(path);
     let reader = open_reader(path, fmt)?;
     let mut archive = tar::Archive::new(reader);
     let mut entries = Vec::new();
@@ -47,20 +50,20 @@ pub fn list(path: &Path, fmt: Format, _opts: &ListOptions) -> Result<ArchiveInfo
             encrypted: false,
             modified: entry.header().mtime().ok().map(|m| m as i64),
             crc32: None,
-            split: false,
+            split: set.volumes.len() > 1,
         });
     }
 
-    let total_compressed = std::fs::metadata(path)?.len();
+    let total_compressed = set.total_compressed_size()?;
     Ok(ArchiveInfo {
         format: fmt,
-        path: path.to_path_buf(),
+        path: set.primary,
         entries,
         encrypted: false,
         total_size,
         total_compressed,
-        volumes: Vec::new(),
-        missing_volume: None,
+        volumes: set.volumes,
+        missing_volume: set.missing_volume,
         comment: None,
         attributes: ArchiveAttributes::default(),
     })
@@ -317,6 +320,7 @@ pub fn create(
         entries_added,
         bytes_in,
         bytes_out,
+        volumes: Vec::new(),
     })
 }
 

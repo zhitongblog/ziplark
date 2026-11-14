@@ -7,10 +7,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use ziplark_core::{
-    add, convert, create, detect, detect_by_extension, extract, grep, list, read_entry, remove,
-    shell, test, ArchiveInfo, ConvertOptions, CreateOptions, ExtractOptions, Format, GrepOptions,
-    Level, ListOptions, MatchMode, Progress, ReadOptions, RemoveOptions,
-    DEFAULT_GREP_MAX_FILE_SIZE, DEFAULT_GREP_MAX_MATCHES, DEFAULT_READ_MAX_BYTES,
+    add, convert, create, detect, detect_by_extension, diff, extract, grep, hash, list,
+    parse_byte_size, read_entry, remove, rename, shell, test, ArchiveInfo, ConvertOptions,
+    CreateOptions, DiffOptions, DiffStatus, ExtractOptions, Format, GrepOptions, HashAlgorithm,
+    HashOptions, Level, ListOptions, MatchMode, Progress, ReadOptions, RemoveOptions,
+    RenameOptions, DEFAULT_GREP_MAX_FILE_SIZE, DEFAULT_GREP_MAX_MATCHES, DEFAULT_READ_MAX_BYTES,
 };
 
 mod shell_integration;
@@ -27,7 +28,10 @@ COMMANDS:
     create|c <output> <inputs...>    Create an archive (format from extension)
     add|a <archive> <inputs...>      Add or update files inside an archive
     rm|remove <archive> <entries...> Remove entries from an archive
+    mv|rename <archive> <from> <to>  Rename or move an entry/directory in an archive
     convert <source> <output>        Convert an archive to another format
+    diff <left> <right>              Compare two archives without extracting
+    hash <archive>                   Compute SHA-256 / SHA-1 / CRC32 digests of entries
     cat|read <archive> <entry>       Read a single entry to stdout without extracting
     grep|search <pattern> <archive>  Search text inside archive files without extracting
     test|t <archive>                 Verify archive integrity
@@ -41,6 +45,9 @@ COMMON OPTIONS:
     -p, --password <PW>   Password for encrypted archives
     -o, --output <DIR>    Destination directory (extract)
     -i, --ignore-case     Case-insensitive search (grep)
+    -u, --unified         Include unified text diff patches in `diff`
+        --algo <ALGO>     Hash algorithm for `hash`: sha256 (default) | sha1 | crc32
+        --split <SIZE>    Split created archive into volumes (e.g. 100M, 2G, 64K)
         --overwrite       Overwrite existing files when extracting
         --smart           Smart anti-tarbomb folder (wrap loose files into <stem>/,
                           avoid double-wrapping a single root folder)
@@ -63,9 +70,13 @@ COMMON OPTIONS:
 EXAMPLES:
     ziplark x photos.zip -o ./out --smart
     ziplark c backup.tar.zst ./src ./README.md --level best
+    ziplark c backup.zip ./data --split 100M
     ziplark a backup.zip ./extra.txt
     ziplark rm backup.zip extra.txt --exact
+    ziplark mv backup.zip old/path.txt new/path.txt
     ziplark convert legacy.rar clean.tar.zst --level best
+    ziplark diff v1.tar.gz v2.tar.gz --unified
+    ziplark hash release.zip --algo sha256
     ziplark grep \"TODO\" repo.tar.gz -i --include \"*.rs\"
     ziplark cat release.deb DEBIAN/control
     ziplark l movie.part01.rar --json
@@ -107,7 +118,10 @@ fn run(args: &[String]) -> anyhow::Result<ExitCode> {
         "create" | "c" => cmd_create(&args[1..]),
         "add" | "a" => cmd_add(&args[1..]),
         "rm" | "remove" | "del" | "delete" => cmd_remove(&args[1..]),
+        "mv" | "rename" | "move" => cmd_rename(&args[1..]),
         "convert" | "conv" => cmd_convert(&args[1..]),
+        "diff" | "compare" | "cmp" => cmd_diff(&args[1..]),
+        "hash" | "checksum" | "sha256" => cmd_hash(&args[1..]),
         "cat" | "read" | "show" => cmd_cat(&args[1..]),
         "grep" | "search" => cmd_grep(&args[1..]),
         "test" | "t" => cmd_test(&args[1..]),
@@ -139,6 +153,9 @@ struct Parsed {
     max_bytes: Option<u64>,
     offset: Option<u64>,
     level: Option<String>,
+    split: Option<String>,
+    algo: Option<String>,
+    unified: bool,
     json: bool,
 }
 
@@ -192,6 +209,9 @@ fn parse(args: &[String]) -> anyhow::Result<Parsed> {
                 );
             }
             "--level" => p.level = Some(next(args, &mut i, "--level")?),
+            "--split" => p.split = Some(next(args, &mut i, "--split")?),
+            "--algo" | "--algorithm" => p.algo = Some(next(args, &mut i, "--algo")?),
+            "-u" | "--unified" | "--content" => p.unified = true,
             "--json" => p.json = true,
             s if s.starts_with('-') && s.len() > 1 => {
                 anyhow::bail!("unknown option '{s}'");
@@ -423,10 +443,15 @@ fn cmd_create(args: &[String]) -> anyhow::Result<ExitCode> {
     let inputs: Vec<PathBuf> = p.positionals[1..].iter().map(PathBuf::from).collect();
     let fmt = resolve_create_format(&output, &p.positionals[0])?;
     let json = p.json;
+    let split_size = match &p.split {
+        Some(s) => Some(parse_byte_size(s)?),
+        None => None,
+    };
     let opts = CreateOptions {
         format: fmt,
         level: parse_level(&p.level)?,
         password: p.password,
+        split_size,
     };
     let mut pr = progress_printer();
     let report = create(&output, &inputs, &opts, Some(&mut pr))?;
@@ -438,15 +463,28 @@ fn cmd_create(args: &[String]) -> anyhow::Result<ExitCode> {
         } else {
             0.0
         };
-        println!(
-            "created {} ({}): {} entries, {} -> {} bytes ({:.1}%)",
-            report.output.display(),
-            report.format.label(),
-            report.entries_added,
-            report.bytes_in,
-            report.bytes_out,
-            ratio
-        );
+        if report.volumes.is_empty() {
+            println!(
+                "created {} ({}): {} entries, {} -> {} bytes ({:.1}%)",
+                report.output.display(),
+                report.format.label(),
+                report.entries_added,
+                report.bytes_in,
+                report.bytes_out,
+                ratio
+            );
+        } else {
+            println!(
+                "created {} ({}, {} volumes): {} entries, {} -> {} bytes ({:.1}%)",
+                report.output.display(),
+                report.format.label(),
+                report.volumes.len(),
+                report.entries_added,
+                report.bytes_in,
+                report.bytes_out,
+                ratio
+            );
+        }
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -464,6 +502,7 @@ fn cmd_add(args: &[String]) -> anyhow::Result<ExitCode> {
         format: fmt,
         level: parse_level(&p.level)?,
         password: p.password,
+        split_size: None,
     };
     let mut pr = progress_printer();
     let report = add(&archive, &inputs, &opts, Some(&mut pr))?;
@@ -532,6 +571,7 @@ fn cmd_convert(args: &[String]) -> anyhow::Result<ExitCode> {
             format: out_fmt,
             level: parse_level(&p.level)?,
             password: None,
+            split_size: None,
         },
     };
     let mut pr = progress_printer();
@@ -548,6 +588,123 @@ fn cmd_convert(args: &[String]) -> anyhow::Result<ExitCode> {
             report.entries_converted,
             report.bytes_out
         );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn cmd_rename(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    if p.positionals.len() < 3 {
+        anyhow::bail!("rename requires <archive>, <from>, and <to>");
+    }
+    let archive = PathBuf::from(&p.positionals[0]);
+    let from = &p.positionals[1];
+    let to = &p.positionals[2];
+    let json = p.json;
+    let opts = RenameOptions {
+        password: p.password,
+        level: parse_level(&p.level)?,
+    };
+    let mut pr = progress_printer();
+    let report = rename(&archive, from, to, &opts, Some(&mut pr))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        println!(
+            "renamed '{}' -> '{}' in {} ({}): {} entries updated ({} bytes on disk)",
+            report.from,
+            report.to,
+            report.output.display(),
+            report.format.label(),
+            report.entries_renamed,
+            report.bytes_out
+        );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn cmd_hash(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    let archive = p
+        .positionals
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("hash requires an archive path"))?;
+    let algo = match p.algo.as_deref() {
+        None | Some("sha256") | Some("sha-256") => HashAlgorithm::Sha256,
+        Some("sha1") | Some("sha-1") => HashAlgorithm::Sha1,
+        Some("crc32") | Some("crc") => HashAlgorithm::Crc32,
+        Some(other) => anyhow::bail!("invalid --algo '{other}' (sha256|sha1|crc32)"),
+    };
+    let json = p.json;
+    let match_mode = p.match_mode();
+    let opts = HashOptions {
+        password: p.password,
+        algorithm: algo,
+        include: p.include,
+        match_mode,
+    };
+    let report = hash(archive, &opts, None)?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        for e in &report.entries {
+            println!("{}  {}", e.digest, e.path);
+        }
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn cmd_diff(args: &[String]) -> anyhow::Result<ExitCode> {
+    let p = parse(args)?;
+    if p.positionals.len() < 2 {
+        anyhow::bail!("diff requires <left> and <right> archive paths");
+    }
+    let left = &p.positionals[0];
+    let right = &p.positionals[1];
+    let json = p.json;
+    let match_mode = p.match_mode();
+    let opts = DiffOptions {
+        left_password: p.password.clone(),
+        right_password: p.password,
+        content: p.unified,
+        include: p.include,
+        match_mode,
+    };
+    let report = diff(left, right, &opts, None)?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        return Ok(ExitCode::SUCCESS);
+    }
+    println!(
+        "diff {} ({}) vs {} ({}): +{} added, -{} removed, ~{} modified, ={} unchanged",
+        report.left.display(),
+        report.left_format.label(),
+        report.right.display(),
+        report.right_format.label(),
+        report.added,
+        report.removed,
+        report.modified,
+        report.unchanged
+    );
+    for c in &report.changes {
+        let mark = match c.status {
+            DiffStatus::Added => "+",
+            DiffStatus::Removed => "-",
+            DiffStatus::Modified => "~",
+        };
+        let size_detail = match (c.old_size, c.new_size) {
+            (None, Some(n)) => format!(" ({n} B)"),
+            (Some(o), None) => format!(" ({o} B)"),
+            (Some(o), Some(n)) if o != n => format!(" ({o} -> {n} B)"),
+            (Some(o), Some(_)) => format!(" ({o} B)"),
+            _ => String::new(),
+        };
+        println!("  {mark} {}{size_detail}", c.path);
+        if let Some(patch) = &c.patch {
+            for line in patch.lines() {
+                println!("    {line}");
+            }
+        }
     }
     Ok(ExitCode::SUCCESS)
 }

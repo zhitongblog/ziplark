@@ -62,8 +62,17 @@ const I18N = {
     choose_archive: "Choose archive…",
     btn_back_parent: "⬅ Parent",
     btn_verify: "Verify",
+    btn_diff: "Compare…",
+    btn_hash: "Hashes",
     btn_convert: "Convert…",
     btn_add_files: "Add files…",
+    btn_rename: "Rename…",
+    rename_title: "Rename Entry",
+    btn_rename_confirm: "Rename",
+    diff_title: "Archive Comparison",
+    hash_title: "Archive Checksums",
+    lbl_split: "Split volumes",
+    split_none: "Single file (none)",
     btn_extract_here: "Extract here",
     btn_extract_all: "Extract all…",
     btn_close: "Close",
@@ -109,8 +118,17 @@ const I18N = {
     choose_archive: "选择归档文件…",
     btn_back_parent: "⬅ 返回上层",
     btn_verify: "校验",
+    btn_diff: "对比…",
+    btn_hash: "哈希值",
     btn_convert: "转换格式…",
     btn_add_files: "添加文件…",
+    btn_rename: "重命名…",
+    rename_title: "重命名归档内条目",
+    btn_rename_confirm: "重命名",
+    diff_title: "归档差异对比",
+    hash_title: "归档内文件哈希清单",
+    lbl_split: "分卷大小",
+    split_none: "单文件 (不分卷)",
     btn_extract_here: "智能解压到当前目录",
     btn_extract_all: "全部解压…",
     btn_close: "关闭",
@@ -819,16 +837,20 @@ document.querySelectorAll(".tree-head .sortable").forEach((el) => {
 function updateSelectionUi() {
   const btn = $("btn-extract-sel");
   const rmBtn = $("btn-remove-sel");
+  const rnBtn = $("btn-rename-sel");
   const n = tree.selected.size;
   btn.classList.toggle("hidden", n === 0);
   btn.textContent = n === 1 ? "Extract 1 selected…" : `Extract ${n} selected…`;
+  const canMod = currentArchive &&
+    MODIFIABLE_FORMATS.has(String(currentArchive.format).toLowerCase()) &&
+    !(currentArchive.volumes?.length > 1) &&
+    archiveStack.length === 0;
   if (rmBtn) {
-    const canMod = currentArchive &&
-      MODIFIABLE_FORMATS.has(String(currentArchive.format).toLowerCase()) &&
-      !(currentArchive.volumes?.length > 1) &&
-      archiveStack.length === 0;
     rmBtn.classList.toggle("hidden", n === 0 || !canMod);
     rmBtn.textContent = n === 1 ? "Remove 1 selected" : `Remove ${n} selected`;
+  }
+  if (rnBtn) {
+    rnBtn.classList.toggle("hidden", n !== 1 || !canMod);
   }
 }
 
@@ -912,7 +934,8 @@ function isNestedArchivePath(entryPath) {
   const exts = [
     ".zip", ".7z", ".rar", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2",
     ".tar.xz", ".txz", ".tar.zst", ".tzst", ".tar.lz4", ".tlz4", ".deb",
-    ".rpm", ".cab", ".cpio", ".ar", ".jar", ".whl", ".apk", ".crx", ".nupkg",
+    ".rpm", ".pkg", ".mpkg", ".xar", ".xip", ".cab", ".cpio", ".ar", ".jar",
+    ".whl", ".apk", ".crx", ".nupkg",
   ];
   return exts.some((ext) => l.endsWith(ext));
 }
@@ -1195,6 +1218,22 @@ $("btn-extract").onclick = () => extractArchive();
 if ($("btn-extract-here")) $("btn-extract-here").onclick = extractArchiveHere;
 $("btn-extract-sel").onclick = extractSelected;
 if ($("btn-remove-sel")) $("btn-remove-sel").onclick = removeSelected;
+if ($("btn-rename-sel")) $("btn-rename-sel").onclick = renameSelected;
+if ($("btn-diff")) $("btn-diff").onclick = diffOpenArchive;
+if ($("diff-close")) $("diff-close").onclick = () => $("diff-modal").classList.add("hidden");
+if ($("btn-hash")) $("btn-hash").onclick = () => hashOpenArchive();
+if ($("hash-algo")) $("hash-algo").onchange = (e) => hashOpenArchive(e.target.value);
+if ($("hash-close")) $("hash-close").onclick = () => $("hash-modal").classList.add("hidden");
+if ($("hash-copy")) {
+  $("hash-copy").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText($("hash-output").textContent);
+      toast("Checksums copied to clipboard", "ok");
+    } catch {
+      toast("Could not copy to clipboard", "err");
+    }
+  };
+}
 if ($("btn-convert")) $("btn-convert").onclick = convertOpenArchive;
 if ($("btn-back-parent")) {
   $("btn-back-parent").onclick = async () => {
@@ -1235,6 +1274,139 @@ async function removeSelected() {
     });
     renderArchive(info);
     toast(`Removed ${r.entries_removed} ${r.entries_removed === 1 ? "entry" : "entries"} (${r.entries_remaining} remaining)`, "ok");
+  } catch (err) {
+    if (!wasCancelled(err)) toast(String(err), "err");
+  } finally {
+    busy(false);
+  }
+}
+
+function askRename(fromPath) {
+  return new Promise((resolve) => {
+    const modal = $("rename-modal"), input = $("rename-input");
+    $("rename-from-label").textContent = `Current path: ${fromPath}`;
+    input.value = fromPath;
+    modal.classList.remove("hidden");
+    input.focus();
+    input.select();
+    const done = (val) => {
+      modal.classList.add("hidden");
+      $("rename-ok").onclick = $("rename-cancel").onclick = input.onkeydown = null;
+      resolve(val);
+    };
+    $("rename-ok").onclick = () => done(input.value.trim());
+    $("rename-cancel").onclick = () => done(null);
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") done(input.value.trim());
+      if (e.key === "Escape") done(null);
+    };
+  });
+}
+
+async function renameSelected() {
+  if (!currentArchive || tree.selected.size !== 1) return;
+  const [from] = [...tree.selected];
+  const to = await askRename(from);
+  if (!to || to === from) return;
+  busy(true, "Renaming entry…");
+  try {
+    const r = await invoke("rename_in_archive", {
+      archive: currentArchive.path,
+      from,
+      to,
+      password: currentArchive.password,
+    });
+    const info = await invoke("list_archive", {
+      path: currentArchive.path,
+      password: currentArchive.password,
+    });
+    renderArchive(info);
+    toast(`Renamed "${r.from}" → "${r.to}" (${r.entries_renamed} ${r.entries_renamed === 1 ? "entry" : "entries"})`, "ok");
+  } catch (err) {
+    if (!wasCancelled(err)) toast(String(err), "err");
+  } finally {
+    busy(false);
+  }
+}
+
+async function diffOpenArchive() {
+  if (!currentArchive) return;
+  const other = await dialog.open({ multiple: false, title: "Choose second archive to compare against…" });
+  if (!other) return;
+  busy(true, "Comparing archives…");
+  try {
+    const r = await invoke("diff_archives", {
+      left: currentArchive.path,
+      right: other,
+      leftPassword: currentArchive.password,
+      rightPassword: null,
+      contentDiff: true,
+    });
+    const leftName = currentArchive.path.split(/[\\/]/).pop();
+    const rightName = other.split(/[\\/]/).pop();
+    $("diff-title").textContent = `${leftName} ↔ ${rightName}`;
+    $("diff-meta").textContent =
+      `+${r.added} added · -${r.removed} removed · ~${r.modified} modified · =${r.unchanged} unchanged`;
+    const box = $("diff-results");
+    const changes = r.changes || [];
+    if (changes.length === 0) {
+      box.innerHTML = `<div class="muted" style="padding:18px;text-align:center">Archives are identical (${r.unchanged} matching entries).</div>`;
+    } else {
+      box.innerHTML = changes
+        .map((e) => {
+          const badge =
+            e.status === "added"
+              ? `<span class="badge-ok">+ ADDED</span>`
+              : e.status === "removed"
+              ? `<span class="badge-err">− REMOVED</span>`
+              : `<span class="badge-mod">~ MODIFIED</span>`;
+          const sizes =
+            e.status === "added"
+              ? fmtBytes(e.new_size)
+              : e.status === "removed"
+              ? fmtBytes(e.old_size)
+              : `${fmtBytes(e.old_size)} → ${fmtBytes(e.new_size)}`;
+          const patch = e.patch
+            ? `<pre class="preview-code" style="margin-top:6px;max-height:220px;overflow:auto">${escapeHtml(e.patch)}</pre>`
+            : "";
+          return (
+            `<div class="grep-item" style="cursor:default">` +
+            `<div class="grep-item-head" style="display:flex;justify-content:space-between;gap:8px">` +
+            `<span>${badge} &nbsp;${escapeHtml(e.path)}</span>` +
+            `<span class="muted small">${sizes}</span>` +
+            `</div>` +
+            patch +
+            `</div>`
+          );
+        })
+        .join("");
+    }
+    $("diff-modal").classList.remove("hidden");
+  } catch (err) {
+    if (!wasCancelled(err)) toast(String(err), "err");
+  } finally {
+    busy(false);
+  }
+}
+
+async function hashOpenArchive(algoOverride = null) {
+  if (!currentArchive) return;
+  const algo = algoOverride || $("hash-algo")?.value || "sha256";
+  if ($("hash-algo")) $("hash-algo").value = algo;
+  busy(true, `Calculating ${algo.toUpperCase()} checksums…`);
+  try {
+    const r = await invoke("hash_archive", {
+      path: currentArchive.path,
+      algorithm: algo,
+      password: currentArchive.password,
+    });
+    const name = currentArchive.path.split(/[\\/]/).pop();
+    $("hash-title").textContent = `${algo.toUpperCase()} Checksums — ${name}`;
+    $("hash-meta").textContent = `${r.files_hashed} files · ${fmtBytes(r.total_bytes)}`;
+    $("hash-output").textContent = r.entries
+      .map((e) => `${e.digest}  ${e.path}`)
+      .join("\n");
+    $("hash-modal").classList.remove("hidden");
   } catch (err) {
     if (!wasCancelled(err)) toast(String(err), "err");
   } finally {
@@ -1430,12 +1602,15 @@ $("btn-create").onclick = async () => {
       format: fmt,
       level: $("level").value,
       password: $("pw-create").value || null,
+      splitSize: $("split-size")?.value || null,
     });
     const ratio = r.bytes_in ? Math.round((100 * r.bytes_out) / r.bytes_in) : 0;
+    const volNote = r.volumes?.length > 1 ? ` across ${r.volumes.length} volumes` : "";
+    const revealTarget = r.volumes?.length > 0 ? r.volumes[0] : out;
     toast(
-      `Created ${out.split(/[\\/]/).pop()} — ${r.entries_added} entries, ${fmtBytes(r.bytes_out)} (${ratio}%)`,
+      `Created ${out.split(/[\\/]/).pop()} — ${r.entries_added} entries, ${fmtBytes(r.bytes_out)} (${ratio}%)${volNote}`,
       "ok",
-      { label: "Show", run: () => invoke("reveal_in_file_manager", { path: out }).catch(() => {}) }
+      { label: "Show", run: () => invoke("reveal_in_file_manager", { path: revealTarget }).catch(() => {}) }
     );
   } catch (err) {
     if (wasCancelled(err)) toast("Archive creation stopped. The partial file was left in place.", "");
