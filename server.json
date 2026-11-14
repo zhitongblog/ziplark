@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.zhitongblog/ziplark",
   "title": "Ziplark",
-  "description": "Archive server: grep, read, extract, edit, convert & create ZIP, 7z, tar, RAR, ISO, DEB, RPM, CAB.",
-  "version": "0.5.0",
+  "description": "Archive server: grep, diff, hash, read, extract, edit, convert & create ZIP, 7z, tar, RAR, ISO, DEB, RPM, PKG, XAR, CAB.",
+  "version": "0.6.0",
   "repository": {
     "url": "https://github.com/zhitongblog/ziplark",
     "source": "github"
@@ -12,8 +12,8 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/zhitongblog/ziplark/releases/download/v0.5.0/ziplark-mcp-0.5.0.mcpb",
-      "fileSha256": "605316791e612f62d673ee5117746b08c87643c1b1669e14172ca33f516780fd",
+      "identifier": "https://github.com/zhitongblog/ziplark/releases/download/v0.6.0/ziplark-mcp-0.6.0.mcpb",
+      "fileSha256": "38974236063d3f42e3cf5ba6e57c3c7c96dc6c886b8b59cc58547ba311be42ef",
       "transport": {
         "type": "stdio"
       }
