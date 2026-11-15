@@ -1523,6 +1523,23 @@ pub fn diff(
     let mut changes = Vec::new();
     let total_paths = all_paths.len() as u64;
 
+    let read_diff_entry =
+        |arc: &Path, entry_path: &str, pw: &Option<String>, cap: u64| -> Result<Option<Vec<u8>>> {
+            match read_entry(
+                arc,
+                entry_path,
+                &ReadOptions {
+                    password: pw.clone(),
+                    offset: 0,
+                    max_bytes: cap,
+                },
+            ) {
+                Ok(c) => Ok(Some(c.bytes)),
+                Err(e @ (Error::PasswordRequired | Error::BadPassword)) => Err(e),
+                Err(_) => Ok(None),
+            }
+        };
+
     for (idx, p) in all_paths.iter().enumerate() {
         formats::report(
             progress,
@@ -1574,30 +1591,10 @@ pub fn diff(
                             is_mod = lc != rc;
                         }
                     } else if l.size > 0 && l.size <= 16 * 1024 * 1024 {
-                        // Formats like tar don't store per-entry CRC32 in headers;
-                        // compare bytes directly when sizes match.
-                        let lb = read_entry(
-                            left,
-                            &l.path,
-                            &ReadOptions {
-                                password: opts.left_password.clone(),
-                                offset: 0,
-                                max_bytes: 16 * 1024 * 1024,
-                            },
-                        )
-                        .ok()
-                        .map(|c| c.bytes);
-                        let rb = read_entry(
-                            right,
-                            &r.path,
-                            &ReadOptions {
-                                password: opts.right_password.clone(),
-                                offset: 0,
-                                max_bytes: 16 * 1024 * 1024,
-                            },
-                        )
-                        .ok()
-                        .map(|c| c.bytes);
+                        // Formats like tar (and RAR5 BLAKE2sp entries) don't store
+                        // per-entry CRC32 in headers; compare bytes directly when sizes match.
+                        let lb = read_diff_entry(left, &l.path, &opts.left_password, 16 * 1024 * 1024)?;
+                        let rb = read_diff_entry(right, &r.path, &opts.right_password, 16 * 1024 * 1024)?;
                         if let (Some(lb), Some(rb)) = (lb, rb) {
                             is_mod = lb != rb;
                             left_bytes_cache = Some(lb);
@@ -1613,32 +1610,14 @@ pub fn diff(
                         && l.size <= 4 * 1024 * 1024
                         && r.size <= 4 * 1024 * 1024
                     {
-                        let lb = left_bytes_cache.or_else(|| {
-                            read_entry(
-                                left,
-                                &l.path,
-                                &ReadOptions {
-                                    password: opts.left_password.clone(),
-                                    offset: 0,
-                                    max_bytes: 4 * 1024 * 1024,
-                                },
-                            )
-                            .ok()
-                            .map(|c| c.bytes)
-                        });
-                        let rb = right_bytes_cache.or_else(|| {
-                            read_entry(
-                                right,
-                                &r.path,
-                                &ReadOptions {
-                                    password: opts.right_password.clone(),
-                                    offset: 0,
-                                    max_bytes: 4 * 1024 * 1024,
-                                },
-                            )
-                            .ok()
-                            .map(|c| c.bytes)
-                        });
+                        let lb = match left_bytes_cache {
+                            Some(b) => Some(b),
+                            None => read_diff_entry(left, &l.path, &opts.left_password, 4 * 1024 * 1024)?,
+                        };
+                        let rb = match right_bytes_cache {
+                            Some(b) => Some(b),
+                            None => read_diff_entry(right, &r.path, &opts.right_password, 4 * 1024 * 1024)?,
+                        };
                         match (lb, rb) {
                             (Some(lb), Some(rb)) => unified_text_diff(p, &lb, &rb),
                             _ => None,

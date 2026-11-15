@@ -55,6 +55,11 @@ mv legacy.rar legacy.r0* "$out/"
 rar a -ma5 -hpziplark -ep1 hdrenc.rar tree/docs
 mv hdrenc.rar "$out/"
 
+# 3b. Data-encrypted (unencrypted headers): listing works without a password,
+#     while extracting/reading/testing requires the password ("ziplark").
+rar a -ma5 -pziplark -ep1 enc.rar tree/docs
+mv enc.rar "$out/"
+
 # 4. Solid archive with a recovery record and an archive comment.
 printf 'Ziplark test fixture.\nSecond line.\n' > comment.txt
 rar a -ma5 -s -rr5p -zcomment.txt -ep1 solid.rar tree/docs
@@ -150,4 +155,4 @@ PYSFX
 
 cd "$out"
 echo "wrote:"
-ls -l multi.part*.rar legacy.rar legacy.r0* salvage.part*.rar perms.rar hdrenc.rar solid.rar cjk.rar linkescape.rar refs.rar damaged.rar sfx.exe
+ls -l multi.part*.rar legacy.rar legacy.r0* salvage.part*.rar perms.rar hdrenc.rar enc.rar solid.rar cjk.rar linkescape.rar refs.rar damaged.rar sfx.exe

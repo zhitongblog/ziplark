@@ -152,12 +152,21 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
     }
 
     let selector = opts.selector();
+    let needs_pw = info
+        .entries
+        .iter()
+        .any(|e| !e.is_dir && selector.matches(&e.path) && e.encrypted);
+    if needs_pw && opts.password.as_deref().map_or(true, str::is_empty) {
+        return Err(Error::PasswordRequired);
+    }
+
     let (entries_total, bytes_total) = info
         .entries
         .iter()
         .filter(|e| !e.is_dir && selector.matches(&e.path))
         .fold((0u64, 0u64), |(n, b), e| (n + 1, b + e.size));
 
+    let dest_existed = opts.dest.exists();
     std::fs::create_dir_all(&opts.dest)?;
     let mut report = ExtractReport {
         files_written: 0,
@@ -287,6 +296,13 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                 missing_volume = Some(p);
                 report.partial.push(entry.name.clone());
             }
+            Err(e @ (Error::PasswordRequired | Error::BadPassword | Error::Cancelled)) => {
+                let _ = std::fs::remove_file(&out_path);
+                if matches!(e, Error::PasswordRequired | Error::BadPassword) {
+                    cleanup_empty_ancestors(&out_path, &opts.dest, !dest_existed && report.files_written == 0);
+                }
+                return Err(e);
+            }
             // An entry that fails to decompress has already consumed its data,
             // so the next header can be read straight away — this is the whole
             // reason for talking to libunrar directly.
@@ -319,11 +335,35 @@ fn restore_metadata(path: &Path, entry: &raw::Entry) {
     }
 }
 
+/// Remove empty parent directories created for a failed entry (stopping at `dest`,
+/// or including `dest` itself when `remove_dest` is true). Uses `remove_dir` so a
+/// non-empty directory is never deleted.
+fn cleanup_empty_ancestors(leaf: &Path, dest: &Path, remove_dest: bool) {
+    let mut cur = leaf.parent();
+    while let Some(dir) = cur {
+        if dir == dest {
+            if remove_dest {
+                let _ = std::fs::remove_dir(dest);
+            }
+            break;
+        }
+        if !dir.starts_with(dest) || std::fs::remove_dir(dir).is_err() {
+            break;
+        }
+        cur = dir.parent();
+    }
+}
+
 // ───────────────────────────── testing ─────────────────────────────
 
 pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<TestReport> {
     let first = first_volume(path);
     let info = list(&first, Format::Rar, opts)?;
+    if opts.password.as_deref().map_or(true, str::is_empty)
+        && info.entries.iter().any(|e| !e.is_dir && e.encrypted)
+    {
+        return Err(Error::PasswordRequired);
+    }
     let entries_total = info.entries.iter().filter(|e| !e.is_dir).count() as u64;
     let bytes_total = info.entries.iter().map(|e| e.size).sum();
 

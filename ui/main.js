@@ -538,9 +538,13 @@ function askPassword(message) {
       $("pw-ok").onclick = $("pw-cancel").onclick = input.onkeydown = null;
       resolve(val);
     };
-    $("pw-ok").onclick = () => done(input.value);
+    const submit = () => {
+      if (!input.value) { input.focus(); return; }
+      done(input.value);
+    };
+    $("pw-ok").onclick = submit;
     $("pw-cancel").onclick = () => done(null);
-    input.onkeydown = (e) => { if (e.key === "Enter") done(input.value); if (e.key === "Escape") done(null); };
+    input.onkeydown = (e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") done(null); };
   });
 }
 
@@ -567,12 +571,39 @@ function isPwError(err) {
   return s.includes("password") || s.includes("encrypted");
 }
 
+const PW_ABORT = Symbol("pw-abort");
+
+/// Run an archive operation against `currentArchive`, automatically prompting
+/// for a password (and caching it on `currentArchive.password`) whenever an
+/// encrypted entry requires one or a wrong password was entered.
+async function callWithPassword(busyMsg, invokeFn) {
+  if (!currentArchive) throw PW_ABORT;
+  for (;;) {
+    busy(true, busyMsg);
+    try {
+      return await invokeFn(currentArchive.password);
+    } catch (err) {
+      if (wasCancelled(err)) throw err;
+      if (isPwError(err)) {
+        busy(false);
+        const pw = await askPassword(String(err));
+        if (pw === null) throw PW_ABORT;
+        currentArchive.password = pw;
+        continue;
+      }
+      throw err;
+    } finally {
+      busy(false);
+    }
+  }
+}
+
 /* ---------- OPEN / EXTRACT ---------- */
-async function openArchive(path, keepStack = false) {
+async function openArchive(path, keepStack = false, initialPassword = null) {
   if (!keepStack) archiveStack = [];
   switchView("open");
   busy(true, "Reading archive…");
-  let password = null;
+  let password = initialPassword;
   try {
     let info;
     for (;;) {
@@ -591,7 +622,13 @@ async function openArchive(path, keepStack = false) {
         }
       }
     }
-    currentArchive = { path: info.path || path, password, format: info.format, volumes: info.volumes };
+    currentArchive = {
+      path: info.path || path,
+      password,
+      format: info.format,
+      volumes: info.volumes,
+      encrypted: Boolean(info.encrypted),
+    };
     renderArchive(info);
   } catch (err) {
     toast(String(err), "err");
@@ -942,19 +979,18 @@ function isNestedArchivePath(entryPath) {
 
 async function openNestedEntry(entryPath) {
   if (!currentArchive) return;
-  busy(true, "Opening nested archive…");
   try {
-    const nestedFile = await invoke("extract_nested_archive", {
-      path: currentArchive.path,
-      entry: entryPath,
-      password: currentArchive.password,
-    });
+    const nestedFile = await callWithPassword("Opening nested archive…", (password) =>
+      invoke("extract_nested_archive", {
+        path: currentArchive.path,
+        entry: entryPath,
+        password,
+      })
+    );
     archiveStack.push({ ...currentArchive });
     await openArchive(nestedFile, true);
   } catch (err) {
-    if (!wasCancelled(err)) toast(String(err), "err");
-  } finally {
-    busy(false);
+    if (err !== PW_ABORT && !wasCancelled(err)) toast(String(err), "err");
   }
 }
 
@@ -965,13 +1001,14 @@ let currentPreviewEntry = null;
 
 async function previewEntry(entryPath) {
   if (!currentArchive) return;
-  busy(true, "Reading entry…");
   try {
-    const p = await invoke("preview_archive_entry", {
-      path: currentArchive.path,
-      entry: entryPath,
-      password: currentArchive.password,
-    });
+    const p = await callWithPassword("Reading entry…", (password) =>
+      invoke("preview_archive_entry", {
+        path: currentArchive.path,
+        entry: entryPath,
+        password,
+      })
+    );
     currentPreviewEntry = entryPath;
     $("preview-title").textContent = p.path;
     const metaBits = [fmtBytes(p.size)];
@@ -992,9 +1029,7 @@ async function previewEntry(entryPath) {
     }
     $("preview-modal").classList.remove("hidden");
   } catch (err) {
-    if (!wasCancelled(err)) toast(String(err), "err");
-  } finally {
-    busy(false);
+    if (err !== PW_ABORT && !wasCancelled(err)) toast(String(err), "err");
   }
 }
 
@@ -1034,13 +1069,14 @@ async function extractArchive(opts = {}) {
 
 async function extractArchiveHere() {
   if (!currentArchive) return;
-  busy(true, "Extracting here…");
   try {
-    const r = await invoke("extract_archive_here", {
-      path: currentArchive.path,
-      password: currentArchive.password,
-      keepBroken: false,
-    });
+    const r = await callWithPassword("Extracting here…", (password) =>
+      invoke("extract_archive_here", {
+        path: currentArchive.path,
+        password,
+        keepBroken: false,
+      })
+    );
     const show = {
       label: "Show",
       run: () => invoke("reveal_in_file_manager", { path: r.dest }).catch(() => {}),
@@ -1051,6 +1087,7 @@ async function extractArchiveHere() {
       show
     );
   } catch (err) {
+    if (err === PW_ABORT) return;
     if (wasCancelled(err)) {
       toast("Extraction stopped.", "");
       return;
@@ -1060,7 +1097,6 @@ async function extractArchiveHere() {
       /permission denied|operation not permitted|os error (1|13)\b/i.test(msg) &&
       dialog
     ) {
-      busy(false);
       const parentDir = currentArchive.path.replace(/[\\/][^\\/]+$/, "");
       const dest = await dialog.open({
         directory: true,
@@ -1072,8 +1108,6 @@ async function extractArchiveHere() {
       return;
     }
     toast(msg, "err");
-  } finally {
-    busy(false);
   }
 }
 
@@ -1086,18 +1120,21 @@ async function extractSelected() {
 
 async function runExtract(dest, opts = {}) {
   const { overwrite = false, include = null, exact = false, keepBroken = false, smart = false } = opts;
-  busy(true, keepBroken ? "Extracting what's readable…" : "Extracting…");
   try {
-    const r = await invoke("extract_archive", {
-      path: currentArchive.path,
-      dest,
-      password: currentArchive.password,
-      overwrite,
-      include,
-      exact,
-      keepBroken,
-      smart,
-    });
+    const r = await callWithPassword(
+      keepBroken ? "Extracting what's readable…" : "Extracting…",
+      (password) =>
+        invoke("extract_archive", {
+          path: currentArchive.path,
+          dest,
+          password,
+          overwrite,
+          include,
+          exact,
+          keepBroken,
+          smart,
+        })
+    );
     const failed = r.failed?.length ?? 0;
     const show = {
       label: "Show",
@@ -1123,12 +1160,12 @@ async function runExtract(dest, opts = {}) {
       );
     }
   } catch (err) {
+    if (err === PW_ABORT) return;
     if (wasCancelled(err)) {
       toast("Extraction stopped. Files written so far were kept.", "");
       return;
     }
     if (!overwrite && String(err).includes("already exists")) {
-      busy(false);
       const ok = await confirmAction(
         "Some files already exist",
         `${String(err).replace(/ \(use overwrite\)$/, "")}\n\nReplace existing files in this folder?`,
@@ -1138,7 +1175,6 @@ async function runExtract(dest, opts = {}) {
       return;
     }
     if (!keepBroken && isSalvageable(err)) {
-      busy(false);
       const ok = await confirmAction(
         "This archive is damaged or incomplete",
         `${String(err)}\n\nExtract the files that are readable and list the rest?`,
@@ -1148,8 +1184,6 @@ async function runExtract(dest, opts = {}) {
       return;
     }
     toast(String(err), "err");
-  } finally {
-    busy(false);
   }
 }
 
@@ -1167,9 +1201,10 @@ function isSalvageable(err) {
 
 async function testArchive() {
   if (!currentArchive) return;
-  busy(true, "Verifying…");
   try {
-    const r = await invoke("test_archive", { path: currentArchive.path, password: currentArchive.password });
+    const r = await callWithPassword("Verifying…", (password) =>
+      invoke("test_archive", { path: currentArchive.path, password })
+    );
     if (r.ok) {
       toast(`Integrity OK — ${r.entries_tested} entries verified`, "ok");
     } else {
@@ -1181,22 +1216,22 @@ async function testArchive() {
       );
     }
   } catch (err) {
+    if (err === PW_ABORT) return;
     if (wasCancelled(err)) toast("Verification stopped.", "");
     else toast(String(err), "err");
-  } finally {
-    busy(false);
   }
 }
 
 async function addFilesToOpenArchive(paths) {
   if (!currentArchive || !paths?.length) return;
-  busy(true, "Adding files to archive…");
   try {
-    const r = await invoke("add_to_archive", {
-      archive: currentArchive.path,
-      inputs: paths,
-      password: currentArchive.password,
-    });
+    const r = await callWithPassword("Adding files to archive…", (password) =>
+      invoke("add_to_archive", {
+        archive: currentArchive.path,
+        inputs: paths,
+        password,
+      })
+    );
     const info = await invoke("list_archive", {
       path: currentArchive.path,
       password: currentArchive.password,
@@ -1204,9 +1239,7 @@ async function addFilesToOpenArchive(paths) {
     renderArchive(info);
     toast(`Added ${r.entries_added} ${r.entries_added === 1 ? "entry" : "entries"} to archive`, "ok");
   } catch (err) {
-    if (!wasCancelled(err)) toast(String(err), "err");
-  } finally {
-    busy(false);
+    if (err !== PW_ABORT && !wasCancelled(err)) toast(String(err), "err");
   }
 }
 
@@ -1238,7 +1271,7 @@ if ($("btn-convert")) $("btn-convert").onclick = convertOpenArchive;
 if ($("btn-back-parent")) {
   $("btn-back-parent").onclick = async () => {
     const prev = archiveStack.pop();
-    if (prev) await openArchive(prev.path, true);
+    if (prev) await openArchive(prev.path, true, prev.password);
   };
 }
 if ($("btn-grep")) $("btn-grep").onclick = grepOpenArchive;
@@ -1261,13 +1294,14 @@ async function removeSelected() {
     "Remove"
   );
   if (!ok) return;
-  busy(true, "Removing entries…");
   try {
-    const r = await invoke("remove_from_archive", {
-      archive: currentArchive.path,
-      entries,
-      password: currentArchive.password,
-    });
+    const r = await callWithPassword("Removing entries…", (password) =>
+      invoke("remove_from_archive", {
+        archive: currentArchive.path,
+        entries,
+        password,
+      })
+    );
     const info = await invoke("list_archive", {
       path: currentArchive.path,
       password: currentArchive.password,
@@ -1275,9 +1309,7 @@ async function removeSelected() {
     renderArchive(info);
     toast(`Removed ${r.entries_removed} ${r.entries_removed === 1 ? "entry" : "entries"} (${r.entries_remaining} remaining)`, "ok");
   } catch (err) {
-    if (!wasCancelled(err)) toast(String(err), "err");
-  } finally {
-    busy(false);
+    if (err !== PW_ABORT && !wasCancelled(err)) toast(String(err), "err");
   }
 }
 
@@ -1308,14 +1340,15 @@ async function renameSelected() {
   const [from] = [...tree.selected];
   const to = await askRename(from);
   if (!to || to === from) return;
-  busy(true, "Renaming entry…");
   try {
-    const r = await invoke("rename_in_archive", {
-      archive: currentArchive.path,
-      from,
-      to,
-      password: currentArchive.password,
-    });
+    const r = await callWithPassword("Renaming entry…", (password) =>
+      invoke("rename_in_archive", {
+        archive: currentArchive.path,
+        from,
+        to,
+        password,
+      })
+    );
     const info = await invoke("list_archive", {
       path: currentArchive.path,
       password: currentArchive.password,
@@ -1323,9 +1356,7 @@ async function renameSelected() {
     renderArchive(info);
     toast(`Renamed "${r.from}" → "${r.to}" (${r.entries_renamed} ${r.entries_renamed === 1 ? "entry" : "entries"})`, "ok");
   } catch (err) {
-    if (!wasCancelled(err)) toast(String(err), "err");
-  } finally {
-    busy(false);
+    if (err !== PW_ABORT && !wasCancelled(err)) toast(String(err), "err");
   }
 }
 
@@ -1333,17 +1364,47 @@ async function diffOpenArchive() {
   if (!currentArchive) return;
   const other = await dialog.open({ multiple: false, title: "Choose second archive to compare against…" });
   if (!other) return;
-  busy(true, "Comparing archives…");
+  const leftName = currentArchive.path.split(/[\\/]/).pop();
+  const rightName = other.split(/[\\/]/).pop();
+  let rightPassword = null;
+  let lastAsked = null;
   try {
-    const r = await invoke("diff_archives", {
-      left: currentArchive.path,
-      right: other,
-      leftPassword: currentArchive.password,
-      rightPassword: null,
-      contentDiff: true,
-    });
-    const leftName = currentArchive.path.split(/[\\/]/).pop();
-    const rightName = other.split(/[\\/]/).pop();
+    let r;
+    for (;;) {
+      busy(true, "Comparing archives…");
+      try {
+        r = await invoke("diff_archives", {
+          left: currentArchive.path,
+          right: other,
+          leftPassword: currentArchive.password,
+          rightPassword,
+          contentDiff: true,
+        });
+        break;
+      } catch (err) {
+        if (wasCancelled(err)) throw err;
+        if (isPwError(err)) {
+          busy(false);
+          const s = String(err).toLowerCase();
+          const askLeft = s.includes("required")
+            ? Boolean(currentArchive.encrypted && !currentArchive.password)
+            : lastAsked !== "right";
+          const pw = await askPassword(`${askLeft ? leftName : rightName}: ${String(err)}`);
+          if (pw === null) return;
+          if (askLeft) {
+            currentArchive.password = pw;
+            lastAsked = "left";
+          } else {
+            rightPassword = pw;
+            lastAsked = "right";
+          }
+          continue;
+        }
+        throw err;
+      } finally {
+        busy(false);
+      }
+    }
     $("diff-title").textContent = `${leftName} ↔ ${rightName}`;
     $("diff-meta").textContent =
       `+${r.added} added · -${r.removed} removed · ~${r.modified} modified · =${r.unchanged} unchanged`;
@@ -1383,9 +1444,7 @@ async function diffOpenArchive() {
     }
     $("diff-modal").classList.remove("hidden");
   } catch (err) {
-    if (!wasCancelled(err)) toast(String(err), "err");
-  } finally {
-    busy(false);
+    if (err !== PW_ABORT && !wasCancelled(err)) toast(String(err), "err");
   }
 }
 
@@ -1393,13 +1452,14 @@ async function hashOpenArchive(algoOverride = null) {
   if (!currentArchive) return;
   const algo = algoOverride || $("hash-algo")?.value || "sha256";
   if ($("hash-algo")) $("hash-algo").value = algo;
-  busy(true, `Calculating ${algo.toUpperCase()} checksums…`);
   try {
-    const r = await invoke("hash_archive", {
-      path: currentArchive.path,
-      algorithm: algo,
-      password: currentArchive.password,
-    });
+    const r = await callWithPassword(`Calculating ${algo.toUpperCase()} checksums…`, (password) =>
+      invoke("hash_archive", {
+        path: currentArchive.path,
+        algorithm: algo,
+        password,
+      })
+    );
     const name = currentArchive.path.split(/[\\/]/).pop();
     $("hash-title").textContent = `${algo.toUpperCase()} Checksums — ${name}`;
     $("hash-meta").textContent = `${r.files_hashed} files · ${fmtBytes(r.total_bytes)}`;
@@ -1408,9 +1468,7 @@ async function hashOpenArchive(algoOverride = null) {
       .join("\n");
     $("hash-modal").classList.remove("hidden");
   } catch (err) {
-    if (!wasCancelled(err)) toast(String(err), "err");
-  } finally {
-    busy(false);
+    if (err !== PW_ABORT && !wasCancelled(err)) toast(String(err), "err");
   }
 }
 
@@ -1427,24 +1485,23 @@ async function convertOpenArchive() {
   for (const ext of ["tar.zst", "tar.gz", "tar.xz", "tar.bz2", "tar.lz4", "7z", "tar", "zip"]) {
     if (lower.endsWith("." + ext)) { fmt = ext; break; }
   }
-  busy(true, "Converting archive…");
   try {
-    const r = await invoke("convert_archive", {
-      source: currentArchive.path,
-      output: out,
-      format: fmt,
-      level: "default",
-      password: currentArchive.password,
-    });
+    const r = await callWithPassword("Converting archive…", (password) =>
+      invoke("convert_archive", {
+        source: currentArchive.path,
+        output: out,
+        format: fmt,
+        level: "default",
+        password,
+      })
+    );
     toast(
       `Converted → ${out.split(/[\\/]/).pop()} (${r.entries_converted} entries, ${fmtBytes(r.bytes_out)})`,
       "ok",
       { label: "Show", run: () => invoke("reveal_in_file_manager", { path: out }).catch(() => {}) }
     );
   } catch (err) {
-    if (!wasCancelled(err)) toast(String(err), "err");
-  } finally {
-    busy(false);
+    if (err !== PW_ABORT && !wasCancelled(err)) toast(String(err), "err");
   }
 }
 
@@ -1456,14 +1513,15 @@ async function grepOpenArchive() {
     $("tree-search")?.focus();
     return;
   }
-  busy(true, `Searching contents for "${pattern}"…`);
   try {
-    const r = await invoke("grep_archive", {
-      path: currentArchive.path,
-      pattern,
-      password: currentArchive.password,
-      caseInsensitive: true,
-    });
+    const r = await callWithPassword(`Searching contents for "${pattern}"…`, (password) =>
+      invoke("grep_archive", {
+        path: currentArchive.path,
+        pattern,
+        password,
+        caseInsensitive: true,
+      })
+    );
     $("grep-title").textContent = `Matches for "${r.pattern}"`;
     $("grep-meta").textContent =
       `${r.matches.length}${r.truncated ? "+" : ""} matches across ${r.files_matched} of ${r.files_searched} text files`;
@@ -1489,9 +1547,7 @@ async function grepOpenArchive() {
     }
     $("grep-modal").classList.remove("hidden");
   } catch (err) {
-    if (!wasCancelled(err)) toast(String(err), "err");
-  } finally {
-    busy(false);
+    if (err !== PW_ABORT && !wasCancelled(err)) toast(String(err), "err");
   }
 }
 

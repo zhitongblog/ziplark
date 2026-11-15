@@ -261,6 +261,10 @@ pub struct Archive {
     /// Set once a header has been read and not yet processed; libunrar wants
     /// exactly one `RARProcessFile` between reads.
     pending: bool,
+    /// Set once at least one entry in this archive handle unpacked cleanly.
+    /// RAR4 file headers carry no password-verification value, so a wrong
+    /// password surfaces as `ERAR_BAD_DATA` on the first encrypted entry.
+    any_unpacked: bool,
 }
 
 // The handle is only ever used from the thread that owns the `Archive` — there
@@ -281,8 +285,8 @@ impl Archive {
         let mut state = Box::new(State {
             // A password with a character outside the BMP has to survive the
             // trip: on Windows that means UTF-16 with surrogate pairs, not a
-            // truncated code point.
-            password: password.map(|p| {
+            // truncated code point. Empty strings are treated as no password.
+            password: password.filter(|p| !p.is_empty()).map(|p| {
                 let mut wide = platform::to_wide(p);
                 wide.push(0);
                 wide
@@ -347,6 +351,7 @@ impl Archive {
             link_buf: vec![0 as sys::WCHAR; 2048],
             name_buf: vec![0 as sys::WCHAR; 4096],
             pending: false,
+            any_unpacked: false,
         })
     }
 
@@ -437,6 +442,9 @@ impl Archive {
         self.pending = false;
         let code = platform::process_file(self.handle, op, dest);
         if code == sys::ERAR_SUCCESS {
+            if op != sys::RAR_SKIP {
+                self.any_unpacked = true;
+            }
             Ok(())
         } else {
             Err(self.error(code))
@@ -460,6 +468,13 @@ memory at once — more than half of what this machine has",
         match code {
             sys::ERAR_MISSING_PASSWORD => Error::PasswordRequired,
             sys::ERAR_BAD_PASSWORD => Error::BadPassword,
+            sys::ERAR_BAD_DATA
+                if (self.header.flags & sys::RHDF_ENCRYPTED != 0)
+                    && self.state.password.is_some()
+                    && !self.any_unpacked =>
+            {
+                Error::BadPassword
+            }
             sys::ERAR_BAD_DATA => Error::corrupt("checksum failed — this entry's data is damaged"),
             sys::ERAR_BAD_ARCHIVE => Error::corrupt("the archive's headers are damaged"),
             sys::ERAR_UNKNOWN_FORMAT => Error::UnsupportedFormat(None),

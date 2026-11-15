@@ -101,20 +101,27 @@ fn zip_aes_roundtrip_and_wrong_password() {
     opts.password = Some("hunter2".into());
     create(&archive, &[src.clone()], &opts, None).unwrap();
 
-    // No password -> PasswordRequired.
-    let no_pw = extract(&archive, &ExtractOptions::new(root.join("no")), None);
-    assert!(matches!(no_pw, Err(Error::PasswordRequired)));
+    // No password (or empty string) -> PasswordRequired, without creating dest.
+    let no_dest = root.join("no");
+    for pw in [None, Some(String::new())] {
+        let mut xopts = ExtractOptions::new(&no_dest);
+        xopts.password = pw;
+        assert!(matches!(extract(&archive, &xopts, None), Err(Error::PasswordRequired)));
+        assert!(!no_dest.exists());
+    }
+    assert!(matches!(test(&archive, &ListOptions::default(), None), Err(Error::PasswordRequired)));
 
-    // Wrong password -> BadPassword.
-    let mut bad = ExtractOptions::new(root.join("bad"));
+    // Wrong password -> BadPassword, and retrying into the same dest succeeds.
+    let dest = root.join("good");
+    let mut bad = ExtractOptions::new(&dest);
     bad.password = Some("nope".into());
     assert!(matches!(extract(&archive, &bad, None), Err(Error::BadPassword)));
 
     // Correct password -> success.
-    let mut good = ExtractOptions::new(root.join("good"));
+    let mut good = ExtractOptions::new(&dest);
     good.password = Some("hunter2".into());
     extract(&archive, &good, None).unwrap();
-    assert!(dirs_equal(&src, &root.join("good/src")));
+    assert!(dirs_equal(&src, &dest.join("src")));
 }
 
 #[test]
@@ -126,10 +133,41 @@ fn sevenz_encrypted_roundtrip() {
     opts.password = Some("s3cret".into());
     create(&archive, &[src.clone()], &opts, None).unwrap();
 
-    let mut good = ExtractOptions::new(root.join("good"));
+    // Ziplark encrypts 7z headers too: listing requires the password.
+    assert!(matches!(list(&archive, &ListOptions::default()), Err(Error::PasswordRequired)));
+    assert!(matches!(
+        list(&archive, &ListOptions { password: Some("nope".into()) }),
+        Err(Error::BadPassword)
+    ));
+    let info = list(&archive, &ListOptions { password: Some("s3cret".into()) }).unwrap();
+    assert!(info.encrypted);
+
+    // Missing or empty password -> PasswordRequired without touching dest.
+    let no_dest = root.join("no");
+    for pw in [None, Some(String::new())] {
+        let mut xopts = ExtractOptions::new(&no_dest);
+        xopts.password = pw;
+        assert!(matches!(extract(&archive, &xopts, None), Err(Error::PasswordRequired)));
+        assert!(!no_dest.exists());
+    }
+    assert!(matches!(test(&archive, &ListOptions::default(), None), Err(Error::PasswordRequired)));
+    assert!(matches!(grep(&archive, "hello", &GrepOptions::default(), None), Err(Error::PasswordRequired)));
+
+    // Wrong password -> BadPassword, leaving no 0-byte files so retry succeeds.
+    let dest = root.join("good");
+    let mut bad = ExtractOptions::new(&dest);
+    bad.password = Some("nope".into());
+    let err = extract(&archive, &bad, None);
+    assert!(matches!(err, Err(Error::BadPassword)), "got {err:?}");
+    assert!(matches!(
+        test(&archive, &ListOptions { password: Some("nope".into()) }, None),
+        Err(Error::BadPassword)
+    ));
+
+    let mut good = ExtractOptions::new(&dest);
     good.password = Some("s3cret".into());
     extract(&archive, &good, None).unwrap();
-    assert!(dirs_equal(&src, &root.join("good/src")));
+    assert!(dirs_equal(&src, &dest.join("src")));
 }
 
 #[test]

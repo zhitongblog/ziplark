@@ -322,6 +322,92 @@ fn a_header_encrypted_archive_needs_the_password_to_be_listed_at_all() {
 }
 
 #[test]
+fn a_data_encrypted_archive_lists_freely_and_requires_password_for_content() {
+    // Standard `rar a -pziplark` leaves headers unencrypted, so the GUI/CLI can
+    // list entries without a password, then prompt when reading or extracting.
+    let info = plain(&fixture("enc.rar"));
+    assert!(!info.attributes.encrypted_headers);
+    assert!(info.encrypted);
+    assert!(names(&info).contains(&"docs/readme.txt".to_string()));
+    assert!(info
+        .entries
+        .iter()
+        .filter(|e| !e.is_dir)
+        .all(|e| e.encrypted));
+
+    // Missing or empty password fails fast with PasswordRequired before creating dest.
+    let nopw_dest = std::env::temp_dir().join(format!("ziplark-rar-enc-nopw-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&nopw_dest);
+    for pw in [None, Some(String::new())] {
+        let mut xopts = ExtractOptions::new(&nopw_dest);
+        xopts.password = pw.clone();
+        let err = extract(fixture("enc.rar"), &xopts, None);
+        assert!(matches!(err, Err(Error::PasswordRequired)), "pw={pw:?} got {err:?}");
+        assert!(!nopw_dest.exists(), "failed password check must not create destination");
+    }
+
+    // Wrong password returns BadPassword and leaves no leftover folders/files,
+    // so retrying into the exact same destination with `overwrite = false` works.
+    let retry_dest = std::env::temp_dir().join(format!("ziplark-rar-enc-retry-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&retry_dest);
+    let mut bad = ExtractOptions::new(&retry_dest);
+    bad.password = Some("nope".into());
+    let err = extract(fixture("enc.rar"), &bad, None);
+    assert!(matches!(err, Err(Error::BadPassword)), "got {err:?}");
+    assert!(!retry_dest.exists(), "wrong password must clean up empty destination");
+
+    // Read, test, grep, and hash also surface PasswordRequired / BadPassword cleanly.
+    assert!(matches!(
+        read_entry(fixture("enc.rar"), "docs/readme.txt", &ReadOptions::default()),
+        Err(Error::PasswordRequired)
+    ));
+    assert!(matches!(
+        read_entry(
+            fixture("enc.rar"),
+            "docs/readme.txt",
+            &ReadOptions {
+                password: Some("nope".into()),
+                ..ReadOptions::default()
+            }
+        ),
+        Err(Error::BadPassword)
+    ));
+    assert!(matches!(
+        test(fixture("enc.rar"), &ListOptions::default(), None),
+        Err(Error::PasswordRequired)
+    ));
+    assert!(matches!(
+        test(
+            fixture("enc.rar"),
+            &ListOptions {
+                password: Some("nope".into())
+            },
+            None
+        ),
+        Err(Error::BadPassword)
+    ));
+    assert!(matches!(
+        grep(fixture("enc.rar"), "hello", &GrepOptions::default(), None),
+        Err(Error::PasswordRequired)
+    ));
+    assert!(matches!(
+        hash(fixture("enc.rar"), &HashOptions::default(), None),
+        Err(Error::PasswordRequired)
+    ));
+
+    // Retrying extraction into `retry_dest` with the right password succeeds.
+    let mut good = ExtractOptions::new(&retry_dest);
+    good.password = Some("ziplark".into());
+    let report = extract(fixture("enc.rar"), &good, None).unwrap();
+    assert_eq!(report.files_written, 2);
+    assert_eq!(
+        fs::read_to_string(retry_dest.join("docs/readme.txt")).unwrap(),
+        "hello from a rar fixture\n"
+    );
+    let _ = fs::remove_dir_all(&retry_dest);
+}
+
+#[test]
 fn timestamps_are_listed_and_restored() {
     let info = plain(&fixture("solid.rar"));
     let entry = info.entries.iter().find(|e| e.path == "docs/readme.txt").unwrap();

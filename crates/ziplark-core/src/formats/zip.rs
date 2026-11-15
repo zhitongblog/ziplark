@@ -144,8 +144,22 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
     let reader = VolumeReader::open_zip(&set)?;
     let mut archive = ZipArchive::new(reader).map_err(map_zip_err)?;
     let (names, bytes_total) = read_directory(&mut archive)?;
-    std::fs::create_dir_all(&opts.dest)?;
     let selector = opts.selector();
+    let pw = opts.password.as_deref().filter(|p| !p.is_empty());
+
+    if pw.is_none() {
+        for (i, name) in names.iter().enumerate() {
+            if !selector.matches(name) {
+                continue;
+            }
+            let e = archive.by_index_raw(i).map_err(map_zip_err)?;
+            if !e.is_dir() && e.encrypted() {
+                return Err(Error::PasswordRequired);
+            }
+        }
+    }
+
+    std::fs::create_dir_all(&opts.dest)?;
 
     let total = archive.len() as u64;
     let mut guard = DestGuard::new(&opts.dest);
@@ -159,15 +173,15 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
     };
 
     for (i, name) in names.iter().enumerate() {
-        let mut entry = match &opts.password {
-            Some(pw) => archive.by_index_decrypt(i, pw.as_bytes()),
+        if !selector.matches(name) {
+            continue;
+        }
+        let mut entry = match pw {
+            Some(p) => archive.by_index_decrypt(i, p.as_bytes()),
             None => archive.by_index(i),
         }
         .map_err(map_zip_err)?;
 
-        if !selector.matches(name) {
-            continue;
-        }
         let out_path = guard.join(name)?;
 
         if entry.is_dir() {
@@ -206,9 +220,10 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
             continue;
         }
 
+        let entry_encrypted = entry.encrypted();
         let mut out = create_file(&out_path, opts.overwrite)?;
         let done_before = report.bytes_written;
-        let n = copy_watched(&mut entry, &mut out, |so_far| {
+        let copied = copy_watched(&mut entry, &mut out, |so_far| {
             progress(Progress {
                 current_path: name.clone(),
                 entries_done: i as u64 + 1,
@@ -216,8 +231,21 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                 bytes_done: done_before + so_far,
                 bytes_total,
             })
-        })?;
+        });
         drop(out);
+        let n = match copied {
+            Ok(n) => n,
+            Err(e) => {
+                let _ = std::fs::remove_file(&out_path);
+                if entry_encrypted
+                    && pw.is_some()
+                    && matches!(&e, Error::Io(io_err) if io_err.kind() == io::ErrorKind::InvalidData)
+                {
+                    return Err(Error::BadPassword);
+                }
+                return Err(e);
+            }
+        };
         restore_metadata(&out_path, mode, mtime);
         report.files_written += 1;
         report.bytes_written += n;
@@ -231,29 +259,36 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
     let mut archive = ZipArchive::new(reader).map_err(map_zip_err)?;
     let names = decode_names(&mut archive)?;
     let total = archive.len() as u64;
+    let pw = opts.password.as_deref().filter(|p| !p.is_empty());
     let mut bad = Vec::new();
     let mut tested = 0u64;
     let mut sink = io::sink();
 
     for (i, name) in names.iter().enumerate() {
-        let res = match &opts.password {
-            Some(pw) => archive.by_index_decrypt(i, pw.as_bytes()),
+        let res = match pw {
+            Some(p) => archive.by_index_decrypt(i, p.as_bytes()),
             None => archive.by_index(i),
         };
         let mut entry = match res {
             Ok(e) => e,
-            Err(ZipError::InvalidPassword) => return Err(Error::BadPassword),
-            Err(e) => {
-                bad.push(format!("entry #{i}: {e}"));
-                continue;
-            }
+            Err(e) => match map_zip_err(e) {
+                err @ (Error::PasswordRequired | Error::BadPassword) => return Err(err),
+                other => {
+                    bad.push(format!("entry #{i}: {other}"));
+                    continue;
+                }
+            },
         };
         if entry.is_dir() {
             continue;
         }
+        let entry_encrypted = entry.encrypted();
         tested += 1;
-        // Reading to EOF makes the zip crate verify the CRC32.
+        // Reading to EOF makes the zip crate verify the CRC32 / AES HMAC.
         if let Err(e) = io::copy(&mut entry, &mut sink) {
+            if entry_encrypted && pw.is_some() && e.kind() == io::ErrorKind::InvalidData {
+                return Err(Error::BadPassword);
+            }
             bad.push(format!("{name}: {e}"));
         }
         report(
@@ -457,15 +492,27 @@ pub fn read_entry(path: &Path, entry_path: &str, opts: &ReadOptions) -> Result<E
     let target = entry_path.replace('\\', "/");
     let target = target.trim_start_matches("./").trim_end_matches('/');
 
+    let pw = opts.password.as_deref().filter(|p| !p.is_empty());
+
     for (i, name) in names.iter().enumerate() {
         if name.trim_end_matches('/') == target {
-            let mut entry = match &opts.password {
-                Some(pw) => archive.by_index_decrypt(i, pw.as_bytes()),
+            let mut entry = match pw {
+                Some(p) => archive.by_index_decrypt(i, p.as_bytes()),
                 None => archive.by_index(i),
             }
             .map_err(map_zip_err)?;
+            let entry_encrypted = entry.encrypted();
             let size = entry.size();
-            return read_bounded(&mut entry, name.clone(), size, opts);
+            return read_bounded(&mut entry, name.clone(), size, opts).map_err(|e| {
+                if entry_encrypted
+                    && pw.is_some()
+                    && matches!(&e, Error::Io(io_err) if io_err.kind() == io::ErrorKind::InvalidData)
+                {
+                    Error::BadPassword
+                } else {
+                    e
+                }
+            });
         }
     }
     Err(Error::other(format!("entry not found in archive: {entry_path}")))
@@ -815,23 +862,36 @@ pub fn scan_files(
     let mut archive = ZipArchive::new(reader).map_err(map_zip_err)?;
     let names = decode_names(&mut archive)?;
 
+    let pw = password.as_deref().filter(|p| !p.is_empty());
+
     for (i, name) in names.iter().enumerate() {
         if name.ends_with('/') || !selector.matches(name) {
             continue;
         }
-        let mut entry = match password {
-            Some(pw) => archive.by_index_decrypt(i, pw.as_bytes()),
+        let mut entry = match pw {
+            Some(p) => archive.by_index_decrypt(i, p.as_bytes()),
             None => archive.by_index(i),
         }
         .map_err(map_zip_err)?;
         if entry.is_dir() || entry.is_symlink() {
             continue;
         }
+        let entry_encrypted = entry.encrypted();
         let size = entry.size();
         if size == 0 || size > max_file_size {
             continue;
         }
-        if !on_file(name, size, &mut entry)? {
+        let ok = on_file(name, size, &mut entry).map_err(|e| {
+            if entry_encrypted
+                && pw.is_some()
+                && matches!(&e, Error::Io(io_err) if io_err.kind() == io::ErrorKind::InvalidData)
+            {
+                Error::BadPassword
+            } else {
+                e
+            }
+        })?;
+        if !ok {
             break;
         }
     }

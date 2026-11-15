@@ -183,6 +183,7 @@ async fn list_archive(
     path: String,
     password: Option<String>,
 ) -> Result<ArchiveInfo, String> {
+    let password = password.filter(|p| !p.is_empty());
     let running = running.inner().clone();
     in_background(app, running, move |_| {
         core_list(&path, &ListOptions { password })
@@ -197,6 +198,7 @@ async fn test_archive(
     path: String,
     password: Option<String>,
 ) -> Result<TestReport, String> {
+    let password = password.filter(|p| !p.is_empty());
     let running = running.inner().clone();
     in_background(app, running, move |progress| {
         core_test(&path, &ListOptions { password }, Some(progress))
@@ -212,6 +214,7 @@ async fn preview_archive_entry(
     entry: String,
     password: Option<String>,
 ) -> Result<PreviewPayload, String> {
+    let password = password.filter(|p| !p.is_empty());
     let running = running.inner().clone();
     in_background(app, running, move |_| {
         let mime = image_mime(&entry);
@@ -354,6 +357,7 @@ async fn extract_archive(
     keep_broken: Option<bool>,
     smart: Option<bool>,
 ) -> Result<ExtractReport, String> {
+    let password = password.filter(|p| !p.is_empty());
     let running = running.inner().clone();
     in_background(app, running, move |progress| {
         let opts = ExtractOptions {
@@ -383,6 +387,7 @@ async fn extract_archive_here(
     password: Option<String>,
     keep_broken: Option<bool>,
 ) -> Result<ExtractReport, String> {
+    let password = password.filter(|p| !p.is_empty());
     let running = running.inner().clone();
     in_background(app, running, move |progress| {
         let arc_path = Path::new(&path);

@@ -56,9 +56,26 @@ fn map_err(e: sevenz_rust2::Error) -> Error {
 }
 
 fn password(opts_pw: &Option<String>) -> Password {
-    match opts_pw {
-        Some(p) => Password::from(p.as_str()),
+    match opts_pw.as_deref().filter(|p| !p.is_empty()) {
+        Some(p) => Password::from(p),
         None => Password::empty(),
+    }
+}
+
+fn has_password(opts_pw: &Option<String>) -> bool {
+    opts_pw.as_deref().is_some_and(|p| !p.is_empty())
+}
+
+struct ReadTracker<'a, R: ?Sized> {
+    inner: &'a mut R,
+    read_failed: bool,
+}
+
+impl<R: Read + ?Sized> Read for ReadTracker<'_, R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.inner.read(buf).inspect_err(|_| {
+            self.read_failed = true;
+        })
     }
 }
 
@@ -177,8 +194,20 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
     let set = VolumeSet::inspect(path);
     let vol = VolumeReader::open(&set)?;
     let mut reader = ArchiveReader::new(vol, password(&opts.password)).map_err(map_err)?;
-    std::fs::create_dir_all(&opts.dest)?;
+    let encrypted = is_encrypted(reader.archive());
+    let pw_set = has_password(&opts.password);
     let selector = opts.selector();
+    if encrypted
+        && !pw_set
+        && reader
+            .archive()
+            .files
+            .iter()
+            .any(|f| !f.is_directory() && selector.matches(f.name()))
+    {
+        return Err(Error::PasswordRequired);
+    }
+    std::fs::create_dir_all(&opts.dest)?;
 
     let mut report = ExtractReport {
         files_written: 0,
@@ -230,7 +259,11 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
             if mode.is_some_and(|m| m & S_IFMT == S_IFLNK) {
                 let mut target = String::new();
                 if let Err(e) = rd.read_to_string(&mut target) {
-                    first_error = Some(Error::Io(e));
+                    first_error = Some(if encrypted && pw_set {
+                        Error::BadPassword
+                    } else {
+                        Error::Io(e)
+                    });
                     return Ok(false);
                 }
                 let made = prepare_leaf(&out_path, opts.overwrite).and_then(|()| {
@@ -256,7 +289,11 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                 }
             };
             let done_before = report.bytes_written;
-            let copied = copy_watched(rd, &mut out, |so_far| {
+            let mut tracked = ReadTracker {
+                inner: rd,
+                read_failed: false,
+            };
+            let copied = copy_watched(&mut tracked, &mut out, |so_far| {
                 progress(Progress {
                     current_path: name.clone(),
                     entries_done: idx,
@@ -265,15 +302,22 @@ pub fn extract(path: &Path, opts: &ExtractOptions, progress: ProgressFn) -> Resu
                     bytes_total: 0,
                 })
             });
+            drop(out);
             match copied {
                 Ok(n) => {
-                    drop(out);
                     restore_metadata(&out_path, mode, mtime);
                     report.files_written += 1;
                     report.bytes_written += n;
                 }
                 Err(e) => {
-                    first_error = Some(e);
+                    let _ = std::fs::remove_file(&out_path);
+                    first_error = Some(
+                        if encrypted && pw_set && tracked.read_failed && matches!(e, Error::Io(_)) {
+                            Error::BadPassword
+                        } else {
+                            e
+                        },
+                    );
                     return Ok(false);
                 }
             }
@@ -291,9 +335,22 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
     let set = VolumeSet::inspect(path);
     let vol = VolumeReader::open(&set)?;
     let mut reader = ArchiveReader::new(vol, password(&opts.password)).map_err(map_err)?;
+    let encrypted = is_encrypted(reader.archive());
+    let pw_set = has_password(&opts.password);
+    if encrypted
+        && !pw_set
+        && reader
+            .archive()
+            .files
+            .iter()
+            .any(|f| !f.is_directory())
+    {
+        return Err(Error::PasswordRequired);
+    }
     let mut tested = 0u64;
     let mut bad = Vec::new();
     let mut cancelled = false;
+    let mut bad_pw = false;
     reader
         .for_each_entries(|entry, rd| {
             if entry.is_directory() {
@@ -315,6 +372,10 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
                     cancelled = true;
                     return Ok(false);
                 }
+                if encrypted && pw_set && matches!(e, Error::Io(_)) {
+                    bad_pw = true;
+                    return Ok(false);
+                }
                 bad.push(format!("{name}: {e}"));
             }
             Ok(true)
@@ -322,6 +383,9 @@ pub fn test(path: &Path, opts: &ListOptions, progress: ProgressFn) -> Result<Tes
         .map_err(map_err)?;
     if cancelled {
         return Err(Error::Cancelled);
+    }
+    if bad_pw {
+        return Err(Error::BadPassword);
     }
     Ok(TestReport {
         ok: bad.is_empty(),
@@ -334,6 +398,8 @@ pub fn read_entry(path: &Path, entry_path: &str, opts: &ReadOptions) -> Result<E
     let set = VolumeSet::inspect(path);
     let vol = VolumeReader::open(&set)?;
     let mut reader = ArchiveReader::new(vol, password(&opts.password)).map_err(map_err)?;
+    let encrypted = is_encrypted(reader.archive());
+    let pw_set = has_password(&opts.password);
     let target = entry_path.replace('\\', "/");
     let target = target.trim_start_matches("./").trim_end_matches('/');
     let mut found: Option<Result<EntryContent>> = None;
@@ -341,11 +407,27 @@ pub fn read_entry(path: &Path, entry_path: &str, opts: &ReadOptions) -> Result<E
     let iter_res = reader.for_each_entries(|entry, rd| {
         let name = entry.name().to_string();
         if name.trim_end_matches('/') == target {
-            found = Some(read_bounded(rd, name, entry.size(), opts));
+            if encrypted && !pw_set && entry.size() > 0 {
+                found = Some(Err(Error::PasswordRequired));
+                return Ok(false);
+            }
+            found = Some(
+                read_bounded(rd, name, entry.size(), opts).map_err(|e| {
+                    if encrypted && pw_set && matches!(e, Error::Io(_)) {
+                        Error::BadPassword
+                    } else {
+                        e
+                    }
+                }),
+            );
             let _ = std::io::copy(rd, &mut std::io::sink());
             return Ok(false);
         }
         if !entry.is_directory() {
+            if encrypted && !pw_set && entry.size() > 0 {
+                found = Some(Err(Error::PasswordRequired));
+                return Ok(false);
+            }
             std::io::copy(rd, &mut std::io::sink())?;
         }
         Ok(true)
@@ -369,6 +451,19 @@ pub fn scan_files(
     let set = VolumeSet::inspect(path);
     let vol = VolumeReader::open(&set)?;
     let mut reader = ArchiveReader::new(vol, password(password_opt)).map_err(map_err)?;
+    let encrypted = is_encrypted(reader.archive());
+    let pw_set = has_password(password_opt);
+    if encrypted
+        && !pw_set
+        && reader.archive().files.iter().any(|f| {
+            !f.is_directory()
+                && f.size() > 0
+                && f.size() <= max_file_size
+                && selector.matches(f.name())
+        })
+    {
+        return Err(Error::PasswordRequired);
+    }
     let mut first_error: Option<Error> = None;
 
     reader
@@ -386,10 +481,20 @@ pub fn scan_files(
                 io::copy(rd, &mut io::sink())?;
                 return Ok(true);
             }
-            let keep_going = match on_file(&name, size, rd) {
+            let mut tracked = ReadTracker {
+                inner: rd,
+                read_failed: false,
+            };
+            let keep_going = match on_file(&name, size, &mut tracked) {
                 Ok(cont) => cont,
                 Err(e) => {
-                    first_error = Some(e);
+                    first_error = Some(
+                        if encrypted && pw_set && tracked.read_failed && matches!(e, Error::Io(_)) {
+                            Error::BadPassword
+                        } else {
+                            e
+                        },
+                    );
                     false
                 }
             };
@@ -604,6 +709,88 @@ impl Read for LazyFile {
             self.finished = true;
         }
         Ok(n)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unencrypted_header_encrypted_data_7z_surfaces_password_errors_cleanly() {
+        let dir = std::env::temp_dir().join(format!("ziplark-7z-dataenc-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let src_file = dir.join("secret.txt");
+        std::fs::write(&src_file, b"encrypted 7z body with plain header\n").unwrap();
+        let archive_path = dir.join("dataenc.7z");
+
+        // Emulate `7z a -ps3cret` (default `-mhe=off`): plain headers, AES-256 content.
+        let out = File::create(&archive_path).unwrap();
+        let mut writer = ArchiveWriter::new(out).unwrap();
+        writer.set_encrypt_header(false);
+        let mut copts = CreateOptions::new(Format::SevenZ);
+        copts.password = Some("s3cret".into());
+        writer.set_content_methods(content_methods(&copts));
+        let mut entry = SevenZEntry::from_path(&src_file, "secret.txt".to_string());
+        entry.size = 36;
+        writer
+            .push_archive_entry(entry, Some(File::open(&src_file).unwrap()))
+            .unwrap();
+        writer.finish().unwrap();
+
+        // Plain listing succeeds without password and marks the archive encrypted.
+        let info = list(&archive_path, Format::SevenZ, &ListOptions::default()).unwrap();
+        assert!(info.encrypted);
+
+        // Missing password fails fast without creating dest.
+        let dest = dir.join("out");
+        assert!(matches!(
+            extract(&archive_path, &ExtractOptions::new(&dest), &mut |_| true),
+            Err(Error::PasswordRequired)
+        ));
+        assert!(!dest.exists());
+
+        // Wrong password returns BadPassword and removes the partial 0-byte file.
+        let mut bad = ExtractOptions::new(&dest);
+        bad.password = Some("wrong".into());
+        assert!(matches!(
+            extract(&archive_path, &bad, &mut |_| true),
+            Err(Error::BadPassword)
+        ));
+        assert!(!dest.join("secret.txt").exists());
+        assert!(matches!(
+            read_entry(
+                &archive_path,
+                "secret.txt",
+                &ReadOptions {
+                    password: Some("wrong".into()),
+                    ..ReadOptions::default()
+                }
+            ),
+            Err(Error::BadPassword)
+        ));
+        assert!(matches!(
+            test(
+                &archive_path,
+                &ListOptions {
+                    password: Some("wrong".into())
+                },
+                &mut |_| true
+            ),
+            Err(Error::BadPassword)
+        ));
+
+        // Retrying into the exact same destination with overwrite=false succeeds.
+        let mut good = ExtractOptions::new(&dest);
+        good.password = Some("s3cret".into());
+        let rep = extract(&archive_path, &good, &mut |_| true).unwrap();
+        assert_eq!(rep.files_written, 1);
+        assert_eq!(
+            std::fs::read_to_string(dest.join("secret.txt")).unwrap(),
+            "encrypted 7z body with plain header\n"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 
